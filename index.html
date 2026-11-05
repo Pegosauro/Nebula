@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#11141b" />
+    <meta name="description" content="Nebula — workspace local-first per note Markdown." />
+    <link rel="icon" href="/icons/nebula.svg" type="image/svg+xml" />
+    <title>Nebula</title>
+    <script>
+      (() => {
+        try {
+          const raw = localStorage.getItem("nebula.settings.v1");
+          const parsed = raw ? JSON.parse(raw) : null;
+          const choice = parsed?.state?.theme ?? "system";
+          const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = choice === "system" ? (dark ? "dark" : "light") : choice;
+          document.documentElement.dataset.themeChoice = choice;
+        } catch {
+          document.documentElement.dataset.theme = "dark";
+          document.documentElement.dataset.themeChoice = "system";
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

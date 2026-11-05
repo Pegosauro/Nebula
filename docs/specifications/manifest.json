@@ -1,0 +1,26 @@
+{
+  "name": "Nebula",
+  "spec_version": "0.1",
+  "documents": [
+    "00_README.md",
+    "01_PRODUCT_VISION.md",
+    "02_FUNCTIONAL_REQUIREMENTS.md",
+    "03_UX_UI_DESIGN_SYSTEM.md",
+    "04_INFORMATION_ARCHITECTURE.md",
+    "05_VAULT_STORAGE_FILE_SYSTEM.md",
+    "06_MARKDOWN_AND_LINK_MODEL.md",
+    "07_GRAPH_VIEW.md",
+    "08_WHITEBOARD_EXCALIDRAW.md",
+    "09_SEARCH_AND_INDEXING.md",
+    "10_PWA_OFFLINE.md",
+    "11_TECHNICAL_ARCHITECTURE.md",
+    "12_CODEX_IMPLEMENTATION_RULES.md",
+    "13_ROADMAP.md",
+    "14_QA_ACCEPTANCE.md",
+    "15_ATTACHED_GRAPH_APP_ANALYSIS.md",
+    "16_FUTURE_IDEAS.md",
+    "17_REFERENCES.md",
+    "NEBULA_MASTER_SPEC.md"
+  ],
+  "purpose": "Codex source pack for local-first PWA design and implementation"
+}

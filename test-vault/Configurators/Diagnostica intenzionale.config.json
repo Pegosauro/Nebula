@@ -1,0 +1,1087 @@
+{
+  "format": "nebula-configurator",
+  "version": 8,
+  "title": "Diagnostica intenzionale",
+  "parameters": [
+    {
+      "id": "model",
+      "name": "MODELLO",
+      "type": "choice",
+      "values": [
+        "BASE",
+        "BASE"
+      ],
+      "unit": ""
+    },
+    {
+      "id": "led",
+      "name": "LED",
+      "type": "boolean",
+      "values": [],
+      "unit": "",
+      "optionRules": [
+        {
+          "value": true,
+          "enabled": true,
+          "expression": {
+            "id": "led-eligible",
+            "type": "condition",
+            "condition": {
+              "parameter": "model",
+              "operator": "ne",
+              "value": "BASE"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "telo",
+      "name": "TELO",
+      "type": "boolean",
+      "values": [],
+      "unit": "",
+      "optionRules": [
+        {
+          "value": true,
+          "enabled": true,
+          "expression": {
+            "id": "telo-eligible",
+            "type": "condition",
+            "condition": {
+              "parameter": "model",
+              "operator": "eq",
+              "value": "TELO"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "width",
+      "name": "Larghezza",
+      "type": "number",
+      "values": [],
+      "min": 250,
+      "max": 400,
+      "step": 50,
+      "unit": "cm"
+    },
+    {
+      "id": "depth",
+      "name": "Sporgenza",
+      "type": "number",
+      "values": [],
+      "min": 200,
+      "max": 400,
+      "step": 100,
+      "unit": "cm"
+    },
+    {
+      "id": "color",
+      "name": "Colore",
+      "type": "choice",
+      "values": [
+        "Bianco",
+        "Antracite",
+        "Bronzo"
+      ],
+      "unit": ""
+    },
+    {
+      "id": "mount",
+      "name": "Montaggio",
+      "type": "choice",
+      "values": [
+        "Addossata",
+        "Autoportante"
+      ],
+      "unit": ""
+    },
+    {
+      "id": "material",
+      "name": "Materiale telo",
+      "type": "text",
+      "values": [
+        "PVC",
+        "Acrilico"
+      ],
+      "allowCustom": true,
+      "unit": ""
+    }
+  ],
+  "components": [
+    {
+      "id": "c01",
+      "code": "PR001",
+      "name": "Traverso frontale",
+      "family": "PROFILI",
+      "group": "Telaio",
+      "unit": "pz",
+      "note": "Schede/c01.md",
+      "measure": {
+        "parameter": "width",
+        "offset": -1,
+        "unit": "cm"
+      }
+    },
+    {
+      "id": "c02",
+      "code": "PR001",
+      "name": "Traverso posteriore",
+      "family": "PROFILI",
+      "group": "Telaio",
+      "unit": "pz",
+      "note": "Schede/c02.md",
+      "measure": {
+        "parameter": "width",
+        "offset": -1,
+        "unit": "cm"
+      }
+    },
+    {
+      "id": "c03",
+      "code": "PR003",
+      "name": "Longherone sinistro",
+      "family": "PROFILI",
+      "group": "Telaio",
+      "unit": "pz",
+      "note": "Schede/c03.md",
+      "measure": {
+        "parameter": "depth",
+        "offset": -1,
+        "unit": "cm"
+      }
+    },
+    {
+      "id": "c04",
+      "code": "PR004",
+      "name": "Longherone destro",
+      "family": "PROFILI",
+      "group": "Telaio",
+      "unit": "pz",
+      "note": "Schede/c04.md",
+      "measure": {
+        "parameter": "depth",
+        "offset": -1,
+        "unit": "cm"
+      }
+    },
+    {
+      "id": "c05",
+      "code": "PR005",
+      "name": "Montante",
+      "family": "PROFILI",
+      "group": "Telaio",
+      "unit": "pz",
+      "note": "Schede/c05.md",
+      "measure": {
+        "parameter": "depth",
+        "offset": 0,
+        "unit": "cm"
+      }
+    },
+    {
+      "id": "c06",
+      "code": "PR006",
+      "name": "Profilo di chiusura",
+      "family": "PROFILI",
+      "group": "Telaio",
+      "unit": "pz",
+      "note": "Schede/c06.md",
+      "measure": {
+        "parameter": "depth",
+        "offset": 0,
+        "unit": "cm"
+      }
+    },
+    {
+      "id": "c07",
+      "code": "AC007",
+      "name": "Illuminazione · elemento 07",
+      "family": "ACCESSORI",
+      "group": "Illuminazione",
+      "unit": "pz",
+      "note": "Schede/c07.md"
+    },
+    {
+      "id": "c08",
+      "code": "AC008",
+      "name": "Illuminazione · elemento 08",
+      "family": "ACCESSORI",
+      "group": "Illuminazione",
+      "unit": "pz",
+      "note": "Schede/c08.md"
+    },
+    {
+      "id": "c09",
+      "code": "AC009",
+      "name": "Illuminazione · elemento 09",
+      "family": "ACCESSORI",
+      "group": "Illuminazione",
+      "unit": "pz",
+      "note": "Schede/c09.md"
+    },
+    {
+      "id": "c10",
+      "code": "AC010",
+      "name": "Illuminazione · elemento 10",
+      "family": "ACCESSORI",
+      "group": "Illuminazione",
+      "unit": "pz",
+      "note": "Schede/c10.md"
+    },
+    {
+      "id": "c11",
+      "code": "AC011",
+      "name": "Fissaggi · elemento 11",
+      "family": "ACCESSORI",
+      "group": "Fissaggi",
+      "unit": "pz",
+      "note": "Schede/c11.md"
+    },
+    {
+      "id": "c12",
+      "code": "AC012",
+      "name": "Fissaggi · elemento 12",
+      "family": "ACCESSORI",
+      "group": "Fissaggi",
+      "unit": "pz",
+      "note": "Schede/c12.md"
+    },
+    {
+      "id": "c13",
+      "code": "AC013",
+      "name": "Fissaggi · elemento 13",
+      "family": "ACCESSORI",
+      "group": "Fissaggi",
+      "unit": "pz",
+      "note": "Schede/c13.md"
+    },
+    {
+      "id": "c14",
+      "code": "AC014",
+      "name": "Fissaggi · elemento 14",
+      "family": "ACCESSORI",
+      "group": "Fissaggi",
+      "unit": "pz",
+      "note": "Schede/c14.md"
+    },
+    {
+      "id": "c15",
+      "code": "AC015",
+      "name": "Fissaggi · elemento 15",
+      "family": "ACCESSORI",
+      "group": "Fissaggi",
+      "unit": "pz",
+      "note": "Schede/c15.md"
+    },
+    {
+      "id": "c16",
+      "code": "AC016",
+      "name": "Fissaggi · elemento 16",
+      "family": "ACCESSORI",
+      "group": "Fissaggi",
+      "unit": "pz",
+      "note": "Schede/c16.md"
+    },
+    {
+      "id": "c17",
+      "code": "AC017",
+      "name": "Fissaggi · elemento 17",
+      "family": "ACCESSORI",
+      "group": "Fissaggi",
+      "unit": "pz",
+      "note": "Schede/c17.md"
+    },
+    {
+      "id": "c18",
+      "code": "AC018",
+      "name": "Fissaggi · elemento 18",
+      "family": "ACCESSORI",
+      "group": "Fissaggi",
+      "unit": "pz",
+      "note": "Schede/c18.md"
+    },
+    {
+      "id": "c19",
+      "code": "AC019",
+      "name": "Telo di copertura",
+      "family": "ACCESSORI",
+      "group": "Copertura",
+      "unit": "pz",
+      "note": "Schede/c19.md",
+      "properties": [
+        {
+          "id": "telo-materiale",
+          "name": "Materiale",
+          "parameter": "material"
+        }
+      ],
+      "dimensions": [
+        {
+          "id": "telo-L",
+          "name": "Larghezza",
+          "parameter": "width",
+          "offset": -2,
+          "unit": "cm"
+        },
+        {
+          "id": "telo-H",
+          "name": "Altezza",
+          "parameter": "depth",
+          "offset": -3,
+          "unit": "cm"
+        }
+      ]
+    },
+    {
+      "id": "c20",
+      "code": "AC020",
+      "name": "Bordo di protezione",
+      "family": "ACCESSORI",
+      "group": "Copertura",
+      "unit": "pz",
+      "note": "Schede/c20.md",
+      "properties": [
+        {
+          "id": "bordo-materiale",
+          "name": "Materiale",
+          "parameter": "material",
+          "value": "Poliestere"
+        }
+      ]
+    },
+    {
+      "id": "c21",
+      "code": "AC021",
+      "name": "Copertura · elemento 21",
+      "family": "ACCESSORI",
+      "group": "Copertura",
+      "unit": "pz",
+      "note": "Schede/c21.md"
+    },
+    {
+      "id": "c22",
+      "code": "AC022",
+      "name": "Copertura · elemento 22",
+      "family": "ACCESSORI",
+      "group": "Copertura",
+      "unit": "pz",
+      "note": "Schede/c22.md"
+    },
+    {
+      "id": "c23",
+      "code": "AC023",
+      "name": "Copertura · elemento 23",
+      "family": "ACCESSORI",
+      "group": "Copertura",
+      "unit": "pz",
+      "note": "Schede/c23.md"
+    },
+    {
+      "id": "c24",
+      "code": "AC024",
+      "name": "Copertura · elemento 24",
+      "family": "ACCESSORI",
+      "group": "Copertura",
+      "unit": "pz",
+      "note": "Schede/c24.md"
+    }
+  ],
+  "rules": [
+    {
+      "id": "R01",
+      "name": "Inclusione PR001",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c01"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c01",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 2,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R02",
+      "name": "Inclusione PR002",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c02"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c02",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 2,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R03",
+      "name": "Inclusione PR003",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c03"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c03",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 2,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R04",
+      "name": "Inclusione PR004",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c04"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c04",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 2,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R05",
+      "name": "Inclusione PR005",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "mount",
+          "operator": "eq",
+          "value": "Autoportante"
+        }
+      ],
+      "componentIds": [
+        "c05"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c05",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 2,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R06",
+      "name": "Inclusione PR006",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c06"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c06",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 2,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ],
+      "expression": {
+        "id": "or-model",
+        "type": "any",
+        "children": [
+          {
+            "id": "model-bio",
+            "type": "condition",
+            "condition": {
+              "parameter": "model",
+              "operator": "eq",
+              "value": "BIO"
+            }
+          },
+          {
+            "id": "nested-and",
+            "type": "all",
+            "children": [
+              {
+                "id": "model-telo",
+                "type": "condition",
+                "condition": {
+                  "parameter": "model",
+                  "operator": "eq",
+                  "value": "TELO"
+                }
+              },
+              {
+                "id": "not-bronze",
+                "type": "not",
+                "child": {
+                  "id": "bronze",
+                  "type": "condition",
+                  "condition": {
+                    "parameter": "color",
+                    "operator": "eq",
+                    "value": "Bronzo"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "R07",
+      "name": "Inclusione AC007",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "led",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c07"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c07",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R08",
+      "name": "Inclusione AC008",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "led",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c08"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c08",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R09",
+      "name": "Inclusione AC009",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "led",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c09"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c09",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R10",
+      "name": "Inclusione AC010",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "led",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c10"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c10",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R11",
+      "name": "Inclusione AC011",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c11"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c11",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 100,
+            "rounding": "ceil",
+            "parameter": "width"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R12",
+      "name": "Inclusione AC012",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c12"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c12",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 100,
+            "rounding": "ceil",
+            "parameter": "width"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R13",
+      "name": "Inclusione AC013",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c13"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c13",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 100,
+            "rounding": "ceil",
+            "parameter": "width"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R14",
+      "name": "Inclusione AC014",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c14"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c14",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 100,
+            "rounding": "ceil",
+            "parameter": "width"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R15",
+      "name": "Inclusione AC015",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c15"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c15",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 100,
+            "rounding": "ceil",
+            "parameter": "width"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R16",
+      "name": "Inclusione AC016",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c16"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c16",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 100,
+            "rounding": "ceil",
+            "parameter": "width"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R17",
+      "name": "Inclusione AC017",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c17"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c17",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 100,
+            "rounding": "ceil",
+            "parameter": "width"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R18",
+      "name": "Inclusione AC018",
+      "enabled": true,
+      "match": "all",
+      "conditions": [],
+      "componentIds": [
+        "c18"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c18",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 100,
+            "rounding": "ceil",
+            "parameter": "width"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R19",
+      "name": "Inclusione AC019",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "telo",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c19"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c19",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R20",
+      "name": "Inclusione AC020",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "telo",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c20"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c20",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R21",
+      "name": "Inclusione AC021",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "telo",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c21"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c21",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R22",
+      "name": "Inclusione AC022",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "telo",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c22"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c22",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R23",
+      "name": "Inclusione AC023",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "telo",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c23"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c23",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "R24",
+      "name": "Inclusione AC024",
+      "enabled": true,
+      "match": "all",
+      "conditions": [
+        {
+          "parameter": "telo",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "componentIds": [
+        "c24"
+      ],
+      "actions": [
+        {
+          "type": "add",
+          "component": "c24",
+          "components": [],
+          "parameter": "",
+          "value": "",
+          "quantity": {
+            "amount": 1,
+            "divisor": 1,
+            "rounding": "none"
+          }
+        }
+      ]
+    }
+  ]
+}

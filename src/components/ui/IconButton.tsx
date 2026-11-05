@@ -1,0 +1,22 @@
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+
+interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  label: string;
+  active?: boolean;
+  children: ReactNode;
+}
+
+export function IconButton({ label, active = false, children, className = "", ...props }: IconButtonProps) {
+  return (
+    <button
+      type="button"
+      className={`icon-button ${active ? "is-active" : ""} ${className}`.trim()}
+      aria-label={label}
+      aria-pressed={active || undefined}
+      title={label}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}

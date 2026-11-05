@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Nebula">
+  <rect width="64" height="64" rx="14" fill="#11141b"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
+    <path d="M19 20 32 31m0 0 15-14M32 31l12 14M19 20l-3 20 28 5" stroke="#8b5cf6"/>
+    <circle cx="19" cy="20" r="5" fill="#11141b" stroke="#a78bfa"/>
+    <circle cx="32" cy="31" r="5" fill="#11141b" stroke="#8b5cf6"/>
+    <circle cx="47" cy="17" r="5" fill="#11141b" stroke="#22d3ee"/>
+    <circle cx="44" cy="45" r="5" fill="#11141b" stroke="#a78bfa"/>
+    <circle cx="16" cy="40" r="4" fill="#11141b" stroke="#8b5cf6"/>
+  </g>
+</svg>
