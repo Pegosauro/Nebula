@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.38.0 — Inserimento rapido dei componenti
+
+- Griglia editabile in Componenti per codice, descrizione, famiglia, gruppo, unità, scheda tecnica e dimensioni per posizione.
+- Incolla da Excel o CSV con abbinamento colonne, upsert per codice, anteprima obbligatoria e un solo salvataggio.
+- Misure legacy bloccate in griglia e comando «Converti misure legacy» con conferma. «Annulla import» ripristina lo snapshot precedente.
+
 ## 0.37.0 — Titoli modificabili e duplicazione note
 
 - Titolo modificabile direttamente nella nota aperta, con Invio o clic fuori per confermare ed Esc per annullare. Nome del file, scheda e albero aggiornati insieme.
