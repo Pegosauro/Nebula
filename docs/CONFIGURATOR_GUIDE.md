@@ -104,7 +104,7 @@ Le condizioni leggono solo parametri. Le azioni non attivano altre regole tramit
 - **Genera configurazioni** mostra le soluzioni valide in pagine da 50 e consente di selezionare una variante. Non memorizza manualmente un albero di tutte le combinazioni.
 - La ricerca avviene in un worker locale ed esamina al massimo **5.000 combinazioni**. Con cataloghi grandi il limite si riduce per contenere la memoria occupata dalle distinte. Se il dominio è più grande, l'elenco è indicato come parziale e il conteggio non viene presentato come totale. Restringi le scelte per completare la ricerca.
 - **CSV** esporta la distinta con codice, descrizione, gruppo, quantità, unità, stato e regole. **CSV varianti** esporta le scelte delle configurazioni trovate; con ricerca limitata contiene solo il campione indicato a schermo. I CSV usano separatore `;` e BOM UTF-8 per Excel.
-- **Esporta** salva una copia del progetto come `.config.json`. Per riutilizzarla, copiala nella cartella del Vault e aggiorna la struttura. La prima versione non include importazione massiva di cataloghi Excel/CSV, solver esterno, sottoassiemi ricorsivi o formule libere.
+- **Esporta** salva una copia del progetto come `.config.json`. Per riutilizzarla, copiala nella cartella del Vault e aggiorna la struttura. La prima versione non include solver esterno, sottoassiemi ricorsivi o formule libere. L’inserimento dei componenti da Excel o CSV è descritto in **Inserimento rapido dei componenti**.
 
 ## Note e grafo
 
@@ -337,3 +337,20 @@ Sono copiati unità, collegamento alla scheda tecnica, dimensioni con correzioni
 Nelle regole condivise vengono copiate le azioni del componente scelto; le aggiunte e le esclusioni relative agli altri componenti non vengono ripetute. I riferimenti ai parametri e ai componenti richiesti o alternativi continuano a puntare agli elementi esistenti del catalogo.
 
 La duplicazione crea già il componente e le sue regole. **Applica** salva le successive modifiche nella scheda; **Annulla** scarta soltanto queste modifiche, lasciando la copia creata. Il normale salvataggio automatico conserva la duplicazione, oppure usa **Salva** per scriverla subito nel file. La funzione usa i formati del configuratore esistenti.
+
+
+## Inserimento rapido dei componenti (0.38.0)
+
+In **Definizione → Componenti**, **Inserimento rapido** apre una griglia al posto dell’elenco. Si compilano codice, descrizione, famiglia, gruppo, unità, scheda tecnica e le dimensioni M1, M2, … nello stesso ordine del componente. Tab e Invio spostano la cella; la riga vuota in fondo aggiunge un componente. Famiglia, gruppo e unità restano testo libero e propongono i valori già usati. Nulla viene scritto nel file finché non si apre **Anteprima e applica**.
+
+**Incolla da Excel** (anche Ctrl+Maiusc+V, oppure un file `.csv`, `.tsv` o `.txt`) riconosce le intestazioni e le abbina ai campi. Senza intestazione vale l’ordine delle colonne. Le colonne sconosciute, e quelle calcolate della distinta (quantità, stato, regole, misura per pezzo), sono ignorate. Il codice decide se aggiornare o creare. Una cella vuota lascia il valore già presente: l’incolla non svuota un campo e non elimina dimensioni. I componenti nuovi vanno in coda. Se lo stesso codice compare più volte nell’incolla, vale l’ultima riga e le precedenti sono segnalate. Due codici uguali scritti a mano nella griglia sono invece un errore su entrambe le righe. Il confronto del codice ignora spazi iniziali e finali e le maiuscole; gli altri testi restano come digitati. Si può anche scegliere di importare solo i codici nuovi.
+
+Le dimensioni si abbinano per posizione: M1 è la prima, M2 la seconda, fino a 32. Un gruppo nuovo richiede parametro, correzione e unità; se il nome manca diventa «Misura n». Non sono ammessi buchi (M2 senza M1). Su una dimensione già presente si aggiornano solo le celle compilate e l’identificativo resta quello. L’import non rimuove dimensioni. Il parametro si indica con il nome o con l’identificativo, e deve essere numerico. L’unità segue le stesse conversioni mm, cm e m della scheda.
+
+I numeri, sia incollati sia digitati, accettano la virgola o il punto come separatore decimale (`1000,5` e `1000.5`). `1.000,5` o `1,000.5` sono un errore: non si usa il separatore delle migliaia. `1.200` è il decimale 1,2, non milleduecento.
+
+Un componente che ha ancora la misura singola legacy è bloccato in griglia: non si modifica né si aggiorna finché non viene convertito. **Converti misure legacy**, dopo conferma, trasforma ogni misura singola nella dimensione «Lunghezza» (stesso parametro, correzione e unità) con un solo salvataggio. Compilare una dimensione su una misura legacy è un errore e blocca l’applicazione di quella riga.
+
+L’anteprima è obbligatoria e mostra nuovi, aggiornati, invariati, errori, righe saltate, sostituite e bloccate. **Applica tutto** resta disabilitato finché ci sono errori. **Applica solo le righe valide** scrive le righe nuove e aggiornate e lascia gli errori nella griglia. In entrambi i casi il catalogo viene aggiornato con una sola modifica: un solo autosalvataggio. Se l’operazione scrive dimensioni, il file passa almeno al formato 6; gli altri campi non alzano il formato da soli. Prima dell’applicazione Nebula conserva uno snapshot: **Annulla import** (o **Annulla conversione**, dopo il comando sulle misure legacy) ripristina il catalogo com’era.
+
+L’eliminazione di componenti dalla griglia non fa parte di questa versione: si elimina ancora dall’elenco, con il controllo delle dipendenze. Proprietà, regole, export del catalogo e file `.xlsx` restano fuori dalla griglia. Un componente nuovo non è ancora citato da una regola: Analisi lo segnala finché non gliene associ una.
