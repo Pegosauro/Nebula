@@ -90,7 +90,7 @@ export function SettingsView() {
         </label>
       </section>
 
-      <section className="settings-section"><div className="settings-section-title"><AppWindow size={19}/><div><h2>Vault di prova</h2><p>Note e configuratori dimostrativi, separati dai file personali.</p></div></div><div className="setting-row"><div><strong>Esempi popolati</strong><span>Le modifiche alla prova restano nell’archivio locale del browser.</span></div><button className="button button-secondary" disabled={testVaultBusy} onClick={() => void useVaultStore.getState().openTestVault()}>{testVaultBusy ? "Apertura…" : "Apri Vault di prova"}</button></div>{vaultError && <p className="config-error" role="alert">{vaultError}</p>}<a className="config-text-button" href="/samples/Nebula-Vault-Test.zip" download>Scarica il Vault ZIP</a></section>
+      <section className="settings-section"><div className="settings-section-title"><AppWindow size={19}/><div><h2>Vault di prova</h2><p>Note e configuratori dimostrativi, separati dai file personali.</p></div></div><div className="setting-row"><div><strong>Esempi popolati</strong><span>Le modifiche alla prova restano nell’archivio locale del browser.</span></div><button className="button button-secondary" disabled={testVaultBusy} onClick={() => void useVaultStore.getState().openTestVault()}>{testVaultBusy ? "Apertura…" : "Apri Vault di prova"}</button></div>{vaultError && <p className="config-error" role="alert">{vaultError}</p>}<a className="config-text-button" href={`${import.meta.env.BASE_URL}samples/Nebula-Vault-Test.zip`} download>Scarica il Vault ZIP</a></section>
       <section className="settings-section">
         <div className="settings-section-title">
           <Info size={19} />

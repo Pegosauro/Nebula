@@ -2,7 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
+const base = process.env.NEBULA_BASE_PATH ?? "/";
+
 export default defineConfig({
+  base,
   server: {
     allowedHosts: ["terminal.local"]
   },
@@ -16,27 +19,27 @@ export default defineConfig({
         name: "Nebula",
         short_name: "Nebula",
         description: "Workspace local-first per note Markdown, collegamenti e configuratori.",
-        start_url: "/",
-        scope: "/",
+        start_url: base,
+        scope: base,
         display: "standalone",
         background_color: "#0b0d12",
         theme_color: "#11141b",
         categories: ["productivity", "utilities"],
         icons: [
           {
-            src: "/icons/nebula-192.png",
+            src: "icons/nebula-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "/icons/nebula-512.png",
+            src: "icons/nebula-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "/icons/nebula-512.png",
+            src: "icons/nebula-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable"
@@ -44,7 +47,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        navigateFallback: "/index.html",
+        navigateFallback: `${base}index.html`,
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}", "samples/*.zip"],
         cleanupOutdatedCaches: true,
         clientsClaim: false,

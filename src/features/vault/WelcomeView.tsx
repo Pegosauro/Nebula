@@ -39,7 +39,7 @@ export function WelcomeView() {
         )}
 
         <button className="button button-secondary test-vault-action" disabled={loading} onClick={() => void useVaultStore.getState().openTestVault()}>Apri Vault di prova</button>
-        <p className="config-hint">Esempi locali nel browser, separati dai tuoi file. <a href="/samples/Nebula-Vault-Test.zip" download>Scarica il Vault ZIP</a></p>
+        <p className="config-hint">Esempi locali nel browser, separati dai tuoi file. <a href={`${import.meta.env.BASE_URL}samples/Nebula-Vault-Test.zip`} download>Scarica il Vault ZIP</a></p>
         <div className="welcome-facts">
           <div>
             <HardDrive size={18} />
