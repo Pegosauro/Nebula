@@ -47,7 +47,7 @@ export function DefinitionList({ items, kind, onEdit, onReorder, compact=false, 
   </>;
 }
 
-export function DefinitionDialog({ title, description, children, onClose, onApply, wide=false, applyDisabled=false, draft }: { draft?: unknown; applyDisabled?: boolean; wide?: boolean; title: string; description?: string; children: ReactNode; onClose: () => void; onApply: () => void }) {
+export function DefinitionDialog({ title, description, children, onClose, onApply, wide=false, applyDisabled=false, draft, submitLabel="Applica", footerStart }: { draft?: unknown; applyDisabled?: boolean; wide?: boolean; title: string; description?: string; children: ReactNode; onClose: () => void; onApply: () => void; submitLabel?: string; footerStart?: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const initialDraft = useRef(JSON.stringify(draft));
@@ -57,7 +57,7 @@ export function DefinitionDialog({ title, description, children, onClose, onAppl
     <form onSubmit={event => { event.preventDefault(); onApply(); }}>
       <header><div><h2 id={titleId}>{title}</h2><p>{description ?? "Applica le modifiche per salvarle nel configuratore."}</p></div><button type="button" className="config-icon" aria-label="Chiudi dettagli" onClick={requestClose}><X size={18}/></button></header>
       <div className="config-dialog-body">{children}</div>
-      <footer><button type="button" className="button button-secondary" onClick={onClose}>Annulla</button><button type="submit" disabled={applyDisabled} className="button button-primary">Applica</button></footer>
+      <footer>{footerStart}<button type="button" className="button button-secondary" onClick={onClose}>Annulla</button><button type="submit" disabled={applyDisabled} className="button button-primary">{submitLabel}</button></footer>
     </form>
   </dialog>;
 }

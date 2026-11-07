@@ -115,7 +115,21 @@
 .config-definition-dialog header p { font-size: .8125rem; color: var(--text-secondary); margin: 6px 0 0; }
 .config-dialog-body { padding: 22px; overflow-y: auto; min-height: 0; }
 .config-detail-form > label, .config-dialog-body > label { display: flex; flex-direction: column; gap: 7px; font-size: .875rem; color: var(--text-secondary); }
-.config-definition-dialog footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 22px; border-top: 1px solid var(--border); }
+.config-definition-dialog footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 14px 22px; border-top: 1px solid var(--border); }
+.config-guided-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; padding: 0; list-style: none; }
+.config-guided-steps li { padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); font-size: .75rem; }
+.config-guided-steps li[aria-current="step"] { border-color: var(--accent); background: var(--accent-soft); color: var(--text-primary); font-weight: 600; }
+.config-guided-form { display: flex; flex-direction: column; gap: 14px; }
+.config-guided-form > label, .config-guided-form .config-fields label { display: flex; flex-direction: column; gap: 7px; font-size: .875rem; color: var(--text-secondary); }
+.config-guided-form :is(input,textarea,select)[aria-invalid="true"] { border-color: var(--danger); }
+.config-inclusion-choices { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.config-inclusion-choice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-app); cursor: pointer; }
+.config-inclusion-choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.config-inclusion-choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.config-workspace .config-inclusion-choice input[type="radio"] { width: auto; flex: 0 0 auto; margin-top: 4px; accent-color: var(--accent); }
+.config-inclusion-choice span { flex: 1; min-width: 0; }
+.config-inclusion-choice strong { display: block; color: var(--text-primary); font-size: .9375rem; }
+.config-inclusion-choice small { display: block; margin-top: 4px; color: var(--text-secondary); font-size: .8125rem; line-height: 1.45; }
 @media (max-width: 600px) { .config-definition-row { gap: 6px; padding: 9px 8px; }.config-row-controls { gap: 3px; }.config-row-controls .config-icon { padding: 6px; }.config-reorder-buttons .config-icon { padding: 2px; }.config-definition-dialog header, .config-dialog-body, .config-definition-dialog footer { padding: 16px; } }
 
 .config-component-rule { color: var(--text-secondary); }

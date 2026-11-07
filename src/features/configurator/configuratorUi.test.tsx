@@ -480,12 +480,18 @@ describe("configurator integration",()=>{
   });
   it("adds a component only after applying the popup and retains all detail fields",async()=>{
     prepare();await mount(<ConfiguratorView path={path}/>);await click("Componenti");
-    const before=useConfiguratorStore.getState().sessions[path]!.data.components.length;
-    await click("Componente");const fields=host!.querySelectorAll<HTMLInputElement>("dialog input");
-    await input(fields[0]!,"NEW001");await input(fields[1]!,"Nuovo profilo");await input(fields[2]!,"Profili");await input(fields[4]!,"Scheda.md");
-    expect(useConfiguratorStore.getState().sessions[path]!.data.components).toHaveLength(before);
-    await click("Applica");const added=useConfiguratorStore.getState().sessions[path]!.data.components.at(-1)!;
+    const before=useConfiguratorStore.getState().sessions[path]!.data;
+    await click("Componente");await click("Modalità completa");
+    await act(async()=>host!.querySelector<HTMLInputElement>('input[name="guided-inclusion"][value="catalog"]')!.click());
+    await input(host!.querySelector<HTMLInputElement>("#guided-code")!,"NEW001");
+    await input(host!.querySelector<HTMLInputElement>("#guided-name")!,"Nuovo profilo");
+    await input(host!.querySelector<HTMLInputElement>('[aria-label="Gruppo"]')!,"Profili");
+    await input(host!.querySelector<HTMLInputElement>('[aria-label="Scheda tecnica"]')!,"Scheda.md");
+    expect(useConfiguratorStore.getState().sessions[path]!.data).toBe(before);
+    await click("Crea componente");
+    const added=useConfiguratorStore.getState().sessions[path]!.data.components.at(-1)!;
     expect(added).toMatchObject({code:"NEW001",name:"Nuovo profilo",group:"Profili",unit:"pz",note:"Scheda.md"});
+    expect(useConfiguratorStore.getState().sessions[path]!.data.rules).toEqual(before.rules);
     await clickLabel("Modifica NEW001 · Nuovo profilo");expect(host!.querySelectorAll<HTMLInputElement>("dialog input")[4]!.value).toBe("Scheda.md");
   });
   it.each(["Parametri", "Componenti"])("reorders %s by drag and keyboard and saves stable IDs and references",async section=>{
@@ -559,7 +565,40 @@ describe("configurator integration",()=>{
   it.each([false,true])("retains the component draft on rule cancellation and applies both atomically (new=%s)",async isNew=>{
     const fixture=exampleConfigurator("Pergola");if(!isNew)fixture.rules=fixture.rules.filter(r=>r.id!=="R1");prepare(fixture);await mount(<ConfiguratorView path={path}/>);await click("Componenti");
     const before=useConfiguratorStore.getState().sessions[path]!.data;
-    if(isNew) await click("Componente"); else await openFirst();
+    if(isNew){
+      await click("Componente");
+      await input(host!.querySelector<HTMLInputElement>("#guided-code")!,"PENDING001");
+      await input(host!.querySelector<HTMLInputElement>("#guided-name")!,"Profilo in bozza");
+      await click("Avanti");
+      await act(async()=>host!.querySelector<HTMLInputElement>('input[name="guided-inclusion"][value="always"]')!.click());
+      await click("Avanti");
+      await input(host!.querySelector<HTMLInputElement>('input[aria-label="Quantità"]')!,"8");
+      expect(useConfiguratorStore.getState().sessions[path]!.data).toBe(before);
+      await click("Indietro");await click("Indietro");
+      expect(host!.querySelector<HTMLInputElement>("#guided-code")!.value).toBe("PENDING001");
+      await click("Annulla");
+      expect(host!.querySelector("dialog")).toBeNull();
+      expect(useConfiguratorStore.getState().sessions[path]!.data).toBe(before);
+      expect(vaultService.writeText).not.toHaveBeenCalled();
+      await click("Componente");
+      await input(host!.querySelector<HTMLInputElement>("#guided-code")!,"PENDING001");
+      await input(host!.querySelector<HTMLInputElement>("#guided-name")!,"Profilo in bozza");
+      await click("Avanti");
+      await act(async()=>host!.querySelector<HTMLInputElement>('input[name="guided-inclusion"][value="always"]')!.click());
+      await click("Avanti");
+      await input(host!.querySelector<HTMLInputElement>('input[aria-label="Quantità"]')!,"8");
+      await click("Crea componente");await click("Salva");
+      const next=useConfiguratorStore.getState().sessions[path]!.data;
+      const component=next.components.find(c=>c.code==="PENDING001")!;
+      expect(next.components).toHaveLength(before.components.length+1);
+      expect(component.name).toBe("Profilo in bozza");
+      expect(next.rules.at(-1)?.conditions).toEqual([]);
+      expect(next.rules.at(-1)?.actions[0]?.component).toBe(component.id);
+      expect(next.rules.at(-1)?.actions[0]?.quantity.amount).toBe(8);
+      expect(JSON.parse(vi.mocked(vaultService.writeText).mock.calls.at(-1)![1])).toEqual(next);
+      return;
+    }
+    await openFirst();
     const fields=host!.querySelectorAll<HTMLInputElement>("dialog input");
     await input(fields[0]!,"PENDING001");await input(fields[1]!,"Profilo in bozza");
     await click("Aggiungi regola");expect(host!.querySelectorAll("dialog")).toHaveLength(1);
