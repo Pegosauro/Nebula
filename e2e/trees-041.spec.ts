@@ -80,13 +80,14 @@ test("categoria singola, nota, eliminazione, formato, inserimento e radice sempr
   await selectNode(page, "FL-0701");
   await openSheet(page);
   const picker = page.getByLabel("Categoria del nodo");
-  await expect(picker).toHaveValue("c-dim");
-  await expect(picker.locator("option")).toHaveCount(8);
+  await expect(picker).toContainText("Dimensioni");
+  await picker.click();
+  await expect(page.getByRole("option")).toHaveCount(8);
   await expect(page.getByRole("button", { name: "Eredita dal padre" })).toHaveCount(0);
   await expect(page.getByText("Ereditata da")).toHaveCount(0);
   await page.screenshot({ path: `/opt/cursor/artifacts/categoria-singola-${project}.png` });
-  await picker.selectOption({ label: "Avvisi" });
-  await expect(picker).toHaveValue("c-avv");
+  await page.getByRole("option", { name: "Avvisi", exact: true }).click();
+  await expect(picker).toContainText("Avvisi");
   await closeSheet(page);
 
   await page.getByRole("region", { name: "Albero" }).getByRole("button", { name: "Aggiungi figlio", exact: true }).click();

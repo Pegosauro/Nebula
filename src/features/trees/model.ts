@@ -1,4 +1,5 @@
-/** Albero libero `nebula-tree` v1. La categoria effettiva non viene scritta nel file: un nodo `inherit` ha `categoryId` null.
+/** Albero libero `nebula-tree` v1. Le categorie dei nodi sono indipendenti.
+ *  I vecchi nodi `inherit` vengono convertiti in categorie proprie conservando la categoria visibile.
  *  In lettura, `categoryIds` dei file precedenti diventa la prima categoria, oppure null se l'elenco è vuoto.
  *  Lo spostamento cambia solo `parentId`, `order` e, se cambia il padre, i codici conformi (`conformSuffix`, `freeSuffix`). */
 
@@ -192,6 +193,14 @@ export function effectiveCategoryMap(tree: Tree): Map<string, string | null> {
   return map;
 }
 export const effectiveCategory = (tree: Tree, id: string): string | null => effectiveCategoryMap(tree).get(id) ?? null;
+/** Scioglie l'eredità dei file precedenti senza cambiare le categorie visibili. */
+function independentCategories(tree: Tree): Tree {
+  if (!tree.nodes.some(node => node.categoryMode === "inherit")) return tree;
+  const categories = effectiveCategoryMap(tree);
+  return { ...tree, nodes: tree.nodes.map(node => node.categoryMode === "inherit"
+    ? { ...node, categoryMode: "own", categoryId: categories.get(node.id) ?? null }
+    : node) };
+}
 /** Nodo `own` da cui un nodo `inherit` prende la categoria. */
 export function inheritSource(tree: Tree, id: string): TreeNode | undefined {
   let current = nodeById(tree, id);
@@ -258,7 +267,7 @@ export function addChild(tree: Tree, parentId: string, patch: { code?: string; n
   const proposed = patch.code ?? proposeChildCode(tree, parentId);
   if (!proposed) return { ok: false, error: `Nessun codice libero tra ${codeRangeLabel(codeStep(tree))} sotto ${parent.code}` };
   const order = childrenOf(tree, parentId).reduce((max, child) => Math.max(max, child.order), -1) + 1;
-  const draft: TreeNode = { id: uid(), parentId, order, code: proposed.trim(), name: patch.name ?? "Nuovo nodo", categoryMode: "inherit", categoryId: null, note: "", objects: [] };
+  const draft: TreeNode = { id: uid(), parentId, order, code: proposed.trim(), name: patch.name ?? "Nuovo nodo", categoryMode: "own", categoryId: null, note: "", objects: [] };
   const next = clone(tree);
   next.nodes.push(draft);
   const issues = codeIssues(next, draft.id, draft.code);
@@ -282,7 +291,7 @@ export function addSibling(tree: Tree, nodeId: string, patch: { code?: string; n
   if (depthOf(tree, parent.id) + 1 > MAX_DEPTH) return { ok: false, error: `Profondità massima di ${MAX_DEPTH} livelli` };
   const proposed = patch.code ?? proposeChildCode(tree, parent.id);
   if (!proposed) return { ok: false, error: `Nessun codice libero tra ${codeRangeLabel(codeStep(tree))} sotto ${parent.code}` };
-  const draft: TreeNode = { id: uid(), parentId: parent.id, order: node.order + 1, code: proposed.trim(), name: patch.name ?? "Nuovo nodo", categoryMode: "inherit", categoryId: null, note: "", objects: [] };
+  const draft: TreeNode = { id: uid(), parentId: parent.id, order: node.order + 1, code: proposed.trim(), name: patch.name ?? "Nuovo nodo", categoryMode: "own", categoryId: null, note: "", objects: [] };
   const next = clone(tree);
   for (const item of next.nodes) {
     if (item.parentId === parent.id && item.order > node.order) item.order += 1;
@@ -337,10 +346,8 @@ export function setNodeCategory(tree: Tree, id: string, categoryId: string | nul
   const node = nodeById(tree, id);
   if (!node) return { ok: false, error: "Nodo inesistente" };
   const nextId = categoryId && knownCategories(tree).has(categoryId) ? categoryId : null;
-  const current = effectiveCategory(tree, id);
   const wasInherit = node.parentId != null && node.categoryMode === "inherit";
-  if (wasInherit && current === nextId) return { ok: true, tree, detached: false };
-  return { ok: true, tree: replaceNode(tree, id, item => { item.categoryMode = "own"; item.categoryId = nextId; }), detached: wasInherit };
+  return { ok: true, tree: replaceNode(independentCategories(tree), id, item => { item.categoryMode = "own"; item.categoryId = nextId; }), detached: wasInherit };
 }
 export function inheritFromParent(tree: Tree, id: string): TreeSuccess | TreeFailure {
   const node = nodeById(tree, id);
@@ -730,10 +737,11 @@ export function parseTree(text: string): Tree {
   }
   const report = inspectTree(tree);
   if (report.errors.length) throw new TreeFormatError(report.errors);
-  return tree;
+  return independentCategories(tree);
 }
-/** Forma scritta nel file: eredità senza categorie copiate, default di codice omessi. */
+/** Forma scritta nel file: categorie indipendenti, default di codice omessi. */
 export function canonicalTree(tree: Tree): Tree {
+  tree = independentCategories(tree);
   const canonical: Tree = {
     format: "nebula-tree",
     version: 1,

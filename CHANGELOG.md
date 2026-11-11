@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.44.0 — Modifica nomi, scorrimento e categorie indipendenti
+
+- Il campo del nome nell’albero occupa lo spazio disponibile nella riga, anche durante l’inserimento.
+- L’area dell’albero usa una sola barra di scorrimento; la virtualizzazione segue lo stesso scorrimento anche oltre 1.000 righe.
+- Il selettore della categoria mostra i nomi nei rispettivi colori e supporta mouse, touch e tastiera.
+- Cambiare la categoria di un nodo non modifica altri nodi. Le categorie ereditate nei file precedenti diventano proprie conservando l’aspetto attuale; i nuovi nodi partono senza categoria.
+- Il campo Note compilato ha sfondo giallo chiaro e testo scuro.
+
 ## 0.43.0 — Fratello, nota accanto al nome, clic fuori
 
 - «Aggiungi fratello» sta accanto a «Aggiungi figlio» nella barra, nella scheda del nodo («Fratello») e nel menu della riga. Il nodo ha lo stesso padre e si inserisce subito dopo quello selezionato: i fratelli successivi scalano di una posizione e i codici già presenti restano.

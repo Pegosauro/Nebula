@@ -22,9 +22,9 @@ describe("regole dell'albero nebula-tree v1", () => {
     const source = demoTree();
     expect(effectiveCategory(source, "n-0701")).toBe("c-dim");
     const same = setNodeCategory(source, "n-0701", "c-dim");
-    expect(same.ok && same.detached).toBe(false);
+    expect(same.ok && same.detached).toBe(true);
     if (!same.ok) return;
-    expect(same.tree.nodes.find(item => item.id === "n-0701")!.categoryMode).toBe("inherit");
+    expect(same.tree.nodes.find(item => item.id === "n-0701")!.categoryMode).toBe("own");
     const detached = setNodeCategory(source, "n-0701", "c-avv");
     expect(detached.ok && detached.detached).toBe(true);
     if (!detached.ok) return;
@@ -46,12 +46,39 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(inheritFromParent(source, "n-root").ok).toBe(false);
   });
 
-  it("propaga il cambio del padre ai discendenti inherit fino al primo own", () => {
+  it("cambiare categoria al padre conserva quelle dei discendenti anche nei file precedenti", () => {
     const changed = setNodeCategory(demoTree(), "n-07", "c-avv");
     expect(changed.ok).toBe(true);
     if (!changed.ok) return;
-    expect(effectiveCategory(changed.tree, "n-0701")).toBe("c-avv");
-    expect(effectiveCategory(changed.tree, "n-0702")).toBe("c-avv");
+    expect(effectiveCategory(changed.tree, "n-0701")).toBe("c-dim");
+    expect(effectiveCategory(changed.tree, "n-0702")).toBe("c-dim");
+  });
+
+  it("conserva tutte le categorie visibili dei vecchi file e rende indipendenti padre, figli e nipoti", () => {
+    const legacy = demoTree();
+    const loaded = parseTree(JSON.stringify(legacy));
+    for (const node of legacy.nodes) {
+      expect(effectiveCategory(loaded, node.id)).toBe(effectiveCategory(legacy, node.id));
+      expect(loaded.nodes.find(item => item.id === node.id)!.categoryMode).toBe("own");
+    }
+    const snapshot = JSON.stringify(loaded);
+    const changed = setNodeCategory(loaded, "n-10", null);
+    if (!changed.ok) throw new Error(changed.error);
+    expect(effectiveCategory(changed.tree, "n-10")).toBeNull();
+    expect(effectiveCategory(changed.tree, "n-x1")).toBe("c-tes");
+    expect(effectiveCategory(changed.tree, "n-x1a")).toBe("c-tes");
+    const child = setNodeCategory(changed.tree, "n-x1", "c-avv");
+    if (!child.ok) throw new Error(child.error);
+    expect(effectiveCategory(child.tree, "n-10")).toBeNull();
+    expect(effectiveCategory(child.tree, "n-x1a")).toBe("c-tes");
+    expect(JSON.stringify(loaded)).toBe(snapshot);
+    const reopened = parseTree(serializeTreeFile(child.tree));
+    expect(reopened).toEqual(canonicalTree(child.tree));
+    const moved = planMove(reopened, "n-x1", "n-12");
+    expect(moved.ok).toBe(true);
+    expect(effectiveCategory(moved.tree!, "n-x1")).toBe("c-avv");
+    expect(effectiveCategory(moved.tree!, "n-x1a")).toBe("c-tes");
+    expect(moved.catChanged).toEqual([]);
   });
 
   it("in lettura tiene solo la prima categoria e tratta l'elenco vuoto come nessuna", () => {
@@ -72,7 +99,7 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(loaded.nodes.find(node => node.id === "n-08")!.categoryId).toBe("c-ins");
     expect(loaded.nodes.find(node => node.id === "n-44")!.categoryId).toBeNull();
     expect(loaded.nodes.find(node => node.id === "n-47")!.categoryId).toBe("c-mot");
-    expect(loaded.nodes.find(node => node.id === "n-0701")!.categoryId).toBeNull();
+    expect(loaded.nodes.find(node => node.id === "n-0701")!.categoryId).toBe("c-dim");
     expect(effectiveCategory(loaded, "n-0701")).toBe("c-dim");
     expect(serializeTree(loaded)).not.toContain("categoryIds");
     expect(JSON.parse(serializeTree(loaded)).nodes.find((node: { id: string }) => node.id === "n-08").categoryId).toBe("c-ins");
@@ -91,12 +118,12 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(upsertObject(source, "n-0802", { type: "characteristic", kind: "own", code: "P", description: "ok in altro nodo" }).ok).toBe(true);
   });
 
-  it("accoda un figlio sotto FL-07 con codice FL-0703 e modalità inherit", () => {
+  it("accoda un figlio sotto FL-07 con codice FL-0703 e categoria indipendente", () => {
     const result = addChild(demoTree(), "n-07");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.node.code).toBe("FL-0703");
-    expect(result.node.categoryMode).toBe("inherit");
+    expect(result.node.categoryMode).toBe("own");
     const children = result.tree.nodes.filter(node => node.parentId === "n-07").sort((a, b) => a.order - b.order);
     expect(children.at(-1)?.id).toBe(result.node.id);
   });
@@ -113,9 +140,9 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(result.node.code).toBe("FL-0703");
     expect(result.node.name).toBe("Nuovo nodo");
     expect(result.node.parentId).toBe("n-07");
-    expect(result.node.categoryMode).toBe("inherit");
+    expect(result.node.categoryMode).toBe("own");
     expect(result.node.categoryId).toBeNull();
-    expect(effectiveCategory(result.tree, result.node.id)).toBe("c-dim");
+    expect(effectiveCategory(result.tree, result.node.id)).toBeNull();
     const children = childrenOf(result.tree, "n-07");
     expect(children.map(node => node.id)).toEqual([before[0]!.id, result.node.id, before[1]!.id]);
     expect(children.map(node => node.order)).toEqual([before[0]!.order, before[0]!.order + 1, before[1]!.order + 1]);
@@ -265,7 +292,7 @@ describe("regole dell'albero nebula-tree v1", () => {
   it("il campione del Vault coincide con l'albero dimostrativo", () => {
     const file = join(process.cwd(), "src/features/trees/tendaFinestra.tree.json");
     if (process.env.WRITE_TREE === "1") writeFileSync(file, serializeTreeFile(demoTree()));
-    expect(readFileSync(file, "utf8")).toBe(serializeTreeFile(demoTree()));
+    expect(serializeTreeFile(parseTree(readFileSync(file, "utf8")))).toBe(serializeTreeFile(demoTree()));
   });
 
   it("non confonde i file dei configuratori con le strutture", () => {

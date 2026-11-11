@@ -112,7 +112,7 @@ test("fratello, punto nota accanto al nome e clic fuori che annulla", async ({ p
   await expect(node(page, "FL-04").locator(".tree-code")).toHaveText("FL-04");
   await expect(node(page, "FL-47").locator(".tree-code")).toHaveText("FL-47");
   await openSheet(page);
-  await expect(page.getByLabel("Categoria del nodo")).toHaveValue("c-cfg");
+  await expect(page.getByLabel("Categoria del nodo")).toContainText("Nessuna");
   await closeSheet(page);
 
   await page.getByRole("button", { name: "Espandi FL-07", exact: true }).click();
@@ -135,7 +135,7 @@ test("fratello, punto nota accanto al nome e clic fuori che annulla", async ({ p
   await expect(node(page, "FL-0702").locator(".tree-code")).toHaveText("FL-0702");
   await openSheet(page);
   await node(page, "FL-0703").click();
-  await expect(page.getByLabel("Categoria del nodo")).toHaveValue("c-dim");
+  await expect(page.getByLabel("Categoria del nodo")).toContainText("Nessuna");
   await closeSheet(page);
 
   await node(page, "FL-0702").click({ button: "right" });

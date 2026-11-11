@@ -66,16 +66,32 @@ export function TreeOutline({ tree, rows, selectedId, query, renaming, adding, d
   useEffect(() => () => gesture.current?.(), []);
   useEffect(() => {
     const element = scroller.current;
-    if (!element || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => setViewport(element.clientHeight || 640));
-    observer.observe(element);
-    setViewport(element.clientHeight || 640);
-    return () => observer.disconnect();
+    const owner = element?.closest<HTMLElement>(".tree-main");
+    if (!element || !owner) return;
+    const measure = () => {
+      setViewport(owner.clientHeight || 640);
+      setScrollTop(Math.max(0, owner.getBoundingClientRect().top - element.getBoundingClientRect().top));
+    };
+    owner.addEventListener("scroll", measure, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+    observer?.observe(owner);
+    observer?.observe(element);
+    measure();
+    return () => { owner.removeEventListener("scroll", measure); observer?.disconnect(); };
   }, []);
   const range = virtualWindow(rows.length, scrollTop, viewport);
   const visible = rows.slice(range.start, range.end);
   const virtual = rows.length > 1000;
-  useEffect(() => { selected.current?.scrollIntoView?.({ block: "nearest" }); }, [selectedId, renaming?.id, adding?.parentId]);
+  useEffect(() => {
+    if (selected.current) { selected.current.scrollIntoView?.({ block: "nearest" }); return; }
+    if (!virtual) return;
+    const element = scroller.current;
+    const owner = element?.closest<HTMLElement>(".tree-main");
+    const index = rows.findIndex(row => row.kind === "node" && row.id === selectedId);
+    if (!element || !owner || index < 0) return;
+    const top = element.getBoundingClientRect().top - owner.getBoundingClientRect().top + owner.scrollTop + index * ROW_HEIGHT;
+    if (top < owner.scrollTop || top + ROW_HEIGHT > owner.scrollTop + owner.clientHeight) owner.scrollTop = top;
+  }, [selectedId, renaming?.id, adding?.parentId, virtual, rows]);
   const draftIndex = adding ? draftInsert(rows, adding) : -1;
   const remember = (next: DragState | null) => setDrag(next);
   const updateHover = (dragId: string, targetId: string, zone: DropZone) => {
@@ -157,9 +173,8 @@ export function TreeOutline({ tree, rows, selectedId, query, renaming, adding, d
       {hint && <p className="tree-drop-hint" role="status">{hint}</p>}
       <div
         ref={scroller}
-        className="tree-scroll"
+        className={`tree-scroll${virtual ? " is-virtual" : ""}`}
         tabIndex={0}
-        onScroll={event => setScrollTop(event.currentTarget.scrollTop)}
         onMouseDown={event => {
           const target = event.target as HTMLElement;
           if (target.closest("input, textarea, select")) return;

@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { codeIssues, effectiveCategory, deleteNodeError, moveCommandReason, principalCategory, readableOn, type ObjectDraft, type Tree, type TreeNode, type TreeObject } from "./model";
 import { InlineObjects, type ObjectListKind } from "./InlineObjects";
 import type { NodeDraft } from "./TreeOutline";
+import { NodeCategoryPicker } from "./NodeCategoryPicker";
 
 interface NodePanelProps {
   tree: Tree;
@@ -79,12 +80,7 @@ function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | 
         <span>Categoria</span>
         {principal && <span className="tree-chip" style={{ background: principal.color, color: readableOn(principal.color) }}>{principal.name}</span>}
       </div>
-      <label className="tree-add-category">Categoria del nodo
-        <select aria-label="Categoria del nodo" value={categoryId ?? ""} onChange={event => onCategory(event.target.value || null)}>
-          <option value="">Nessuna</option>
-          {[...tree.categories].sort((a, b) => a.order - b.order).map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
-        </select>
-      </label>
+      <NodeCategoryPicker key={node.id} categories={tree.categories} value={categoryId} onChange={onCategory} />
       {!categoryId && <p className="tree-muted">Nessuna categoria: nodo neutro.</p>}
       <div className="tree-row-actions">
         <button type="button" className="button" onMouseDown={event => event.preventDefault()} onClick={onManageCategories}>Gestisci…</button>

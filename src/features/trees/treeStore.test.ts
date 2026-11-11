@@ -158,7 +158,7 @@ describe("sessioni delle strutture", () => {
     const siblings = saved.nodes.filter(node => node.parentId === "n-07").sort((a, b) => a.order - b.order);
     expect(siblings.map(node => node.id)).toEqual([orders[0]!.id, result.node.id, orders[1]!.id]);
     expect(siblings.map(node => node.order)).toEqual([orders[0]!.order, orders[0]!.order + 1, orders[1]!.order + 1]);
-    expect(siblings.find(node => node.id === result.node.id)!.categoryMode).toBe("inherit");
+    expect(siblings.find(node => node.id === result.node.id)!.categoryMode).toBe("own");
     expect(siblings.find(node => node.id === result.node.id)!.categoryId).toBeNull();
     expect(write).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(700);
