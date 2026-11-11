@@ -21,7 +21,7 @@
 .tree-item, .tree-object { display: flex; align-items: center; gap: 6px; min-height: 34px; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; font: inherit; }
 .tree-item.is-selected { background: var(--bg-selected); }
 .tree-item.is-draft { flex-wrap: wrap; }
-.tree-inline-error { flex-basis: 100%; margin-left: 36px; }
+.tree-inline-error { flex: 1 0 calc(100% - 36px); margin-left: 36px; min-width: 0; overflow-wrap: anywhere; }
 .tree-item.is-dimmed, .tree-object.is-dimmed { opacity: .38; }
 .tree-item mark { font-weight: 700; }
 .tree-disclosure, .tree-color-button, .tree-danger-text, .tree-link, .tree-sheet-close { border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; }
@@ -29,9 +29,14 @@
 .tree-disclosure:disabled { cursor: default; }
 .tree-disclosure-spacer { width: 22px; flex: none; }
 .tree-swatch { width: 8px; height: 18px; border-radius: 3px; background: var(--border-strong); flex: none; }
-.tree-label { display: flex; gap: 8px; min-width: 0; align-items: baseline; }
+.tree-label { display: flex; gap: 8px; min-width: 0; align-items: baseline; flex: 1; }
 .tree-label .tree-name, .tree-label .tree-name mark { font-variant-numeric: tabular-nums; font-weight: 400; }
 .tree-label .tree-code { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.tree-label input { background: var(--bg-app); color: var(--text-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 6px; min-width: 0; font: inherit; }
+.tree-label input.tree-code-input { max-width: 140px; flex: 0 1 140px; }
+.tree-label input.tree-name-input { flex: 1; }
+.tree-item.is-editing { flex-wrap: wrap; }
+.tree-item.is-editing > .tree-warning { flex: 1 0 calc(100% - 36px); margin-left: 36px; min-width: 0; overflow-wrap: anywhere; }
 .tree-item.is-match .tree-name, .tree-item mark { background: transparent; color: var(--accent-secondary); }
 .tree-item.is-renamed .tree-code { color: var(--success); }
 .tree-note-dot { width: 8px; height: 8px; border-radius: 99px; background: #f5c518; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, .28); }
@@ -42,7 +47,7 @@
 .tree-object.is-acquired, .tree-obj-icon.is-acquired { color: #e0a33a; }
 .tree-rename { display: flex; gap: 6px; flex: 1; min-width: 0; }
 .tree-rename input { background: var(--bg-app); color: var(--text-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 6px; min-width: 0; }
-.tree-rename input:first-child { max-width: 140px; }
+.tree-rename input.tree-code-input { max-width: 140px; }
 .tree-inline-error { color: var(--danger); font-size: .75rem; }
 .tree-legend { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .tree-legend button { border: 0; border-radius: 999px; padding: 4px 10px; color: #1a1d27; font-size: .78rem; cursor: pointer; }

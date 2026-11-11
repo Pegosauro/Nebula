@@ -1,4 +1,4 @@
-# Architettura Nebula · 0.41.0
+# Architettura Nebula · 0.42.0
 
 ## Moduli e responsabilità
 
@@ -11,6 +11,10 @@
 | Knowledge e ricerca | Indici derivati dai file, risoluzione dei collegamenti e ricerca |
 | Filesystem e storage | File reali del Vault; IndexedDB per handle, cache degli indici |
 | Worker locali | Indicizzazione e calcolo delle configurazioni |
+
+## Strutture 0.42.0
+
+La modifica in linea di un nodo già presente è un solo campo. `RenameDraft.field` è `name` oppure `code`: il doppio clic sul nome, F2 e Rinomina aprono il nome; il doppio clic sul codice apre il codice. Invio chiama `updateNode` solo con il campo aperto. Esc scarta la bozza. Il blur non salva e non chiude. `codeIssues` (codice vuoto, duplicato, fuori prefisso) non cambia e il messaggio sta accanto all'input del codice. L'inserimento nasce con `field: "name"` e «Nuovo nodo» selezionato; il codice proposto si apre dopo, con gli stessi controlli. La scheda continua a scrivere nome e codice da sola.
 
 ## Strutture 0.41.0
 

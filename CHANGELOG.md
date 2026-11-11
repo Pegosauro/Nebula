@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.42.0 — Nome e codice separati nell'albero
+
+- Il doppio clic sul nome di un nodo apre solo il nome; il doppio clic sul codice apre solo il codice. F2 e Rinomina aprono solo il nome.
+- Invio salva, Esc annulla. Un clic fuori lascia la modifica aperta, senza salvarla e senza chiuderla.
+- I controlli del codice restano quelli di prima: obbligatorio, univoco, e l'avviso se non è il prefisso del padre più le cifre previste. Errori e avvisi stanno sul campo del codice.
+- Un nodo nuovo si apre sul nome, con «Nuovo nodo» selezionato. Il codice proposto si modifica a parte, con gli stessi controlli.
+
 ## 0.41.0 — Categoria singola, note ed eliminazione
 
 - Ogni nodo ha una sola categoria (`categoryId`). Un figlio nuovo la eredita; modificarla la rende propria. In lettura, un file con più categorie tiene solo la prima; l'elenco vuoto diventa nessuna categoria. Non c'è un comando per tornare all'eredità.
