@@ -44,7 +44,7 @@ export class ExternalFileConflictError extends Error {
 }
 
 function assertMarkdownPath(path: string): void {
-  if (extensionOf(basename(path)) !== ".md" && !/\.config\.json$/i.test(path)) throw new Error("Formato di documento non supportato.");
+  if (extensionOf(basename(path)) !== ".md" && !/\.config\.json$/i.test(path) && !/\.tree\.json$/i.test(path)) throw new Error("Formato di documento non supportato.");
 }
 
 async function findChild(
@@ -186,6 +186,19 @@ export class VaultFileOperations {
     return `${folderName}/${name}`;
   }
 
+  async createTree(root: FileSystemDirectoryHandle, requestedName: string, content: string): Promise<string> {
+    const title = validateVaultEntryName(requestedName.replace(/\.tree\.json$/i, ""));
+    const folderName = await findNameCollision(root, "Strutture") ?? "Strutture";
+    const folder = await root.getDirectoryHandle(folderName, { create: true });
+    const name = `${title}.tree.json`;
+    if (await findNameCollision(folder, name)) throw new VaultCollisionError(`${folderName}/${name}`);
+    const handle = await folder.getFileHandle(name, { create: true });
+    const writable = await handle.createWritable({ keepExistingData: false });
+    try { await writable.write(content); await writable.close(); }
+    catch (error) { await writable.abort(error).catch(() => undefined); await folder.removeEntry(name).catch(() => undefined); throw error; }
+    return `${folderName}/${name}`;
+  }
+
   async createNote(root: FileSystemDirectoryHandle, parentPath: string, requestedName: string, content?: string): Promise<string> {
     const parent = await resolveDirectory(root, parentPath);
     const name = ensureMarkdownExtension(requestedName);
@@ -243,6 +256,8 @@ export class VaultFileOperations {
   async rename(root: FileSystemDirectoryHandle, entry: VaultEntry, requestedName: string): Promise<string> {
     const name = /\.config\.json$/i.test(entry.path)
       ? `${validateVaultEntryName(requestedName.replace(/\.config\.json$/i, ""))}.config.json`
+      : /\.tree\.json$/i.test(entry.path)
+      ? `${validateVaultEntryName(requestedName.replace(/\.tree\.json$/i, ""))}.tree.json`
       : entry.extension === ".md"
       ? ensureMarkdownExtension(requestedName)
       : validateVaultEntryName(requestedName);

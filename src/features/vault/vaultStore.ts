@@ -1,4 +1,5 @@
 import { useConfiguratorStore } from "../configurator/configuratorStore";
+import { useTreeStore } from "../trees/treeStore";
 import { create } from "zustand";
 import { findVaultEntry, type RecentVault, type VaultEntry, type VaultScanProgress, type VaultSnapshot } from "../../domain/vault";
 import { readableFileSystemError } from "../../infrastructure/filesystem/filesystemErrors";
@@ -130,8 +131,9 @@ export const useVaultStore = create<VaultState>((set, get) => {
           if (!await useDocumentStore.getState().flushPaths(path)) throw new Error("Salva o risolvi i conflitti delle note prima di aprire il Vault di prova.");
         }
         if (!await useConfiguratorStore.getState().flush()) throw new Error("Salva o risolvi i conflitti dei configuratori prima di aprire il Vault di prova.");
+        if (!await useTreeStore.getState().flush()) throw new Error("Salva o risolvi i conflitti delle strutture prima di aprire il Vault di prova.");
         const snapshot = await service.openTestVault(setProgress);
-        useConfiguratorStore.getState().reset(); useDocumentStore.getState().reset();
+        useConfiguratorStore.getState().reset(); useTreeStore.getState().reset(); useDocumentStore.getState().reset();
         useKnowledgeStore.getState().reset(); useSearchStore.getState().reset(); useWorkspaceStore.getState().resetDocuments();
         useWorkspaceStore.getState().setActivity("files");
         set({ status: "ready", snapshot, activeVaultId: service.currentVaultId(), savedVaultName: snapshot.name, recentVaults: await service.recentVaults(), progress: undefined });
@@ -140,11 +142,13 @@ export const useVaultStore = create<VaultState>((set, get) => {
     },
     chooseVault: async () => {
       if (!await useConfiguratorStore.getState().flush()) { set({error:"Salva o risolvi i conflitti dei configuratori prima di cambiare Vault."}); return; }
+      if (!await useTreeStore.getState().flush()) { set({error:"Salva o risolvi i conflitti delle strutture prima di cambiare Vault."}); return; }
       const previous = get();
       set({ status: "opening", error: undefined, progress: undefined });
       try {
         const snapshot = await service.openFromPicker(setProgress);
         useConfiguratorStore.getState().reset();
+        useTreeStore.getState().reset();
         useDocumentStore.getState().reset();
         useKnowledgeStore.getState().reset();
         useSearchStore.getState().reset();
@@ -191,7 +195,9 @@ export const useVaultStore = create<VaultState>((set, get) => {
     },
     openRecent: async (id) => {
       if (!await useConfiguratorStore.getState().flush()) { set({error:"Salva o risolvi i conflitti dei configuratori prima di cambiare Vault."}); return; }
+      if (!await useTreeStore.getState().flush()) { set({error:"Salva o risolvi i conflitti delle strutture prima di cambiare Vault."}); return; }
       useConfiguratorStore.getState().reset();
+      useTreeStore.getState().reset();
       set({ status: "opening", error: undefined, progress: undefined });
       try {
         const probe = await service.selectRecent(id);
@@ -223,7 +229,9 @@ export const useVaultStore = create<VaultState>((set, get) => {
     },
     disconnect: async () => {
       if (!await useConfiguratorStore.getState().flush()) { set({error:"Salva o risolvi i conflitti dei configuratori prima di disconnettere il Vault."}); return; }
+      if (!await useTreeStore.getState().flush()) { set({error:"Salva o risolvi i conflitti delle strutture prima di disconnettere il Vault."}); return; }
       useConfiguratorStore.getState().reset();
+      useTreeStore.getState().reset();
       await service.disconnect();
       useDocumentStore.getState().reset();
       useKnowledgeStore.getState().reset();
@@ -287,11 +295,13 @@ export const useVaultStore = create<VaultState>((set, get) => {
     renameEntry: async (entry, name) => {
       try {
         if (!await useConfiguratorStore.getState().flush(entry.path)) throw new Error("Risolvi il salvataggio del configuratore prima di rinominare o spostare l'elemento.");
+        if (!await useTreeStore.getState().flush(entry.path)) throw new Error("Risolvi il salvataggio della struttura prima di rinominare o spostare l'elemento.");
         const flushed = await useDocumentStore.getState().flushPaths(entry.path);
         if (!flushed) throw new Error("Salva o risolvi le modifiche aperte prima di rinominare l'elemento.");
         const result = await service.rename(entry, name);
         completeMutation(result.snapshot);
         useConfiguratorStore.getState().remove(entry.path);
+        useTreeStore.getState().remove(entry.path);
         useDocumentStore.getState().remapPaths(entry.path, result.path, result.snapshot);
         syncKnowledgeAfterMutation(result.snapshot, () => useKnowledgeStore.getState().remapPaths(entry.path, result.path));
         useWorkspaceStore.getState().remapEntryPaths(entry.path, result.path, result.snapshot);
@@ -303,11 +313,13 @@ export const useVaultStore = create<VaultState>((set, get) => {
     moveEntry: async (entry, targetDirectoryPath) => {
       try {
         if (!await useConfiguratorStore.getState().flush(entry.path)) throw new Error("Risolvi il salvataggio del configuratore prima di rinominare o spostare l'elemento.");
+        if (!await useTreeStore.getState().flush(entry.path)) throw new Error("Risolvi il salvataggio della struttura prima di rinominare o spostare l'elemento.");
         const flushed = await useDocumentStore.getState().flushPaths(entry.path);
         if (!flushed) throw new Error("Salva o risolvi le modifiche aperte prima di spostare l'elemento.");
         const result = await service.move(entry, targetDirectoryPath);
         completeMutation(result.snapshot);
         useConfiguratorStore.getState().remove(entry.path);
+        useTreeStore.getState().remove(entry.path);
         useDocumentStore.getState().remapPaths(entry.path, result.path, result.snapshot);
         syncKnowledgeAfterMutation(result.snapshot, () => useKnowledgeStore.getState().remapPaths(entry.path, result.path));
         useWorkspaceStore.getState().remapEntryPaths(entry.path, result.path, result.snapshot);
@@ -319,8 +331,10 @@ export const useVaultStore = create<VaultState>((set, get) => {
     deleteEntry: async (entry) => {
       try {
         if (!await useConfiguratorStore.getState().flush(entry.path)) throw new Error("Risolvi il salvataggio del configuratore prima di eliminare l'elemento.");
+        if (!await useTreeStore.getState().flush(entry.path)) throw new Error("Risolvi il salvataggio della struttura prima di eliminare l'elemento.");
         const snapshot = await service.delete(entry);
         useConfiguratorStore.getState().remove(entry.path);
+        useTreeStore.getState().remove(entry.path);
         completeMutation(snapshot);
         useDocumentStore.getState().removePaths(entry.path);
         syncKnowledgeAfterMutation(snapshot, () => useKnowledgeStore.getState().removePaths(entry.path));

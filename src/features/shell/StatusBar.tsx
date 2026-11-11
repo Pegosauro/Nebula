@@ -1,5 +1,6 @@
-import { configuratorSaveStatus, saveStatusLabel, saveStatusTone } from "../workspace/saveStatus";
+import { configuratorSaveStatus, saveStatusLabel, saveStatusTone, treeSaveStatus } from "../workspace/saveStatus";
 import { useConfiguratorStore } from "../configurator/configuratorStore";
+import { useTreeStore } from "../trees/treeStore";
 import { useEffect, useState } from "react";
 import { CloudOff, HardDrive, LoaderCircle, Network } from "lucide-react";
 import { useVaultStore } from "../vault/vaultStore";
@@ -16,6 +17,7 @@ export function StatusBar() {
   const activeTabId = useWorkspaceStore((state) => state.activeTabId);
   const activePath = useWorkspaceStore((state) => state.tabs.find((tab) => tab.id === activeTabId)?.path);
   const configStatus = useConfiguratorStore(state => { const session = activePath ? state.sessions[activePath] : undefined; return session ? configuratorSaveStatus(session) : undefined; });
+  const treeStatus = useTreeStore(state => { const session = activePath ? state.sessions[activePath] : undefined; return session ? treeSaveStatus(session) : undefined; });
   const activeSession = useDocumentStore((state) => activePath ? state.sessions[activePath] : undefined);
   const knowledgeStatus = useKnowledgeStore((state) => state.status);
   const knowledgeProgress = useKnowledgeStore((state) => state.progress);
@@ -35,8 +37,8 @@ export function StatusBar() {
   }, []);
 
   const activity = useWorkspaceStore(state => state.activity);
-  const documentVisible = activity === "files" || activity === "search" || activity === "configurators";
-  const saveStatus = documentVisible ? configStatus ?? activeSession?.status : undefined;
+  const documentVisible = activity === "files" || activity === "search" || activity === "configurators" || activity === "structures";
+  const saveStatus = documentVisible ? treeStatus ?? configStatus ?? activeSession?.status : undefined;
   const statusLabel =
     saveStatus ? saveStatusLabel(saveStatus) : status === "scanning"
       ? `Scansione ${progress?.current ?? 0}`

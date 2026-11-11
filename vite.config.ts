@@ -18,7 +18,7 @@ export default defineConfig({
       manifest: {
         name: "Nebula",
         short_name: "Nebula",
-        description: "Workspace local-first per note Markdown, collegamenti e configuratori.",
+        description: "Workspace local-first per note Markdown, collegamenti, strutture e configuratori.",
         start_url: base,
         scope: base,
         display: "standalone",

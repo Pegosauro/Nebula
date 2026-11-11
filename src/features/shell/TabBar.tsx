@@ -1,6 +1,9 @@
 import { useConfiguratorStore } from "../configurator/configuratorStore";
 import { isConfiguratorPath } from "../configurator/model";
-import { FileText, GitBranch, House, X } from "lucide-react";
+import { isTreePath } from "../trees/model";
+import { serializeTree } from "../trees/serializeTree";
+import { useTreeStore } from "../trees/treeStore";
+import { FileText, GitBranch, House, ListTree, X } from "lucide-react";
 import { useState } from "react";
 import { useWorkspaceStore } from "../workspace/workspaceStore";
 import { useDocumentStore } from "../editor/documentStore";
@@ -12,7 +15,8 @@ function TabDirtyState({ path }: { path: string }) {
     return Boolean(session && session.content !== session.savedContent);
   });
   const configDirty = useConfiguratorStore(state=>{const s=state.sessions[path];return Boolean(s && JSON.stringify(s.data)!==s.saved);});
-  return dirty || configDirty ? <span className="tab-dirty" aria-label="Modifiche non salvate" /> : null;
+  const treeDirty = useTreeStore(state => { const session = state.sessions[path]; return Boolean(session && (session.conflict || serializeTree(session.data) !== session.saved)); });
+  return dirty || configDirty || treeDirty ? <span className="tab-dirty" aria-label="Modifiche non salvate" /> : null;
 }
 
 export function TabBar() {
@@ -38,7 +42,7 @@ export function TabBar() {
                 aria-selected={active}
                 onClick={() => activateTab(tab.id)}
               >
-                {tab.kind === "home" ? <House size={15} /> : tab.path && isConfiguratorPath(tab.path) ? <GitBranch size={15}/> : <FileText size={15} />}
+                {tab.kind === "home" ? <House size={15} /> : tab.path && isConfiguratorPath(tab.path) ? <GitBranch size={15}/> : tab.path && isTreePath(tab.path) ? <ListTree size={15} /> : <FileText size={15} />}
                 <span>{tab.title}</span>
                 {tab.path ? <TabDirtyState path={tab.path} /> : null}
               </button>
@@ -47,7 +51,7 @@ export function TabBar() {
                   type="button"
                   className="tab-close"
                   aria-label={`Chiudi ${tab.title}`}
-                  onClick={() => { if(tab.path && isConfiguratorPath(tab.path)) void useConfiguratorStore.getState().flush(tab.path).then(saved=>{if(saved)closeTab(tab.id);}); else closeTab(tab.id); }}
+                  onClick={() => { if(tab.path && isConfiguratorPath(tab.path)) void useConfiguratorStore.getState().flush(tab.path).then(saved=>{if(saved)closeTab(tab.id);}); else if (tab.path && isTreePath(tab.path)) void useTreeStore.getState().flush(tab.path).then(saved => { if (saved) closeTab(tab.id); }); else closeTab(tab.id); }}
                 >
                   <X size={14} />
                 </button>

@@ -1,5 +1,6 @@
 import { memo, useEffect, useId, useRef, useState } from "react";
-import { FileText, LoaderCircle, Search, X } from "lucide-react";
+import { FileText, ListTree, LoaderCircle, Search, X } from "lucide-react";
+import { isTreePath } from "../trees/model";
 import { IconButton } from "../../components/ui/IconButton";
 import { withoutMarkdownExtension } from "../../domain/path";
 import { findVaultEntry } from "../../domain/vault";
@@ -94,7 +95,7 @@ const QuickResults = memo(function QuickResults({ id, pending }: { id: string; p
     {!pending && !error && !results.length ? <div className="quick-empty"><Search size={20} /><span>{query ? "Nessuna nota corrispondente." : "Apri un Vault o inizia a digitare."}</span></div> : null}
     {results.map((result, index) => <button id={`${id}-option-${index}`} className={index === selectedIndex ? "is-selected" : ""} type="button" role="option" aria-selected={index === selectedIndex} aria-disabled={pending} tabIndex={-1} key={result.path}
       onClick={() => { if (!pending) openResult(result.path); }} onPointerMove={() => { if (!pending) useSearchStore.getState().setQuickSelectedIndex(index); }}>
-      <FileText size={17} /><span><strong>{result.title}</strong><small>{withoutMarkdownExtension(result.path)}</small></span>{result.match === "recent" ? <em>Recente</em> : null}
+      {isTreePath(result.path) ? <ListTree size={17} /> : <FileText size={17} />}<span><strong>{result.title}</strong><small>{isTreePath(result.path) ? result.path.replace(/\.tree\.json$/i, "") : withoutMarkdownExtension(result.path)}</small></span>{result.match === "recent" ? <em>Recente</em> : null}
     </button>)}
   </div>;
 });

@@ -1,4 +1,5 @@
 import { configTitle, isConfiguratorPath } from "../configurator/model";
+import { isTreePath, treeTitle } from "../trees/model";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ChevronDown,
@@ -6,6 +7,7 @@ import {
   File,
   FileText,
   GitBranch,
+  ListTree,
   Folder,
   FolderOpen,
   FolderInput,
@@ -43,6 +45,7 @@ function EntryIcon({ entry, expanded }: { entry: VaultEntry; expanded: boolean }
     return expanded ? <FolderOpen size={16} /> : <Folder size={16} />;
   }
   if (isConfiguratorPath(entry.path)) return <GitBranch size={16} />;
+  if (isTreePath(entry.path)) return <ListTree size={16} />;
   if (entry.extension === ".md") return <FileText size={16} />;
   return <File size={16} />;
 }
@@ -65,7 +68,7 @@ function TreeNode({ entry, depth, expanded, toggle, menuPath, setMenuPath, onAct
   const isDirectory = entry.type === "directory";
   const isExpanded = isDirectory && expanded.has(entry.path);
   const isSelected = selectedEntry?.path === entry.path;
-  const displayName = isConfiguratorPath(entry.path) ? configTitle(entry.name) : entry.extension === ".md" ? withoutMarkdownExtension(entry.name) : entry.name;
+  const displayName = isConfiguratorPath(entry.path) ? configTitle(entry.name) : isTreePath(entry.path) ? treeTitle(entry.name) : entry.extension === ".md" ? withoutMarkdownExtension(entry.name) : entry.name;
 
   return (
     <li className="tree-node">

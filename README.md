@@ -5,15 +5,15 @@ PWA locale per note Markdown, collegamenti e configuratori tecnici. Versione **0
 ## Uso quotidiano
 
 1. Apri Nebula e collega una cartella con **Apri Vault** in un browser desktop compatibile con File System Access API.
-2. Usa **File** per note e documenti, **Cerca** per la ricerca, **Configuratori** per progetti, regole e distinte.
-3. Le note sono file `.md`; i configuratori sono file `.config.json`. I contenuti restano nella cartella scelta e si salvano automaticamente. Gli errori e i conflitti richiedono attenzione prima di chiudere il documento.
+2. Usa **File** per note e documenti, **Cerca** per la ricerca, **Strutture** per gli alberi e **Configuratori** per progetti, regole e distinte.
+3. Le note sono file `.md`; le strutture sono file `.tree.json`; i configuratori sono file `.config.json`. I contenuti restano nella cartella scelta e si salvano automaticamente. Gli errori e i conflitti richiedono attenzione prima di chiudere il documento.
 
 Il Vault diretto richiede un browser compatibile. La disposizione per schermi piccoli non sostituisce il supporto alle API del filesystem.
 
 ## Configuratore 0.26.0 e Vault di prova
 
 - **Apri Vault di prova**, in benvenuto e Impostazioni, crea file di esempio nell’archivio locale del browser (OPFS), separato dalle cartelle personali. La riapertura conserva i file già presenti. La copia [ZIP](public/samples/Nebula-Vault-Test.zip) si può estrarre e aprire come normale cartella desktop.
-- Il campione contiene 31 file: note collegate, 24 schede tecniche e tre configuratori. Pergola dimostrativa usa domini finiti; Misure libere verifica numeri senza passo; Diagnostica intenzionale contiene errori di definizione dichiarati.
+- Il campione contiene 32 file: note collegate, 24 schede tecniche, tre configuratori e la struttura `Strutture/FL · Tenda finestra.tree.json`. Pergola dimostrativa usa domini finiti; Misure libere verifica numeri senza passo; Diagnostica intenzionale contiene errori di definizione dichiarati.
 - Scelte, vista, filtri del grafo e zoom sono ricordati localmente per Vault e progetto, anche dopo la riapertura dell’app. **Azzera scelte** li rimuove esplicitamente per la configurazione corrente. I file del progetto non vengono modificati da queste preferenze.
 - Catalogo con ricerca e filtri per famiglia, gruppo, regola e misura. I comandi secondari sono nel menu ⋯; il riordino viene disabilitato con filtri attivi per proteggere gli elementi nascosti.
 - Distinta a colonne con codice, descrizione, misura per pezzo, quantità e stato distinti; ricerca, ordine e raggruppamento per famiglia/gruppo. La ricerca della vista non filtra l’esportazione CSV, che mantiene la distinta completa delle scelte.

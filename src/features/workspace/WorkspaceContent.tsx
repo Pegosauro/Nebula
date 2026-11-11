@@ -1,4 +1,5 @@
 import { isConfiguratorPath } from "../configurator/model";
+import { isTreePath } from "../trees/model";
 import { lazy, Suspense } from "react";
 import { Clock3 } from "lucide-react";
 import { EditorErrorBoundary } from "../editor/EditorErrorBoundary";
@@ -11,6 +12,8 @@ import { useWorkspaceStore } from "./workspaceStore";
 
 const ConfiguratorView = lazy(() => import("../configurator/ConfiguratorView"));
 const ConfiguratorLibrary = lazy(() => import("../configurator/ConfiguratorLibrary"));
+const TreeView = lazy(() => import("../trees/TreeView"));
+const TreeLibrary = lazy(() => import("../trees/TreeLibrary"));
 const SettingsView = lazy(() => import("../settings/SettingsView").then(module => ({ default: module.SettingsView })));
 
 const MarkdownEditorView = lazy(loadMarkdownEditor);
@@ -27,7 +30,9 @@ export function WorkspaceContent() {
 
   if (activity === "settings") return <Suspense fallback={<div className="editor-loading">Caricamento impostazioni…</div>}><SettingsView /></Suspense>;
   if (status !== "ready") return <WelcomeView />;
+  if ((activity === "files" || activity === "search" || activity === "structures") && activeTab?.path && isTreePath(activeTab.path)) return <Suspense fallback={<div className="editor-loading">Caricamento struttura…</div>}><TreeView key={activeTab.path} path={activeTab.path} /></Suspense>;
   if ((activity === "files" || activity === "search" || activity === "configurators") && activeTab?.path && isConfiguratorPath(activeTab.path)) return <Suspense fallback={<div className="editor-loading">Caricamento configuratore…</div>}><ConfiguratorView key={activeTab.path} path={activeTab.path}/></Suspense>;
+  if (activity === "structures") return <Suspense fallback={<div className="editor-loading">Caricamento…</div>}><TreeLibrary /></Suspense>;
   if (activity === "configurators") return <Suspense fallback={<div className="editor-loading">Caricamento…</div>}><ConfiguratorLibrary/></Suspense>;
   if (activity !== "files" && activity !== "search") {
     const view = futureViews[activity];

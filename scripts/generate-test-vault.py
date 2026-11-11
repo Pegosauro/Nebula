@@ -44,6 +44,7 @@ Dati dimostrativi, senza informazioni personali. Puoi modificarli liberamente.
 6. Scegli Materiale telo = PVC oppure Acrilico: AC019 segue la scelta. AC020 mantiene Materiale: Poliestere. Puoi anche scrivere un testo personalizzato.
 7. Prova ricerca, filtri, raggruppamento e zoom del grafo.
 8. Apri [[Configurators/Diagnostica intenzionale.config.json]] per segnalazioni intenzionali.
+9. Apri [[Strutture/FL · Tenda finestra.tree.json]] nella sezione Strutture: albero, categorie e oggetti.
 
 ## Conservazione
 
@@ -53,9 +54,10 @@ for c in components:files[c['note']]=f'# {c["code"]} · {c["name"]}\n\nFamiglia:
 files['Configurators/Pergola dimostrativa.config.json']=json.dumps(data,ensure_ascii=False,indent=2)
 free=copy.deepcopy(data);free['title']='Misure libere';free['parameters'][3].pop('step');files['Configurators/Misure libere.config.json']=json.dumps(free,ensure_ascii=False,indent=2)
 bad=copy.deepcopy(data);bad['title']='Diagnostica intenzionale';bad['components'][1]['code']='PR001';bad['parameters'][0]['values']=['BASE','BASE'];files['Configurators/Diagnostica intenzionale.config.json']=json.dumps(bad,ensure_ascii=False,indent=2)
+files['Strutture/FL · Tenda finestra.tree.json']=(root/'src/features/trees/tendaFinestra.tree.json').read_text(encoding='utf-8')
 for path,content in files.items():p=vault/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(content,encoding='utf-8')
 (root/'src/features/vault/testVaultFiles.json').write_text(json.dumps(files,ensure_ascii=False),encoding='utf-8')
 zip_path=root/'public/samples/Nebula-Vault-Test.zip';zip_path.parent.mkdir(parents=True,exist_ok=True)
 with zipfile.ZipFile(zip_path,'w',zipfile.ZIP_DEFLATED) as z:
  for path in sorted(files):z.write(vault/path,'Nebula-Vault-Test/'+path)
-print(f'{len(files)} file, 3 configuratori, 24 componenti per progetto')
+print(f'{len(files)} file, 3 configuratori, 1 struttura, 24 componenti per progetto')

@@ -21,7 +21,7 @@ export function VaultHome() {
         <p className="workspace-kicker">{snapshot.name}</p>
         <h1>Vault pronto</h1>
         <p>
-          {vaultService.isBrowserTestVault() ? "Vault di prova: i file sono nell’archivio locale del browser. Apri Configuratori per provare la pergola dimostrativa." : "Nebula lavora direttamente nella cartella locale. Apri le note da File, trova i contenuti con Cerca e gestisci i progetti in Configuratori."}
+          {vaultService.isBrowserTestVault() ? "Vault di prova: i file sono nell’archivio locale del browser. Apri Configuratori per la pergola e Strutture per l’albero dimostrativo." : "Nebula lavora direttamente nella cartella locale. Apri le note da File, trova i contenuti con Cerca, gli alberi in Strutture e i progetti in Configuratori."}
         </p>
         <div className="home-stats" aria-label="Riepilogo Vault">
           <span><FileText size={16} /> {snapshot.stats.notes} note</span>
@@ -36,6 +36,7 @@ export function VaultHome() {
         <span>Editor Markdown</span>
         <span>Wikilink</span>
         <span>Ricerca</span>
+        <span>Strutture</span>
         <span>Configuratori</span>
       </div>
       {creating ? <VaultOperationDialog request={{ type: "create-note", parentPath: "" }} snapshot={snapshot} onClose={() => setCreating(false)} onCompleted={setNotice} /> : null}
