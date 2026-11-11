@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.40.0 — Sposta, riordina e rinumerazione
+
+- Spostamento e riordino dei nodi: trascinamento (linea prima/dopo, riquadro dentro), «Sposta in…» con anteprima vecchio → nuovo, e Alt ↑/↓ tra fratelli.
+- I codici conformi si rinumerano solo quando cambia il padre. I codici liberi restano, con avviso di fuori prefisso, e interrompono la catena. Un conflitto o l'assenza di una coppia libera 01–99 bloccano lo spostamento.
+- Un nodo che eredita le categorie prende subito quelle del nuovo padre; un nodo con categorie proprie le mantiene. L'anteprima conta i nodi che cambiano categoria.
+- «Annulla» (Ctrl Z) ripristina posizione, codici e categorie dell'ultimo spostamento, finché non si fa un'altra modifica.
+- Su puntatore grosso il tocco breve sulla maniglia apre «Sposta in…»; la pressione lunga trascina. La tastiera resta disponibile.
+
 ## 0.39.0 — Strutture ad albero
 
 - Nuova sezione Strutture: file `Strutture/<nome>.tree.json` nel formato `nebula-tree` v1, separato dai configuratori.

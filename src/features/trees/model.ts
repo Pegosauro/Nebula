@@ -1,5 +1,5 @@
 /** Albero libero `nebula-tree` v1. Le categorie effettive non vengono mai scritte nel file.
- *  Lo spostamento (PR2) cambierà solo `parentId` e `order`, poi userà `conformSuffix` e `freeSuffix`. */
+ *  Lo spostamento cambia solo `parentId`, `order` e, se cambia il padre, i codici conformi (`conformSuffix`, `freeSuffix`). */
 
 export const TREE_FORMAT = "nebula-tree" as const;
 export const TREE_VERSION = 1 as const;
@@ -408,6 +408,149 @@ export function removeObject(tree: Tree, nodeId: string, objectId: string): Tree
   node.objects = node.objects.filter(object => object.id !== objectId);
   node.objects.forEach((object, order) => { object.order = order; });
   return { ok: true, tree: next };
+}
+
+export interface MoveRename { id: string; old: string; new: string }
+export interface MovePlan {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  renames: MoveRename[];
+  catChanged: string[];
+  sameParent: boolean;
+  /** Null se lo spostamento è bloccato. L'albero passato non viene mai mutato. */
+  tree: Tree | null;
+}
+export type DropZone = "before" | "after" | "inside";
+
+function blockedMove(message: string): MovePlan {
+  return { ok: false, errors: [message], warnings: [], renames: [], catChanged: [], sameParent: false, tree: null };
+}
+function changedCategoryIds(before: Tree, after: Tree, ids: readonly string[]): string[] {
+  const left = effectiveCategoryMap(before);
+  const right = effectiveCategoryMap(after);
+  return ids.filter(id => (left.get(id) ?? []).join("|") !== (right.get(id) ?? []).join("|"));
+}
+
+/** Motivo per cui il comando «Sposta in…» non è disponibile sul nodo. */
+export function moveCommandReason(tree: Tree, nodeId: string): string | undefined {
+  const node = nodeById(tree, nodeId);
+  if (!node) return "Nodo inesistente";
+  if (node.parentId == null) return "La radice non si può spostare";
+  return undefined;
+}
+/** Motivo strutturale per cui `targetId` non può diventare padre. I conflitti di codice restano a `planMove`. */
+export function moveDestinationReason(tree: Tree, nodeId: string, targetId: string): string | undefined {
+  const command = moveCommandReason(tree, nodeId);
+  if (command) return command;
+  if (!nodeById(tree, targetId)) return "Destinazione inesistente";
+  if (targetId === nodeId) return "È il nodo da spostare";
+  if (isDescendant(tree, targetId, nodeId)) return "Discendente del nodo: creerebbe un ciclo";
+  if (nodeById(tree, nodeId)?.parentId === targetId) return "Padre attuale";
+  return undefined;
+}
+export function dropZoneAt(ratio: number): DropZone {
+  if (ratio < 0.28) return "before";
+  if (ratio > 0.72) return "after";
+  return "inside";
+}
+/** `index` è la posizione tra i fratelli che restano, escluso il nodo trascinato. `null` = in coda. */
+export function dropDestination(tree: Tree, dragId: string, targetId: string, zone: DropZone): { parentId: string; index: number | null } | undefined {
+  const target = nodeById(tree, targetId);
+  const dragged = nodeById(tree, dragId);
+  if (!target || !dragged?.parentId) return undefined;
+  if (target.id === dragId && zone !== "inside") {
+    const index = childrenOf(tree, dragged.parentId).findIndex(child => child.id === dragId);
+    return { parentId: dragged.parentId, index: Math.max(0, index) };
+  }
+  if (target.parentId == null || zone === "inside") return { parentId: target.id, index: null };
+  const siblings = childrenOf(tree, target.parentId).filter(child => child.id !== dragId);
+  const index = siblings.findIndex(child => child.id === target.id);
+  if (index < 0) return { parentId: target.parentId, index: zone === "before" ? 0 : siblings.length };
+  return { parentId: target.parentId, index: zone === "before" ? index : index + 1 };
+}
+/** Alt ↑/↓. L'indice passato a `planMove` è la posizione finale tra i fratelli, compreso il nodo. */
+export function reorderSibling(tree: Tree, nodeId: string, delta: number): MovePlan | undefined {
+  const node = nodeById(tree, nodeId);
+  if (!node?.parentId) return undefined;
+  const siblings = childrenOf(tree, node.parentId);
+  const index = siblings.findIndex(child => child.id === nodeId);
+  const target = index + delta;
+  if (index < 0 || target < 0 || target >= siblings.length) return undefined;
+  return planMove(tree, nodeId, node.parentId, target);
+}
+
+/**
+ * Pianifica uno spostamento. `index` è la posizione tra i nuovi fratelli, escluso il nodo; `null` lo mette in coda.
+ * Tra fratelli dello stesso padre non rinumera. Un codice conforme al vecchio padre prende la prima coppia libera
+ * sotto il nuovo; i discendenti conformi conservano le due cifre. Un codice libero resta e interrompe la catena.
+ * La prima coppia libera che collide con un codice già nel file blocca lo spostamento: non si prova la coppia successiva.
+ */
+export function planMove(tree: Tree, nodeId: string, newParentId: string, index: number | null = null): MovePlan {
+  const node = nodeById(tree, nodeId);
+  const parent = nodeById(tree, newParentId);
+  if (!node) return blockedMove("Nodo inesistente");
+  if (node.parentId == null) return blockedMove("La radice non si può spostare");
+  if (!parent) return blockedMove("Destinazione inesistente");
+  if (isDescendant(tree, newParentId, nodeId)) return blockedMove("Non puoi spostare un nodo dentro se stesso o dentro un suo discendente");
+  const subtree = [node, ...descendants(tree, nodeId)];
+  const subtreeDepth = Math.max(...subtree.map(item => depthOf(tree, item.id))) - depthOf(tree, nodeId);
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  if (depthOf(tree, newParentId) + 1 + subtreeDepth > MAX_DEPTH) errors.push(`Supereresti la profondità massima di ${MAX_DEPTH} livelli`);
+  const sameParent = node.parentId === newParentId;
+  const planned = new Map<string, string>();
+  if (!sameParent) {
+    const oldParent = nodeById(tree, node.parentId);
+    if (oldParent && conformSuffix(tree, node.code, oldParent.code)) {
+      const free = freeSuffix(tree, newParentId, parent.code, new Set([nodeId]), false);
+      if (!free) errors.push(`Nessun codice libero tra ${codeRangeLabel(codeStep(tree))} sotto ${parent.code}: spostamento bloccato`);
+      else planned.set(nodeId, joinCode(tree, parent.code, free));
+    } else if (!conformSuffix(tree, node.code, parent.code)) warnings.push(`${node.code} ha un codice libero: resta invariato ed è fuori prefisso sotto ${parent.code}`);
+    const queue = [nodeId];
+    while (queue.length) {
+      const currentId = queue.shift()!;
+      const current = nodeById(tree, currentId);
+      const nextCode = planned.get(currentId);
+      for (const child of childrenOf(tree, currentId)) {
+        if (current && nextCode !== undefined) {
+          const suffix = conformSuffix(tree, child.code, current.code);
+          if (suffix) planned.set(child.id, joinCode(tree, nextCode, suffix));
+        }
+        queue.push(child.id);
+      }
+    }
+    const finalCode = new Map(tree.nodes.map(item => [item.id, planned.get(item.id) ?? item.code]));
+    for (const [id, code] of planned) {
+      for (const [otherId, otherCode] of finalCode) {
+        if (otherId === id || normCode(otherCode) !== normCode(code)) continue;
+        const other = nodeById(tree, otherId);
+        const otherParent = other?.parentId ? nodeById(tree, other.parentId) : undefined;
+        const where = otherParent ? `, sotto ${otherParent.code}` : "";
+        errors.push(`${code} esiste già (${other?.code ?? ""} ${other?.name ?? ""}${where}): spostamento bloccato`);
+        break;
+      }
+    }
+  }
+  const next = clone(tree);
+  const moved = next.nodes.find(item => item.id === nodeId)!;
+  const oldParentId = moved.parentId;
+  moved.parentId = newParentId;
+  const siblings = next.nodes.filter(item => item.parentId === newParentId && item.id !== nodeId).sort((a, b) => a.order - b.order);
+  const position = index == null ? siblings.length : Math.max(0, Math.min(index, siblings.length));
+  siblings.splice(position, 0, moved);
+  siblings.forEach((item, order) => { item.order = order; });
+  if (!sameParent && oldParentId) next.nodes.filter(item => item.parentId === oldParentId).sort((a, b) => a.order - b.order).forEach((item, order) => { item.order = order; });
+  const renames: MoveRename[] = [];
+  for (const [id, code] of planned) {
+    const target = next.nodes.find(item => item.id === id);
+    if (!target || target.code === code) continue;
+    renames.push({ id, old: target.code, new: code });
+    target.code = code;
+  }
+  const catChanged = changedCategoryIds(tree, next, subtree.map(item => item.id));
+  const unique = [...new Set(errors)];
+  return { ok: unique.length === 0, errors: unique, warnings, renames, catChanged, sameParent, tree: unique.length ? null : next };
 }
 
 function issue(errors: TreeIssue[], message: string, nodeId?: string) {
