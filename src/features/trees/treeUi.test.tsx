@@ -43,7 +43,7 @@ async function typeInput(label: string, value: string) {
 }
 
 describe("vista Strutture", () => {
-  it("cerca, aggiunge un figlio, blocca il codice duplicato, vieta l'eliminazione di un ramo e segnala la sigla doppia", async () => {
+  it("cerca, aggiunge un figlio, blocca il codice duplicato, protegge la radice e segnala la sigla doppia", async () => {
     vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 40, lastModified: 1 });
     const write = vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 41, lastModified: 2 });
     host = document.createElement("div");
@@ -59,16 +59,31 @@ describe("vista Strutture", () => {
     await typeInput("Cerca codice o nome", "");
     await click("Aggiungi figlio");
     const code = host.querySelector<HTMLInputElement>('[aria-label="Codice del nuovo nodo"]');
+    const name = host.querySelector<HTMLInputElement>('[aria-label="Nome del nuovo nodo"]');
     expect(code?.value).toBe("FL-02");
+    expect(name?.value).toBe("Nuovo nodo");
+    expect(document.activeElement).toBe(name);
+    expect(name?.selectionStart).toBe(0);
+    expect(name?.selectionEnd).toBe("Nuovo nodo".length);
     await typeInput("Codice del nuovo nodo", "FL-01");
     await act(async () => code?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
     expect(host.textContent).toContain("Codice già usato");
     expect(write).not.toHaveBeenCalled();
     await act(async () => code?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
-    const branch = [...host.querySelectorAll('[role="treeitem"]')].find(item => item.textContent?.includes("FL-07"));
-    await act(async () => branch?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    const rootRow = treeRow("FL");
+    expect(rootRow.querySelector("strong.tree-name")?.textContent).toBe("Tenda finestra");
+    expect(rootRow.querySelector("span.tree-code")?.textContent).toBe("FL");
+    expect(rootRow.querySelector('[aria-label="Ha una nota"]')).not.toBeNull();
+    expect(rootRow.querySelector('[aria-label="Comprimi FL"], [aria-label="Espandi FL"]')).toBeNull();
+    expect(rootRow.getAttribute("aria-expanded")).toBe("true");
     expect(button("Elimina").hasAttribute("disabled")).toBe(true);
-    expect(host.textContent).toMatch(/figli/);
+    expect(host.textContent).toMatch(/radice non si può eliminare/);
+    const branch = treeRow("FL-07");
+    await act(async () => branch.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(button("Elimina").hasAttribute("disabled")).toBe(false);
+    expect(branch.querySelector(".tree-dot")).toBeNull();
+    expect(treeRow("FL-01").querySelector('[aria-label="Ha una nota"]')).toBeNull();
+    expect(treeRow("FL-47").querySelector('[aria-label="Ha una nota"]')).not.toBeNull();
     await click("Espandi FL-07");
     const leaf = [...host.querySelectorAll('[role="treeitem"]')].find(item => item.textContent?.includes("FL-0702"));
     await act(async () => leaf?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
@@ -82,6 +97,94 @@ describe("vista Strutture", () => {
     await click("Salva oggetto");
     expect(host.textContent).toContain("già usata");
     expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!.objects).toHaveLength(3);
+  });
+
+  it("sceglie una sola categoria, elimina un ramo con conteggio e annulla", async () => {
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 40, lastModified: 1 });
+    vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 41, lastModified: 2 });
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => { root!.render(<TreeView path={path} />); });
+    await act(async () => { await Promise.resolve(); });
+    await click("Espandi FL-07");
+    await clickTreeItem("FL-0701");
+    const picker = host!.querySelector<HTMLSelectElement>('[aria-label="Categoria del nodo"]');
+    expect(picker?.value).toBe("c-dim");
+    expect(picker?.querySelectorAll("option")).toHaveLength(demoTree().categories.length + 1);
+    expect(host!.textContent).toContain("Ereditata da FL-07");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
+      setter?.call(picker, "c-avv");
+      picker?.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const detached = useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0701")!;
+    expect(detached.categoryMode).toBe("own");
+    expect(detached.categoryId).toBe("c-avv");
+    await click("Eredita dal padre");
+    const restored = useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0701")!;
+    expect(restored.categoryMode).toBe("inherit");
+    expect(restored.categoryId).toBeNull();
+    await clickTreeItem("FL-47");
+    const note = host!.querySelector<HTMLTextAreaElement>('[aria-label="Note del nodo"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+    await act(async () => {
+      setter?.call(note, "   ");
+      note?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(treeRow("FL-47").querySelector('[aria-label="Ha una nota"]')).toBeNull();
+    await act(async () => {
+      setter?.call(note, "Avviso mostrato in fase d'ordine.");
+      note?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(treeRow("FL-47").querySelector('[aria-label="Ha una nota"]')).not.toBeNull();
+    await clickTreeItem("FL-08");
+    await click("Elimina");
+    const dialog = host!.querySelector("dialog");
+    expect(dialog?.textContent).toContain("Eliminare FL-08 e 4 nodi discendenti?");
+    expect(dialog?.textContent).toContain("Verranno eliminati 5 nodi.");
+    await act(async () => [...dialog!.querySelectorAll("button")].find(item => item.textContent === "Elimina")?.click());
+    expect(useTreeStore.getState().sessions[path]!.data.nodes.some(node => node.id === "n-0803")).toBe(false);
+    expect(host!.textContent).toContain("Annulla ripristina nodi, ordine, codici, categorie e note.");
+    await click("Annulla eliminazione");
+    const back = useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!;
+    expect(back.code).toBe("FL-0803");
+    expect(back.categoryId).toBe("c-dim");
+    expect(back.note).toContain("Altezza utile");
+    expect(host!.textContent).toContain("Eliminazione annullata");
+  });
+
+  it("mette il focus sul nome da tastiera, scheda e menu e non comprime la radice", async () => {
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 40, lastModified: 1 });
+    vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 41, lastModified: 2 });
+    useTreeUiStore.getState().update(`session:${path}`, { expanded: ["n-07"] });
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => { root!.render(<TreeView path={path} />); });
+    await act(async () => { await Promise.resolve(); });
+    expect(host!.textContent).toContain("FL-01");
+    expect(useTreeUiStore.getState().trees[`session:${path}`]?.expanded).toContain("n-root");
+    const workspace = host!.querySelector(".tree-workspace");
+    await act(async () => workspace?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })));
+    expect(host!.textContent).toContain("FL-01");
+    await click("Comprimi");
+    expect(host!.textContent).toContain("FL-01");
+    expect(host!.textContent).not.toContain("FL-0701");
+    await clickTreeItem("FL-04");
+    const panelAdd = [...host!.querySelectorAll<HTMLButtonElement>(".tree-node-actions button")].find(item => item.textContent?.includes("Figlio"));
+    await act(async () => panelAdd?.click());
+    expect(document.activeElement).toBe(host!.querySelector('[aria-label="Nome del nuovo nodo"]'));
+    await act(async () => workspace?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    await act(async () => workspace?.dispatchEvent(new KeyboardEvent("keydown", { key: "Insert", bubbles: true })));
+    const inserted = host!.querySelector<HTMLInputElement>('[aria-label="Nome del nuovo nodo"]');
+    expect(document.activeElement).toBe(inserted);
+    expect(inserted?.selectionEnd).toBe(inserted?.value.length);
+    await act(async () => workspace?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    await act(async () => treeRow("FL-04").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 })));
+    const menuAdd = [...host!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(item => item.textContent === "Aggiungi figlio");
+    await act(async () => menuAdd?.click());
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Nome del nuovo nodo");
   });
 
   it("anteprima di Sposta in, blocco del conflitto, annulla e riordino senza rinumerare", async () => {
@@ -132,10 +235,13 @@ describe("vista Strutture", () => {
   });
 });
 
+function treeRow(code: string) {
+  const row = [...host!.querySelectorAll<HTMLElement>('[role="treeitem"]')].find(item => item.querySelector(".tree-code")?.textContent === code);
+  if (!row) throw new Error(`Nodo non trovato: ${code}`);
+  return row;
+}
 async function clickTreeItem(text: string) {
-  const row = [...host!.querySelectorAll('[role="treeitem"]')].find(item => item.querySelector("strong")?.textContent === text);
-  if (!row) throw new Error(`Nodo non trovato: ${text}`);
-  await act(async () => row.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  await act(async () => treeRow(text).dispatchEvent(new MouseEvent("click", { bubbles: true })));
 }
 async function clickOption(dialog: Element, code: string) {
   const option = [...dialog.querySelectorAll("button")].find(item => item.querySelector("strong")?.textContent === code);

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.41.0 — Categoria singola, note ed eliminazione
+
+- Ogni nodo ha una sola categoria (`categoryId`), ereditata dal padre oppure propria. Modificarla stacca il nodo; «Eredita dal padre» lo riallinea. In lettura, un file con più categorie tiene solo la prima; l'elenco vuoto diventa nessuna categoria.
+- Un nodo con una nota non vuota mostra un punto giallo nell'albero.
+- Si può eliminare un nodo insieme ai discendenti: la conferma dice quanti nodi spariscono. La radice resta, perché l'albero ne richiede una. Annulla ripristina nodi, ordine, codici, categorie e note.
+- Nell'albero il nome usa lo stile che aveva il codice e il codice quello che aveva il nome.
+- Inserire un nodo, da barra, scheda, menu o Ins, porta subito il focus sul nome con il testo selezionato.
+- La radice non si comprime: niente comando di apertura e chiusura, la tastiera la ignora e uno stato salvato che la chiudeva viene riaperto.
+
 ## 0.40.0 — Sposta, riordina e rinumerazione
 
 - Spostamento e riordino dei nodi: trascinamento (linea prima/dopo, riquadro dentro), «Sposta in…» con anteprima vecchio → nuovo, e Alt ↑/↓ tra fratelli.

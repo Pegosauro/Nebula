@@ -26,10 +26,10 @@ async function openTenda(page: Page, testInfo: TestInfo) {
 }
 
 function node(page: Page, code: string) {
-  return page.getByRole("treeitem").filter({ has: page.locator("strong", { hasText: new RegExp(`^${code}$`) }) });
+  return page.getByRole("treeitem").filter({ has: page.locator(".tree-code", { hasText: new RegExp(`^${code}$`) }) });
 }
 async function selectNode(page: Page, code: string) {
-  await node(page, code).locator("strong").click();
+  await node(page, code).locator(".tree-code").click();
   await expect(node(page, code)).toHaveAttribute("aria-selected", "true");
 }
 async function dragInside(page: Page, code: string, target: string) {

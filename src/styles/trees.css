@@ -23,7 +23,6 @@
 .tree-item.is-draft { flex-wrap: wrap; }
 .tree-inline-error { flex-basis: 100%; margin-left: 36px; }
 .tree-item.is-dimmed, .tree-object.is-dimmed { opacity: .38; }
-.tree-item.is-match strong, .tree-item mark { background: transparent; color: var(--accent-secondary); }
 .tree-item mark { font-weight: 700; }
 .tree-disclosure, .tree-color-button, .tree-danger-text, .tree-link, .tree-sheet-close { border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; }
 .tree-disclosure { width: 22px; height: 22px; display: grid; place-items: center; flex: none; }
@@ -31,11 +30,12 @@
 .tree-disclosure-spacer { width: 22px; flex: none; }
 .tree-swatch { width: 8px; height: 18px; border-radius: 3px; background: var(--border-strong); flex: none; }
 .tree-label { display: flex; gap: 8px; min-width: 0; align-items: baseline; }
-.tree-label strong { font-variant-numeric: tabular-nums; }
-.tree-label span { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-label .tree-name { font-variant-numeric: tabular-nums; }
+.tree-label .tree-code { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.tree-item.is-match .tree-name, .tree-item mark { background: transparent; color: var(--accent-secondary); }
+.tree-item.is-renamed .tree-code { color: var(--success); }
 .tree-inherit { color: var(--text-muted); flex: none; }
-.tree-dot { width: 8px; height: 8px; border-radius: 99px; flex: none; }
-.tree-more-cats { font-size: .75rem; color: var(--text-muted); }
+.tree-note-dot { width: 8px; height: 8px; border-radius: 99px; background: #f5c518; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, .28); }
 .tree-object { cursor: pointer; color: var(--text-secondary); }
 .tree-object small, .tree-object-main small { margin-left: auto; font-size: .72rem; color: var(--text-muted); }
 .tree-object.is-table, .tree-obj-icon.is-table { color: #22d3ee; }
@@ -110,7 +110,6 @@
 .tree-item.is-drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
 .tree-item.is-drop-inside { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
 .tree-item.is-drop-no { box-shadow: inset 0 0 0 2px var(--danger); }
-.tree-item.is-renamed strong { color: var(--success); }
 .tree-outline { position: relative; }
 .tree-drop-hint { position: absolute; z-index: 2; left: 12px; top: 8px; margin: 0; pointer-events: none; font-size: .8rem; color: var(--accent-hover); background: var(--bg-panel); border: 1px solid var(--accent); border-radius: 6px; padding: 3px 8px; }
 .tree-banner { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; padding: 9px 12px; border-radius: 9px; background: color-mix(in srgb, var(--success) 12%, var(--bg-panel)); border: 1px solid color-mix(in srgb, var(--success) 45%, transparent); }

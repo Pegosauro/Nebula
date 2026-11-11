@@ -55,9 +55,7 @@
       "code": "FL",
       "name": "Tenda finestra",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-cfg"
-      ],
+      "categoryId": "c-cfg",
       "note": "Struttura dimostrativa ricavata dallo screenshot del gestionale legacy.",
       "objects": []
     },
@@ -68,7 +66,7 @@
       "code": "FL-01",
       "name": "Tipologia di configurazione",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -79,7 +77,7 @@
       "code": "FL-03",
       "name": "Riferimento listino",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -90,9 +88,7 @@
       "code": "FL-44",
       "name": "Riferimento installazione",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-ins"
-      ],
+      "categoryId": "c-ins",
       "note": "",
       "objects": []
     },
@@ -103,7 +99,7 @@
       "code": "FL-04",
       "name": "Modello",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -114,9 +110,7 @@
       "code": "FL-47",
       "name": "ATTENZIONE! Tessuto in esaurimento",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-avv"
-      ],
+      "categoryId": "c-avv",
       "note": "Avviso mostrato in fase d'ordine.",
       "objects": []
     },
@@ -127,7 +121,7 @@
       "code": "FL-59",
       "name": ">>>> Tipologia T-LOOP",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -138,9 +132,7 @@
       "code": "FL-07",
       "name": "Larghezza tenda",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-dim"
-      ],
+      "categoryId": "c-dim",
       "note": "",
       "objects": []
     },
@@ -151,7 +143,7 @@
       "code": "FL-0701",
       "name": "Limite larghezza",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -162,7 +154,7 @@
       "code": "FL-0702",
       "name": "Larghezza",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -173,10 +165,7 @@
       "code": "FL-08",
       "name": "Altezza tenda",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-dim",
-        "c-ins"
-      ],
+      "categoryId": "c-dim",
       "note": "",
       "objects": []
     },
@@ -187,7 +176,7 @@
       "code": "FL-0801",
       "name": "Limite altezza da tabella",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -198,7 +187,7 @@
       "code": "FL-0804",
       "name": "H max * interni (da tabella)",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": [
         {
@@ -216,7 +205,7 @@
       "code": "FL-0802",
       "name": "H max per superficie max * interni",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -227,11 +216,7 @@
       "code": "FL-0803",
       "name": "Altezza",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-dim",
-        "c-ins",
-        "c-avv"
-      ],
+      "categoryId": "c-dim",
       "note": "Altezza utile in mm, da sotto cassonetto.",
       "objects": [
         {
@@ -267,9 +252,7 @@
       "code": "FL-09",
       "name": "Dimensioni tenda",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-dim"
-      ],
+      "categoryId": "c-dim",
       "note": "",
       "objects": []
     },
@@ -280,7 +263,7 @@
       "code": "FL-0901",
       "name": "Larghezza finita",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -291,7 +274,7 @@
       "code": "FL-0902",
       "name": "Altezza finita",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -302,7 +285,7 @@
       "code": "FL-0903",
       "name": "Sormonto",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -313,7 +296,7 @@
       "code": "FL-0904",
       "name": "Fuori luce",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -324,7 +307,7 @@
       "code": "FL-0905",
       "name": "Luce netta",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -335,7 +318,7 @@
       "code": "FL-0906",
       "name": "Tolleranza",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -346,9 +329,7 @@
       "code": "FL-10",
       "name": "Tipologia confezionamento telo",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-tes"
-      ],
+      "categoryId": "c-tes",
       "note": "",
       "objects": []
     },
@@ -359,7 +340,7 @@
       "code": "FL-1001",
       "name": "Telo singolo",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -370,7 +351,7 @@
       "code": "FL-1002",
       "name": "Telo doppio",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -381,7 +362,7 @@
       "code": "X-1",
       "name": "Nota libera di confezione",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "Codice libero: non segue il prefisso del padre.",
       "objects": []
     },
@@ -392,7 +373,7 @@
       "code": "X-101",
       "name": "Dettaglio nota",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -403,9 +384,7 @@
       "code": "FL-12",
       "name": "Accessori",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-mot"
-      ],
+      "categoryId": "c-mot",
       "note": "",
       "objects": []
     },
@@ -416,9 +395,7 @@
       "code": "FL-19",
       "name": "Colore struttura",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-col"
-      ],
+      "categoryId": "c-col",
       "note": "",
       "objects": []
     },
@@ -429,7 +406,7 @@
       "code": "FL-1901",
       "name": "RAL standard",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -440,7 +417,7 @@
       "code": "FL-0907",
       "name": "Colore speciale (codice storico)",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "Codice storico fuori prefisso: provoca un conflitto se sposti un nodo conforme dentro FL-09.",
       "objects": []
     },
@@ -451,7 +428,7 @@
       "code": "FL-57",
       "name": "Guida laterale",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -462,9 +439,7 @@
       "code": "FL-58",
       "name": "Alimentazione motore",
       "categoryMode": "own",
-      "categoryIds": [
-        "c-mot"
-      ],
+      "categoryId": "c-mot",
       "note": "",
       "objects": []
     },
@@ -475,7 +450,7 @@
       "code": "FL-5801",
       "name": "Motore radio",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     },
@@ -486,7 +461,7 @@
       "code": "FL-71",
       "name": "Note di produzione",
       "categoryMode": "inherit",
-      "categoryIds": [],
+      "categoryId": null,
       "note": "",
       "objects": []
     }

@@ -1,4 +1,4 @@
-import { childrenOf, effectiveCategories, nodeById, type Tree, type TreeNode } from "./model";
+import { childrenOf, effectiveCategory, nodeById, type Tree, type TreeNode } from "./model";
 
 export const ROW_HEIGHT = 36;
 export const VIRTUALIZE_AFTER = 1000;
@@ -25,7 +25,7 @@ export function buildOutline(tree: Tree, expanded: ReadonlySet<string>, query: s
   if (normalized || categoryId) {
     for (const node of tree.nodes) {
       const queryOk = !normalized || includesQuery(node, normalized);
-      const categoryOk = !categoryId || effectiveCategories(tree, node.id).includes(categoryId);
+      const categoryOk = !categoryId || effectiveCategory(tree, node.id) === categoryId;
       if (queryOk && categoryOk) matching.add(node.id);
     }
   }
@@ -58,7 +58,7 @@ export function buildOutline(tree: Tree, expanded: ReadonlySet<string>, query: s
     const node = nodeById(tree, id);
     if (!node) return;
     const children = childrenOf(tree, id);
-    const isOpen = expanded.has(id) || forceOpen.has(id);
+    const isOpen = id === tree.rootId || expanded.has(id) || forceOpen.has(id);
     const dimmed = (normalized.length > 0 || Boolean(categoryId)) && !keepBright.has(id);
     rows.push({ kind: "node", id, depth, hasChildren: children.length > 0 || node.objects.length > 0, expanded: isOpen, dimmed, matched: matching.has(id) });
     if (!isOpen) return;

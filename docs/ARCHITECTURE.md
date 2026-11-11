@@ -1,4 +1,4 @@
-# Architettura Nebula · 0.40.0
+# Architettura Nebula · 0.41.0
 
 ## Moduli e responsabilità
 
@@ -12,6 +12,10 @@
 | Filesystem e storage | File reali del Vault; IndexedDB per handle, cache degli indici |
 | Worker locali | Indicizzazione e calcolo delle configurazioni |
 
+## Strutture 0.41.0
+
+Ogni nodo tiene `categoryId: string | null` insieme a `categoryMode`. Un nodo `inherit` non copia la categoria nel file: `effectiveCategory` risale al primo nodo `own`. `parseTree` accetta ancora `categoryIds` dei file 0.39 e 0.40 e ne conserva solo il primo identificativo non vuoto; un elenco vuoto diventa `null`. `canonicalTree` scrive sempre `categoryId`. `deleteNode` toglie il nodo e i discendenti e rinumera i fratelli rimasti. La radice non si elimina: `inspectTree` richiede esattamente una radice. L'istantanea di annullamento è la stessa dello spostamento (`moveUndo`, con `kind` `move` o `delete`) e una modifica successiva la dimentica. Lo stato `expanded` non può omettere `rootId`: la radice resta aperta anche se uno stato salvato la chiudeva. Il punto della nota e il fuoco sul nome all'inserimento sono solo presentazione.
+
 ## Strutture 0.40.0
 
 `planMove` è l'unica funzione che sposta un nodo: cambia `parentId` e `order` e, solo se cambia il padre, rinumera i codici conformi con `conformSuffix` e `freeSuffix`. Il riordino tra fratelli non tocca i codici. Un codice libero resta com'è e i suoi discendenti non vengono rinumerati. Se il nuovo codice esiste già, o se sotto il padre non c'è una coppia libera, `planMove` non restituisce un albero. La vista usa lo stesso risultato per l'anteprima di «Sposta in…» e per il trascinamento. `applyMove` tiene l'albero precedente in sessione; `undoMove` lo rimette e l'autosalvataggio scrive il file intero una volta. Un'`edit` successiva cancella l'istantanea. Categorie effettive e stato della vista non entrano nel file.
@@ -20,7 +24,7 @@
 
 `src/features/trees/` tiene il formato, le operazioni e la vista. Un albero è un file `Strutture/<nome>.tree.json`, riconosciuto da `isTreePath`, letto con `parseTree` e scritto da `treeStore` con lo stesso ciclo del configuratore: sessione per percorso, autosalvataggio a 700 ms, validazione prima della scrittura, metadati attesi e conflitto esterno. `createTree` crea la cartella `Strutture/`. Lo stato di apertura, selezione e filtro sta in `treeUiStore` (`nebula.tree-ui.v1`), mai nel file. Le categorie effettive si calcolano a ogni lettura e non vengono salvate.
 
-Il colore del nodo è isolato in `principalCategory`: è quello della prima categoria effettiva. Le icone degli oggetti stanno in `objectIcons.tsx` (tabella, caratteristica propria, caratteristica acquisita). `conformSuffix` e `freeSuffix` sono i controlli di conformità usati dallo spostamento descritto in 0.40.0.
+Il colore del nodo è isolato in `principalCategory`: è quello della categoria effettiva. Le icone degli oggetti stanno in `objectIcons.tsx` (tabella, caratteristica propria, caratteristica acquisita). `conformSuffix` e `freeSuffix` sono i controlli di conformità usati dallo spostamento descritto in 0.40.0.
 
 Nessun nuovo backend. I dati del progetto rimangono nei file del Vault.
 

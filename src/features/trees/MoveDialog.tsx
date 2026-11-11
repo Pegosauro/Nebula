@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import {
-  childrenOf, leafDeleteError, moveCommandReason, moveDestinationReason, nodeById, planMove, principalCategory, readableOn,
+  childrenOf, deleteNodeError, moveCommandReason, moveDestinationReason, nodeById, planMove, principalCategory, readableOn,
   type MovePlan, type MoveRename, type Tree,
 } from "./model";
 
@@ -10,6 +10,7 @@ export interface MoveNotice {
   title: string;
   renames: Array<MoveRename & { name: string }>;
   open: boolean;
+  undoLabel?: string;
 }
 
 export function MoveBanner({ notice, canUndo, onToggle, onUndo, onClose }: { notice: MoveNotice; canUndo: boolean; onToggle: () => void; onUndo: () => void; onClose: () => void }) {
@@ -30,7 +31,7 @@ export function MoveBanner({ notice, canUndo, onToggle, onUndo, onClose }: { not
         {notice.open && notice.renames.length === 0 && notice.kind !== "err" && <p className="tree-muted">Nessun codice cambia.</p>}
       </div>
       {notice.renames.length > 0 && <button type="button" className="button" onClick={onToggle}>{notice.open ? "Nascondi" : "Dettagli"}</button>}
-      {canUndo && notice.kind !== "err" && <button type="button" className="button" aria-label="Annulla spostamento" onClick={onUndo}>Annulla</button>}
+      {canUndo && notice.kind !== "err" && <button type="button" className="button" aria-label={notice.undoLabel ?? "Annulla spostamento"} onClick={onUndo}>Annulla</button>}
       <button type="button" className="tree-banner-close" aria-label="Chiudi avviso" onClick={onClose}><X size={16} /></button>
     </div>
   );
@@ -183,7 +184,7 @@ export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onObject, 
   const [point, setPoint] = useState({ x, y });
   const node = nodeById(tree, nodeId);
   const moveReason = moveCommandReason(tree, nodeId);
-  const deleteReason = leafDeleteError(tree, nodeId);
+  const deleteReason = deleteNodeError(tree, nodeId);
   useEffect(() => {
     const menu = ref.current;
     if (!menu) return;
