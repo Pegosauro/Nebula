@@ -55,7 +55,7 @@ test("nome normale, niente catena, oggetti in riga", async ({ page }, testInfo) 
   await selectNode(page, "FL-0701");
   await openSheet(page);
   const panel = page.locator(".tree-panel");
-  await expect(panel.getByRole("button", { name: "Eredita dal padre", exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Eredita dal padre" })).toHaveCount(0);
   await expect(panel.getByText("Ereditata da")).toHaveCount(0);
   await expect(panel.getByText("Se la modifichi")).toHaveCount(0);
   await expect(panel.getByText("Propria", { exact: true })).toHaveCount(0);

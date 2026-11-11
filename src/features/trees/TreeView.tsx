@@ -9,7 +9,7 @@ import type { ObjectListKind } from "./InlineObjects";
 import { TreeOutline, type NodeDraft, type RenameDraft } from "./TreeOutline";
 import { buildOutline } from "./outline";
 import {
-  addCategory, addChild, childrenOf, deleteCategory, deleteConfirmText, deleteNode, deleteNodeError, descendantCount, descendants, dropDestination, inheritFromParent, inheritSource,
+  addCategory, addChild, childrenOf, deleteCategory, deleteConfirmText, deleteNode, deleteNodeError, descendantCount, descendants, dropDestination,
   inspectTree, moveCategory, moveCommandReason, nodeById, planMove, proposeChildCode, readableOn, removeObject,
   reorderSibling, setNodeCategory, updateCategory, updateNode, upsertObject, type DropZone, type MovePlan, type Tree, type TreeObject,
 } from "./model";
@@ -28,7 +28,6 @@ export default function TreeView({ path }: { path: string }) {
   const [adding, setAdding] = useState<NodeDraft | null>(null);
   const [renaming, setRenaming] = useState<RenameDraft | null>(null);
   const [draftError, setDraftError] = useState<string>();
-  const [detach, setDetach] = useState<{ nodeId: string; from: string } | null>(null);
   const [objectFocus, setObjectFocus] = useState<{ nodeId: string; objectId?: string; list?: ObjectListKind; token: number } | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
@@ -58,9 +57,8 @@ export default function TreeView({ path }: { path: string }) {
   const selectedId = tree && nodeById(tree, ui?.selectedId ?? "") ? ui?.selectedId ?? tree.rootId : tree?.rootId;
   const selected = tree && selectedId ? nodeById(tree, selectedId) : undefined;
   const persist = (patch: { expanded?: string[]; selectedId?: string; categoryId?: string }) => useTreeUiStore.getState().update(scope, patch);
-  const commit = (next: Tree, detached?: { nodeId: string; from: string } | null) => {
+  const commit = (next: Tree) => {
     useTreeStore.getState().edit(path, next);
-    setDetach(detached ?? null);
     setDraftError(undefined);
     setRenamedIds([]);
     setNotice(current => current?.kind === "err" ? current : null);
@@ -91,7 +89,6 @@ export default function TreeView({ path }: { path: string }) {
       cursor = cursor.parentId ? nodeById(plan.tree, cursor.parentId) : undefined;
     }
     persist({ expanded: [...open], selectedId: nodeId });
-    setDetach(null);
     setDraftError(undefined);
     setMovingId(null);
     setMenu(null);
@@ -111,7 +108,6 @@ export default function TreeView({ path }: { path: string }) {
     const kind = current.moveUndo.kind;
     useTreeStore.getState().undoMove(path);
     setRenamedIds([]);
-    setDetach(null);
     setNotice({
       kind: "info",
       title: kind === "delete"
@@ -250,10 +246,9 @@ export default function TreeView({ path }: { path: string }) {
   const report = inspectTree(tree);
   const levelCount = childrenOf(tree, tree.rootId).length;
   const applyCategory = (categoryId: string | null) => {
-    const source = selected.categoryMode === "inherit" ? inheritSource(tree, selected.id) : undefined;
     const result = setNodeCategory(tree, selected.id, categoryId);
     if (!result.ok) return;
-    commit(result.tree, result.detached && source && source.id !== selected.id ? { nodeId: selected.id, from: source.code } : null);
+    commit(result.tree);
   };
   const finishDelete = (id: string) => {
     const target = nodeById(tree, id);
@@ -262,7 +257,6 @@ export default function TreeView({ path }: { path: string }) {
     const parentId = target.parentId ?? tree.rootId;
     const descendantsTotal = descendantCount(tree, id);
     useTreeStore.getState().applyDelete(path, result.tree);
-    setDetach(null);
     setDraftError(undefined);
     setRenamedIds([]);
     setAdding(null);
@@ -328,15 +322,12 @@ export default function TreeView({ path }: { path: string }) {
           tree={tree}
           node={selected}
           adding={adding}
-          detach={detach}
           draftError={draftError}
           onDraftChange={draft => { setAdding(draft); setDraftError(undefined); }}
           onCode={code => { const result = updateNode(tree, selected.id, { code }); if (!result.ok) return result.error; commit(result.tree); return undefined; }}
           onName={name => { const result = updateNode(tree, selected.id, { name }); if (result.ok) commit(result.tree); }}
           onNote={note => { const result = updateNode(tree, selected.id, { note }); if (result.ok) commit(result.tree); }}
           onCategory={applyCategory}
-          onInherit={() => { const result = inheritFromParent(tree, selected.id); if (result.ok) commit(result.tree); }}
-          onUndoDetach={() => { const result = inheritFromParent(tree, selected.id); if (result.ok) commit(result.tree); }}
           onAddChild={() => startAdd(selected.id)}
           onRename={() => startRename(selected.id)}
           onMove={() => openMove(selected.id)}

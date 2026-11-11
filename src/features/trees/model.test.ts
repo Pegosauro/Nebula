@@ -18,7 +18,7 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(inspectTree(demoTree()).errors).toEqual([]);
   });
 
-  it("modificare la categoria di un inherit lo passa a own e Eredita dal padre lo riallinea", () => {
+  it("modificare la categoria di un inherit lo passa a own e inheritFromParent lo riallinea", () => {
     const source = demoTree();
     expect(effectiveCategory(source, "n-0701")).toBe("c-dim");
     const same = setNodeCategory(source, "n-0701", "c-dim");

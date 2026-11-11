@@ -8,13 +8,10 @@ interface NodePanelProps {
   tree: Tree;
   node?: TreeNode;
   adding: NodeDraft | null;
-  detach: { nodeId: string; from: string } | null;
   onCode: (code: string) => string | undefined;
   onName: (name: string) => void;
   onNote: (note: string) => void;
   onCategory: (categoryId: string | null) => void;
-  onInherit: () => void;
-  onUndoDetach: () => void;
   onAddChild: () => void;
   onRename: () => void;
   onMove: () => void;
@@ -29,10 +26,10 @@ interface NodePanelProps {
   focusToken?: number;
 }
 
-export function NodePanel({ tree, node, adding, detach, onCode, onName, onNote, onCategory, onInherit, onUndoDetach, onAddChild, onRename, onMove, onDelete, onSaveObject, onRemoveObject, onManageCategories, onDraftChange, draftError, editingObjectId, focusList, focusToken }: NodePanelProps) {
+export function NodePanel({ tree, node, adding, onCode, onName, onNote, onCategory, onAddChild, onRename, onMove, onDelete, onSaveObject, onRemoveObject, onManageCategories, onDraftChange, draftError, editingObjectId, focusList, focusToken }: NodePanelProps) {
   if (adding) return <DraftPanel tree={tree} draft={adding} error={draftError} onChange={onDraftChange} onCategories={onManageCategories} />;
   if (!node) return <aside className="tree-panel"><p className="tree-muted">Seleziona un nodo.</p></aside>;
-  return <SelectedPanel tree={tree} node={node} detach={detach?.nodeId === node.id ? detach : null} onCode={onCode} onName={onName} onNote={onNote} onCategory={onCategory} onInherit={onInherit} onUndoDetach={onUndoDetach} onAddChild={onAddChild} onRename={onRename} onMove={onMove} onDelete={onDelete} onSaveObject={onSaveObject} onRemoveObject={onRemoveObject} onManageCategories={onManageCategories} editingObjectId={editingObjectId} focusList={focusList} focusToken={focusToken} />;
+  return <SelectedPanel tree={tree} node={node} onCode={onCode} onName={onName} onNote={onNote} onCategory={onCategory} onAddChild={onAddChild} onRename={onRename} onMove={onMove} onDelete={onDelete} onSaveObject={onSaveObject} onRemoveObject={onRemoveObject} onManageCategories={onManageCategories} editingObjectId={editingObjectId} focusList={focusList} focusToken={focusToken} />;
 }
 
 function DraftPanel({ tree, draft, error, onChange, onCategories }: { tree: Tree; draft: NodeDraft; error?: string; onChange: (draft: NodeDraft) => void; onCategories: () => void }) {
@@ -53,8 +50,8 @@ function DraftPanel({ tree, draft, error, onChange, onCategories }: { tree: Tree
   );
 }
 
-function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | "draftError"> & { node: TreeNode; detach: { nodeId: string; from: string } | null }) {
-  const { tree, node, detach, onCode, onName, onNote, onCategory, onInherit, onUndoDetach, onAddChild, onRename, onMove, onDelete, onSaveObject, onRemoveObject, onManageCategories, editingObjectId, focusList, focusToken } = props;
+function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | "draftError"> & { node: TreeNode }) {
+  const { tree, node, onCode, onName, onNote, onCategory, onAddChild, onRename, onMove, onDelete, onSaveObject, onRemoveObject, onManageCategories, editingObjectId, focusList, focusToken } = props;
   const [code, setCode] = useState(node.code);
   const [codeError, setCodeError] = useState<string>();
   useEffect(() => { setCode(node.code); setCodeError(undefined); }, [node.id, node.code]);
@@ -78,7 +75,6 @@ function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | 
         <span>Categoria</span>
         {principal && <span className="tree-chip" style={{ background: principal.color, color: readableOn(principal.color) }}>{principal.name}</span>}
       </div>
-      {detach && <p className="tree-warning" role="status">Hai modificato la categoria: {node.code} non eredita più da {detach.from}. <button type="button" className="tree-link" onClick={onUndoDetach}>Annulla</button></p>}
       <label className="tree-add-category">Categoria del nodo
         <select aria-label="Categoria del nodo" value={categoryId ?? ""} onChange={event => onCategory(event.target.value || null)}>
           <option value="">Nessuna</option>
@@ -87,7 +83,6 @@ function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | 
       </label>
       {!categoryId && <p className="tree-muted">Nessuna categoria: nodo neutro.</p>}
       <div className="tree-row-actions">
-        <button type="button" className="button" disabled={!node.parentId} title={node.parentId ? "Torna a seguire il padre" : "La radice ha sempre una categoria propria"} onClick={onInherit}>Eredita dal padre</button>
         <button type="button" className="button" onClick={onManageCategories}>Gestisci…</button>
       </div>
       <label>Note<textarea aria-label="Note del nodo" rows={4} value={node.note} onChange={event => onNote(event.target.value)} placeholder="Testo libero" /></label>

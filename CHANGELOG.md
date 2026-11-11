@@ -2,10 +2,10 @@
 
 ## 0.41.0 — Categoria singola, note ed eliminazione
 
-- Ogni nodo ha una sola categoria (`categoryId`), ereditata dal padre oppure propria. Modificarla stacca il nodo; «Eredita dal padre» lo riallinea. In lettura, un file con più categorie tiene solo la prima; l'elenco vuoto diventa nessuna categoria.
+- Ogni nodo ha una sola categoria (`categoryId`). Un figlio nuovo la eredita; modificarla la rende propria. In lettura, un file con più categorie tiene solo la prima; l'elenco vuoto diventa nessuna categoria. Non c'è un comando per tornare all'eredità.
 - Un nodo con una nota non vuota mostra un punto giallo nell'albero.
 - Si può eliminare un nodo insieme ai discendenti: la conferma dice quanti nodi spariscono. La radice resta, perché l'albero ne richiede una. Annulla ripristina nodi, ordine, codici, categorie e note.
-- Nell'albero il nome ha il peso normale e il codice resta nello stile secondario. Niente icona di eredità accanto al nome e niente spiegazione nel pannello: «Eredita dal padre» resta.
+- Nell'albero il nome ha il peso normale e il codice resta nello stile secondario. Niente icona di eredità accanto al nome e niente spiegazione nel pannello.
 - Tabelle esterne e caratteristiche, proprie e acquisite, si scrivono in riga. Invio salva e prepara una riga vuota, Tab passa al campo successivo, Esc annulla. Una sigla già usata nel nodo blocca solo quella riga.
 - Inserire un nodo, da barra, scheda, menu o Ins, porta subito il focus sul nome con il testo selezionato.
 - La radice non si comprime: niente comando di apertura e chiusura, la tastiera la ignora e uno stato salvato che la chiudeva viene riaperto.

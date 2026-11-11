@@ -118,7 +118,6 @@ describe("vista Strutture", () => {
     expect(picker?.querySelectorAll("option")).toHaveLength(demoTree().categories.length + 1);
     expect(host!.textContent).not.toContain("Ereditata da");
     expect(host!.textContent).not.toContain("Se la modifichi");
-    expect(host!.textContent).toContain("Eredita dal padre");
     await act(async () => {
       const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
       setter?.call(picker, "c-avv");
@@ -127,10 +126,7 @@ describe("vista Strutture", () => {
     const detached = useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0701")!;
     expect(detached.categoryMode).toBe("own");
     expect(detached.categoryId).toBe("c-avv");
-    await click("Eredita dal padre");
-    const restored = useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0701")!;
-    expect(restored.categoryMode).toBe("inherit");
-    expect(restored.categoryId).toBeNull();
+    expect(picker?.value).toBe("c-avv");
     await clickTreeItem("FL-47");
     const note = host!.querySelector<HTMLTextAreaElement>('[aria-label="Note del nodo"]');
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
