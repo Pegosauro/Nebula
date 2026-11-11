@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
-import { dropDestination, dropZoneAt, isDescendant, nodeById, principalCategory, type DropZone, type Tree } from "./model";
+import { codeIssues, dropDestination, dropZoneAt, isDescendant, nodeById, principalCategory, type CodeIssues, type DropZone, type Tree } from "./model";
 import { objectLeafText, objectPresentation } from "./objectIcons";
 import { ROW_HEIGHT, virtualWindow, type OutlineRow } from "./outline";
 
-export interface NodeDraft { parentId: string; code: string; name: string }
-export interface RenameDraft { id: string; code: string; name: string }
+export type InlineField = "name" | "code";
+export interface NodeDraft { parentId: string; code: string; name: string; field: InlineField }
+export interface RenameDraft { id: string; code: string; name: string; field: InlineField }
 
 interface TreeOutlineProps {
   tree: Tree;
@@ -18,7 +19,7 @@ interface TreeOutlineProps {
   renamedIds: ReadonlySet<string>;
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
-  onStartRename: (id: string) => void;
+  onStartEdit: (id: string, field: InlineField) => void;
   onSelectObject: (parentId: string, objectId: string) => void;
   onRenameChange: (draft: RenameDraft) => void;
   onAddChange: (draft: NodeDraft) => void;
@@ -50,7 +51,7 @@ function useFinePointer(): boolean {
   return fine;
 }
 
-export function TreeOutline({ tree, rows, selectedId, query, renaming, adding, draftError, renamedIds, onSelect, onToggle, onStartRename, onSelectObject, onRenameChange, onAddChange, onMoveAttempt, onRequestMove, onContextMenu }: TreeOutlineProps) {
+export function TreeOutline({ tree, rows, selectedId, query, renaming, adding, draftError, renamedIds, onSelect, onToggle, onStartEdit, onSelectObject, onRenameChange, onAddChange, onMoveAttempt, onRequestMove, onContextMenu }: TreeOutlineProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const selected = useRef<HTMLDivElement>(null);
   const dragIdRef = useRef<string | null>(null);
@@ -171,7 +172,7 @@ export function TreeOutline({ tree, rows, selectedId, query, renaming, adding, d
               <div key={row.kind === "node" ? row.id : `${row.parentId}:${row.id}`}>
                 {adding && index === draftIndex && <DraftRow tree={tree} draft={adding} error={draftError} onChange={onAddChange} />}
                 {row.kind === "node"
-                  ? <NodeRow tree={tree} row={row} index={index} total={rows.length} selected={row.id === selectedId} query={query} renaming={renaming?.id === row.id ? renaming : null} renamed={renamedIds.has(row.id)} drag={drag} fine={fine} dragged={dropped} selectedRef={row.id === selectedId ? selected : undefined} onSelect={onSelect} onToggle={onToggle} onStartRename={onStartRename} onRenameChange={onRenameChange} onPointerDown={beginGesture} onRequestMove={onRequestMove} onContextMenu={onContextMenu} />
+                  ? <NodeRow tree={tree} row={row} index={index} total={rows.length} selected={row.id === selectedId} query={query} renaming={renaming?.id === row.id ? renaming : null} renamed={renamedIds.has(row.id)} drag={drag} fine={fine} dragged={dropped} error={renaming?.id === row.id ? draftError : undefined} selectedRef={row.id === selectedId ? selected : undefined} onSelect={onSelect} onToggle={onToggle} onStartEdit={onStartEdit} onRenameChange={onRenameChange} onPointerDown={beginGesture} onRequestMove={onRequestMove} onContextMenu={onContextMenu} />
                   : <ObjectRow tree={tree} row={row} onSelect={onSelectObject} />}
               </div>
             );
@@ -209,15 +210,26 @@ function draftInsert(rows: OutlineRow[], parentId: string): number {
   return index;
 }
 
-function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, drag, fine, dragged, selectedRef, onSelect, onToggle, onStartRename, onRenameChange, onPointerDown, onRequestMove, onContextMenu }: { tree: Tree; row: Extract<OutlineRow, { kind: "node" }>; index: number; total: number; selected: boolean; query: string; renaming: RenameDraft | null; renamed: boolean; drag: DragState | null; fine: boolean; dragged: React.RefObject<boolean>; selectedRef?: React.Ref<HTMLDivElement>; onSelect: (id: string) => void; onToggle: (id: string) => void; onStartRename: (id: string) => void; onRenameChange: (draft: RenameDraft) => void; onPointerDown: (event: React.PointerEvent<HTMLElement>, id: string) => void; onRequestMove: (id: string) => void; onContextMenu: (id: string, x: number, y: number) => void }) {
+function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, drag, fine, dragged, error, selectedRef, onSelect, onToggle, onStartEdit, onRenameChange, onPointerDown, onRequestMove, onContextMenu }: { tree: Tree; row: Extract<OutlineRow, { kind: "node" }>; index: number; total: number; selected: boolean; query: string; renaming: RenameDraft | null; renamed: boolean; drag: DragState | null; fine: boolean; dragged: React.RefObject<boolean>; error?: string; selectedRef?: React.Ref<HTMLDivElement>; onSelect: (id: string) => void; onToggle: (id: string) => void; onStartEdit: (id: string, field: InlineField) => void; onRenameChange: (draft: RenameDraft) => void; onPointerDown: (event: React.PointerEvent<HTMLElement>, id: string) => void; onRequestMove: (id: string) => void; onContextMenu: (id: string, x: number, y: number) => void }) {
   const node = nodeById(tree, row.id);
-  const codeRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (renaming) codeRef.current?.select(); }, [renaming]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const field = inputRef.current;
+    if (!field || !renaming) return;
+    field.focus();
+    field.select();
+  }, [renaming?.id, renaming?.field]);
   if (!node) return null;
   const color = principalCategory(tree, node.id)?.color;
   const isRoot = node.id === tree.rootId;
   const collapsible = !isRoot && row.hasChildren;
   const dropClass = drag?.overId === node.id ? drag.blocked ? "is-drop-no" : drag.zone === "inside" ? "is-drop-inside" : drag.zone === "before" ? "is-drop-before" : "is-drop-after" : "";
+  const issues = renaming?.field === "code" ? codeIssues(tree, node.id, renaming.code) : undefined;
+  const activate = (field: InlineField) => (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onStartEdit(node.id, field);
+  };
   return (
     <div
       ref={selectedRef}
@@ -229,10 +241,9 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
       aria-setsize={total}
       aria-posinset={index + 1}
       aria-grabbed={drag?.id === node.id || undefined}
-      className={`tree-item ${selected ? "is-selected" : ""} ${row.dimmed ? "is-dimmed" : ""} ${row.matched ? "is-match" : ""} ${renamed ? "is-renamed" : ""} ${drag?.id === node.id ? "is-dragging" : ""} ${dropClass}`}
+      className={`tree-item ${selected ? "is-selected" : ""} ${row.dimmed ? "is-dimmed" : ""} ${row.matched ? "is-match" : ""} ${renamed ? "is-renamed" : ""} ${drag?.id === node.id ? "is-dragging" : ""} ${renaming ? "is-editing" : ""} ${dropClass}`}
       style={{ paddingLeft: 8 + (row.depth - 1) * 18 }}
       onClick={() => onSelect(node.id)}
-      onDoubleClick={() => onStartRename(node.id)}
       onContextMenu={event => { event.preventDefault(); onSelect(node.id); onContextMenu(node.id, event.clientX, event.clientY); }}
     >
       {collapsible ? <button type="button" className="tree-disclosure" aria-label={row.expanded ? `Comprimi ${node.code}` : `Espandi ${node.code}`} onClick={event => { event.stopPropagation(); onToggle(node.id); }}>{row.expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</button> : <span className="tree-disclosure-spacer" />}
@@ -251,18 +262,16 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
         </span>
       )}
       <span className="tree-swatch" style={{ background: color ?? "transparent" }} />
-      {renaming ? (
-        <span className="tree-rename">
-          <input ref={codeRef} aria-label={`Codice di ${node.code}`} value={renaming.code} onChange={event => onRenameChange({ ...renaming, code: event.target.value })} onClick={event => event.stopPropagation()} />
-          <input aria-label={`Nome di ${node.code}`} value={renaming.name} onChange={event => onRenameChange({ ...renaming, name: event.target.value })} onClick={event => event.stopPropagation()} />
-        </span>
-      ) : (
-        <span className="tree-label">
-          <span className="tree-code"><Highlight text={node.code} query={query} /></span>
-          <span className="tree-name"><Highlight text={node.name} query={query} /></span>
-        </span>
-      )}
+      <span className="tree-label">
+        {renaming?.field === "code"
+          ? <input ref={inputRef} className="tree-code-input" aria-label={`Codice di ${node.code}`} value={renaming.code} onChange={event => onRenameChange({ ...renaming, code: event.target.value })} onClick={event => event.stopPropagation()} />
+          : <span className="tree-code" title="Doppio clic per modificare il codice" onDoubleClick={activate("code")}><Highlight text={node.code} query={query} /></span>}
+        {renaming?.field === "name"
+          ? <input ref={inputRef} className="tree-name-input" aria-label={`Nome di ${node.code}`} value={renaming.name} onChange={event => onRenameChange({ ...renaming, name: event.target.value })} onClick={event => event.stopPropagation()} />
+          : <span className="tree-name" title="Doppio clic per modificare il nome" onDoubleClick={activate("name")}><Highlight text={node.name} query={query} /></span>}
+      </span>
       {node.note.trim() && <span className="tree-note-dot" role="img" aria-label="Ha una nota" title="Ha una nota" />}
+      <InlineCodeStatus issues={issues} error={renaming?.field === "code" ? error : undefined} />
     </div>
   );
 }
@@ -283,25 +292,47 @@ function ObjectRow({ tree, row, onSelect }: { tree: Tree; row: Extract<OutlineRo
 }
 
 function DraftRow({ tree, draft, error, onChange }: { tree: Tree; draft: NodeDraft; error?: string; onChange: (draft: NodeDraft) => void }) {
-  const nameRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const field = nameRef.current;
+    const field = inputRef.current;
     if (!field) return;
     field.focus();
     field.select();
-  }, [draft.parentId]);
+  }, [draft.parentId, draft.field]);
   const level = Math.max(2, depthOfParent(tree, draft.parentId) + 1);
+  const issues = draft.field === "code" ? draftCodeIssues(tree, draft) : undefined;
   return (
-    <div role="treeitem" aria-selected="true" aria-level={level} className="tree-item is-selected is-draft" style={{ paddingLeft: 8 + (level - 1) * 18 }}>
+    <div role="treeitem" aria-selected="true" aria-level={level} className="tree-item is-selected is-draft is-editing" style={{ paddingLeft: 8 + (level - 1) * 18 }}>
       <span className="tree-disclosure-spacer" />
       <span className="tree-swatch" />
-      <span className="tree-rename">
-        <input aria-label="Codice del nuovo nodo" value={draft.code} onChange={event => onChange({ ...draft, code: event.target.value })} />
-        <input ref={nameRef} aria-label="Nome del nuovo nodo" value={draft.name} placeholder="Nome del nodo" onChange={event => onChange({ ...draft, name: event.target.value })} />
+      <span className="tree-label">
+        {draft.field === "code"
+          ? <input ref={inputRef} className="tree-code-input" aria-label="Codice del nuovo nodo" value={draft.code} onChange={event => onChange({ ...draft, code: event.target.value })} />
+          : <span className="tree-code" title="Doppio clic per modificare il codice" onDoubleClick={event => { event.preventDefault(); event.stopPropagation(); onChange({ ...draft, field: "code" }); }}>{draft.code}</span>}
+        {draft.field === "name"
+          ? <input ref={inputRef} className="tree-name-input" aria-label="Nome del nuovo nodo" value={draft.name} placeholder="Nome del nodo" onChange={event => onChange({ ...draft, name: event.target.value })} />
+          : <span className="tree-name" title="Doppio clic per modificare il nome" onDoubleClick={event => { event.preventDefault(); event.stopPropagation(); onChange({ ...draft, field: "name" }); }}>{draft.name}</span>}
       </span>
-      {error && <span role="alert" className="tree-inline-error">{error}</span>}
+      <InlineCodeStatus issues={issues} error={error} />
     </div>
   );
+}
+
+function InlineCodeStatus({ issues, error }: { issues?: CodeIssues; error?: string }) {
+  const message = error || issues?.errors[0];
+  if (message) return <span role="alert" className="tree-inline-error">{message}</span>;
+  if (!issues?.warnings.length) return null;
+  return <>{issues.warnings.map(warning => <span key={warning} className="tree-warning">{warning}</span>)}</>;
+}
+
+function draftCodeIssues(tree: Tree, draft: NodeDraft): CodeIssues {
+  const parent = nodeById(tree, draft.parentId);
+  if (!parent) return { errors: ["Padre inesistente"], warnings: [] };
+  const probe: Tree = {
+    ...tree,
+    nodes: [...tree.nodes, { id: "draft", parentId: draft.parentId, order: 0, code: draft.code, name: draft.name, categoryMode: "inherit", categoryId: null, note: "", objects: [] }],
+  };
+  return codeIssues(probe, "draft", draft.code);
 }
 
 function depthOfParent(tree: Tree, id: string): number {

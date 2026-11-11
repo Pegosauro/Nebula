@@ -6,7 +6,7 @@ import { CategoryDialog } from "./CategoryDialog";
 import { MoveBanner, MoveDialog, NodeContextMenu, type MoveNotice } from "./MoveDialog";
 import { NodePanel } from "./NodePanel";
 import type { ObjectListKind } from "./InlineObjects";
-import { TreeOutline, type NodeDraft, type RenameDraft } from "./TreeOutline";
+import { TreeOutline, type InlineField, type NodeDraft, type RenameDraft } from "./TreeOutline";
 import { buildOutline } from "./outline";
 import {
   addCategory, addChild, childrenOf, deleteCategory, deleteConfirmText, deleteNode, deleteNodeError, descendantCount, descendants, dropDestination,
@@ -149,15 +149,15 @@ export default function TreeView({ path }: { path: string }) {
     open.add(parentId);
     persist({ expanded: [...open], selectedId: parentId });
     setRenaming(null);
-    setAdding({ parentId, code, name: "Nuovo nodo" });
+    setAdding({ parentId, code, name: "Nuovo nodo", field: "name" });
     setDraftError(undefined);
   };
-  const startRename = (id = selectedId) => {
+  const startEdit = (id: string | undefined = selectedId, field: InlineField = "name") => {
     if (!tree || !id) return;
     const node = nodeById(tree, id);
     if (!node) return;
     setAdding(null);
-    setRenaming({ id, code: node.code, name: node.name });
+    setRenaming({ id, code: node.code, name: node.name, field });
     setDraftError(undefined);
     persist({ selectedId: id });
   };
@@ -172,7 +172,8 @@ export default function TreeView({ path }: { path: string }) {
   };
   const commitRename = () => {
     if (!tree || !renaming) return;
-    const result = updateNode(tree, renaming.id, { code: renaming.code, name: renaming.name });
+    const patch = renaming.field === "code" ? { code: renaming.code } : { name: renaming.name };
+    const result = updateNode(tree, renaming.id, patch);
     if (!result.ok) { setDraftError(result.error); return; }
     setRenaming(null);
     commit(result.tree);
@@ -230,7 +231,7 @@ export default function TreeView({ path }: { path: string }) {
       [current, ...descendants(tree, current.id)].forEach(node => open.add(node.id));
       persist({ expanded: [...open] });
     } else if (event.key === "Insert") { event.preventDefault(); startAdd(); }
-    else if (event.key === "F2") { event.preventDefault(); startRename(); }
+    else if (event.key === "F2") { event.preventDefault(); startEdit(); }
     else if (event.key === "Delete" && selectedId) {
       event.preventDefault();
       const reason = deleteNodeError(tree, selectedId);
@@ -308,13 +309,13 @@ export default function TreeView({ path }: { path: string }) {
         </div>
         {draftError && !adding && !renaming && <p role="alert" className="config-error">{draftError}</p>}
         {notice && <MoveBanner notice={notice} canUndo={Boolean(session.moveUndo)} onToggle={() => setNotice({ ...notice, open: !notice.open })} onUndo={undoLastMove} onClose={() => setNotice(null)} />}
-        <TreeOutline tree={tree} rows={outline.rows} selectedId={selected.id} query={query} renaming={renaming} adding={adding} draftError={draftError} renamedIds={renamed} onSelect={id => { setMenu(null); persist({ selectedId: id }); }} onToggle={id => { if (id === tree.rootId) return; const open = userExpanded(); if (open.has(id)) open.delete(id); else open.add(id); open.add(tree.rootId); persist({ expanded: [...open], selectedId: id }); }} onStartRename={startRename} onSelectObject={(nodeId, objectId) => focusObjects(nodeId, { objectId })} onRenameChange={setRenaming} onAddChange={draft => { setAdding(draft); setDraftError(undefined); }} onMoveAttempt={attemptDrop} onRequestMove={openMove} onContextMenu={(id, x, y) => setMenu({ id, x, y })} />
+        <TreeOutline tree={tree} rows={outline.rows} selectedId={selected.id} query={query} renaming={renaming} adding={adding} draftError={draftError} renamedIds={renamed} onSelect={id => { setMenu(null); persist({ selectedId: id }); }} onToggle={id => { if (id === tree.rootId) return; const open = userExpanded(); if (open.has(id)) open.delete(id); else open.add(id); open.add(tree.rootId); persist({ expanded: [...open], selectedId: id }); }} onStartEdit={startEdit} onSelectObject={(nodeId, objectId) => focusObjects(nodeId, { objectId })} onRenameChange={draft => { setRenaming(draft); setDraftError(undefined); }} onAddChange={draft => { setAdding(draft); setDraftError(undefined); }} onMoveAttempt={attemptDrop} onRequestMove={openMove} onContextMenu={(id, x, y) => setMenu({ id, x, y })} />
         <div className="tree-legend" aria-label="Legenda categorie">
           {[...tree.categories].sort((a, b) => a.order - b.order).map(category => <button type="button" key={category.id} className={ui?.categoryId === category.id ? "is-active" : ""} style={{ background: category.color, color: readableOn(category.color) }} onClick={() => persist({ categoryId: ui?.categoryId === category.id ? undefined : category.id })}>{category.name}</button>)}
           <button type="button" onClick={() => setCategoriesOpen(true)}>Gestisci…</button>
         </div>
         {report.warnings.length > 0 && <details className="tree-warnings"><summary>{report.warnings.length} {report.warnings.length === 1 ? "avviso" : "avvisi"}, il salvataggio non è bloccato</summary><ul>{report.warnings.map(issue => <li key={`${issue.nodeId}:${issue.message}`}><button type="button" className="tree-link" onClick={() => issue.nodeId && persist({ selectedId: issue.nodeId })}>{issue.message}</button></li>)}</ul></details>}
-        <p className="tree-keys">↑↓ muovi · ←→ espandi · * ramo · Ins figlio · F2 rinomina · Canc elimina · Alt ↑↓ riordina (i codici non cambiano) · Ctrl M sposta · Ctrl Z annulla spostamento o eliminazione · Ctrl F cerca · Ctrl O nuova caratteristica</p>
+        <p className="tree-keys">↑↓ muovi · ←→ espandi · * ramo · Ins figlio · F2 rinomina il nome · Canc elimina · Alt ↑↓ riordina (i codici non cambiano) · Ctrl M sposta · Ctrl Z annulla spostamento o eliminazione · Ctrl F cerca · Ctrl O nuova caratteristica</p>
       </section>
       <div className={`tree-sheet ${sheet ? "is-open" : ""}`}>
         <button type="button" className="tree-sheet-close" aria-label="Chiudi scheda" onClick={() => setSheet(false)}><X size={16} /></button>
@@ -329,7 +330,7 @@ export default function TreeView({ path }: { path: string }) {
           onNote={note => { const result = updateNode(tree, selected.id, { note }); if (result.ok) commit(result.tree); }}
           onCategory={applyCategory}
           onAddChild={() => startAdd(selected.id)}
-          onRename={() => startRename(selected.id)}
+          onRename={() => startEdit(selected.id, "name")}
           onMove={() => openMove(selected.id)}
           onDelete={() => { if (deleteNodeError(tree, selected.id)) return; setConfirm({ kind: "node", id: selected.id }); }}
           onSaveObject={draft => { const result = upsertObject(tree, selected.id, draft); if (!result.ok) return result.error; commit(result.tree); const open = userExpanded(); open.add(selected.id); persist({ expanded: [...open], selectedId: selected.id }); return undefined; }}
@@ -352,7 +353,7 @@ export default function TreeView({ path }: { path: string }) {
         />
       )}
       {movingId && <MoveDialog tree={tree} nodeId={movingId} onClose={() => setMovingId(null)} onConfirm={parentId => { const id = movingId; finishMove(planMove(tree, id, parentId, null), id); }} />}
-      {menu && <NodeContextMenu tree={tree} nodeId={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onAdd={() => startAdd(menu.id)} onObject={() => focusObjects(menu.id, { list: "own" })} onRename={() => startRename(menu.id)} onMove={() => openMove(menu.id)} onDelete={() => { if (deleteNodeError(tree, menu.id)) return; setConfirm({ kind: "node", id: menu.id }); }} />}
+      {menu && <NodeContextMenu tree={tree} nodeId={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onAdd={() => startAdd(menu.id)} onObject={() => focusObjects(menu.id, { list: "own" })} onRename={() => startEdit(menu.id, "name")} onMove={() => openMove(menu.id)} onDelete={() => { if (deleteNodeError(tree, menu.id)) return; setConfirm({ kind: "node", id: menu.id }); }} />}
       {confirm && <ConfirmDialog confirm={confirm} tree={tree} onClose={() => setConfirm(null)} onAccept={() => {
         if (confirm.kind === "reload") { setConfirm(null); void useTreeStore.getState().load(path, true).then(() => { setLoadError(undefined); cancelDraft(); }); return; }
         if (confirm.kind === "node") finishDelete(confirm.id);

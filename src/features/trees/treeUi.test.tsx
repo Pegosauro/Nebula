@@ -58,17 +58,27 @@ describe("vista Strutture", () => {
     expect(host.querySelector("mark")?.textContent?.toLowerCase()).toContain("limite");
     await typeInput("Cerca codice o nome", "");
     await click("Aggiungi figlio");
-    const code = host.querySelector<HTMLInputElement>('[aria-label="Codice del nuovo nodo"]');
+    const draft = host.querySelector<HTMLElement>(".tree-item.is-draft");
     const name = host.querySelector<HTMLInputElement>('[aria-label="Nome del nuovo nodo"]');
-    expect(code?.value).toBe("FL-02");
+    expect(draft?.querySelector(".tree-code")?.textContent).toBe("FL-02");
+    expect(host.querySelector('[aria-label="Codice del nuovo nodo"]')).toBeNull();
     expect(name?.value).toBe("Nuovo nodo");
     expect(document.activeElement).toBe(name);
     expect(name?.selectionStart).toBe(0);
     expect(name?.selectionEnd).toBe("Nuovo nodo".length);
+    expect(host.querySelector('[aria-label="Codice nel pannello"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Nome nel pannello"]')).not.toBeNull();
+    await dblclick(draft!.querySelector(".tree-code")!);
+    const code = host.querySelector<HTMLInputElement>('[aria-label="Codice del nuovo nodo"]');
+    expect(code?.value).toBe("FL-02");
+    expect(document.activeElement).toBe(code);
+    expect(host.querySelector('[aria-label="Nome del nuovo nodo"]')).toBeNull();
     await typeInput("Codice del nuovo nodo", "FL-01");
+    expect(draft?.querySelector("[role='alert']")?.textContent).toMatch(/Codice già usato/);
     await act(async () => code?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
-    expect(host.textContent).toContain("Codice già usato");
+    expect(draft?.querySelector("[role='alert']")?.textContent).toMatch(/Codice già usato/);
     expect(write).not.toHaveBeenCalled();
+    expect(host.querySelector('[aria-label="Codice del nuovo nodo"]')).not.toBeNull();
     await act(async () => code?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
     const rootRow = treeRow("FL");
     expect(rootRow.querySelector("span.tree-name")?.textContent).toBe("Tenda finestra");
@@ -279,6 +289,87 @@ describe("vista Strutture", () => {
     const restored = useTreeStore.getState().sessions[path]!.data.nodes.filter(node => node.parentId === "n-root").sort((a, b) => a.order - b.order).map(node => node.id);
     expect(restored.indexOf("n-04")).toBeLessThan(restored.indexOf("n-47"));
   });
+
+  it("modifica nome e codice separatamente, con F2, Rinomina, Esc e i controlli del codice", async () => {
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 40, lastModified: 1 });
+    vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 41, lastModified: 2 });
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => { root!.render(<TreeView path={path} />); });
+    await act(async () => { await Promise.resolve(); });
+    const workspace = host!.querySelector(".tree-workspace");
+    const row = treeRow("FL-04");
+    await act(async () => row.querySelector(".tree-code")?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    expect(row.querySelector("input")).toBeNull();
+    await dblclick(row.querySelector(".tree-name")!);
+    const name = host!.querySelector<HTMLInputElement>('[aria-label="Nome di FL-04"]');
+    expect(name?.value).toBe("Modello");
+    expect(document.activeElement).toBe(name);
+    expect(name?.selectionStart).toBe(0);
+    expect(name?.selectionEnd).toBe("Modello".length);
+    expect(row.querySelector(".tree-code")?.textContent).toBe("FL-04");
+    expect(row.querySelector('[aria-label="Codice di FL-04"]')).toBeNull();
+    await typeInput("Nome di FL-04", "Modello in bozza");
+    await act(async () => name?.blur());
+    expect(host!.querySelector('[aria-label="Nome di FL-04"]')).not.toBeNull();
+    expect(nodeByCode("FL-04")?.name).toBe("Modello");
+    await pressKey("Nome di FL-04", "Escape");
+    expect(row.querySelector("input")).toBeNull();
+    expect(row.querySelector(".tree-name")?.textContent).toBe("Modello");
+    await dblclick(row.querySelector(".tree-name")!);
+    await typeInput("Nome di FL-04", "Modello rivisto");
+    await pressKey("Nome di FL-04", "Enter");
+    expect(row.querySelector(".tree-name")?.textContent).toBe("Modello rivisto");
+    expect(nodeByCode("FL-04")?.code).toBe("FL-04");
+    expect(host!.querySelector<HTMLInputElement>('[aria-label="Nome del nodo"]')?.value).toBe("Modello rivisto");
+    await act(async () => workspace?.dispatchEvent(new KeyboardEvent("keydown", { key: "F2", bubbles: true })));
+    expect(host!.querySelector('[aria-label="Nome di FL-04"]')).not.toBeNull();
+    expect(host!.querySelector('[aria-label="Codice di FL-04"]')).toBeNull();
+    expect(document.activeElement).toBe(host!.querySelector('[aria-label="Nome di FL-04"]'));
+    await pressKey("Nome di FL-04", "Escape");
+    await act(async () => row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 40, clientY: 80 })));
+    const menuRename = [...host!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(item => item.textContent === "Rinomina");
+    await act(async () => menuRename?.click());
+    expect(host!.querySelector('[aria-label="Nome di FL-04"]')).not.toBeNull();
+    expect(host!.querySelector('[aria-label="Codice di FL-04"]')).toBeNull();
+    await pressKey("Nome di FL-04", "Escape");
+    await click("Rinomina");
+    expect(host!.querySelector('[aria-label="Nome di FL-04"]')).not.toBeNull();
+    expect(host!.querySelector('[aria-label="Codice di FL-04"]')).toBeNull();
+    await pressKey("Nome di FL-04", "Escape");
+    await click("Espandi FL-07");
+    const child = treeRow("FL-0701");
+    await dblclick(child.querySelector(".tree-code")!);
+    const code = host!.querySelector<HTMLInputElement>('[aria-label="Codice di FL-0701"]');
+    expect(code?.value).toBe("FL-0701");
+    expect(document.activeElement).toBe(code);
+    expect(child.querySelector(".tree-name")?.textContent).toBe("Limite larghezza");
+    expect(child.querySelector('[aria-label="Nome di FL-0701"]')).toBeNull();
+    await typeInput("Codice di FL-0701", "fl-0702");
+    expect(child.querySelector("[role='alert']")?.textContent).toMatch(/Codice già usato/);
+    await pressKey("Codice di FL-0701", "Enter");
+    expect(nodeByCode("FL-0701")?.code).toBe("FL-0701");
+    expect(host!.querySelector('[aria-label="Codice di FL-0701"]')).not.toBeNull();
+    await typeInput("Codice di FL-0701", "   ");
+    expect(child.querySelector("[role='alert']")?.textContent).toMatch(/obbligatorio/);
+    await pressKey("Codice di FL-0701", "Enter");
+    expect(nodeByCode("FL-0701")?.code).toBe("FL-0701");
+    await typeInput("Codice di FL-0701", "LIBERO");
+    expect(child.querySelector(".tree-warning")?.textContent).toMatch(/Fuori prefisso/);
+    expect(child.querySelector("[role='alert']")).toBeNull();
+    await pressKey("Codice di FL-0701", "Enter");
+    expect(nodeByCode("LIBERO")?.name).toBe("Limite larghezza");
+    expect(host!.querySelector<HTMLInputElement>('[aria-label="Codice del nodo"]')?.value).toBe("LIBERO");
+    expect(host!.querySelector<HTMLInputElement>('[aria-label="Nome del nodo"]')?.value).toBe("Limite larghezza");
+    await click("Aggiungi figlio");
+    const inserted = host!.querySelector<HTMLInputElement>('[aria-label="Nome del nuovo nodo"]');
+    expect(document.activeElement).toBe(inserted);
+    expect(inserted?.value).toBe("Nuovo nodo");
+    expect(inserted?.selectionEnd).toBe("Nuovo nodo".length);
+    expect(host!.querySelector(".tree-item.is-draft")?.querySelector(".tree-code")?.textContent).toMatch(/^LIBERO/);
+    expect(host!.querySelector('[aria-label="Codice del nuovo nodo"]')).toBeNull();
+  });
 });
 
 function treeRow(code: string) {
@@ -293,6 +384,12 @@ async function pressKey(label: string, key: string) {
 }
 async function clickTreeItem(text: string) {
   await act(async () => treeRow(text).dispatchEvent(new MouseEvent("click", { bubbles: true })));
+}
+async function dblclick(element: Element) {
+  await act(async () => element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
+}
+function nodeByCode(code: string) {
+  return useTreeStore.getState().sessions[path]?.data.nodes.find(node => node.code === code);
 }
 async function clickOption(dialog: Element, code: string) {
   const option = [...dialog.querySelectorAll("button")].find(item => item.querySelector("strong")?.textContent === code);
