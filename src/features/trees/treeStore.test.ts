@@ -3,7 +3,7 @@ import { ExternalFileConflictError } from "../../infrastructure/filesystem/vault
 import { vaultService } from "../vault/vaultService";
 import { treeSaveStatus } from "../workspace/saveStatus";
 import { demoTree } from "./demoTree";
-import { deleteNode, newTree, planMove, upsertObject } from "./model";
+import { addSibling, deleteNode, newTree, planMove, upsertObject } from "./model";
 import { serializeTree, serializeTreeFile } from "./serializeTree";
 import { useTreeStore } from "./treeStore";
 import { useTreeUiStore } from "./treeUiStore";
@@ -133,6 +133,40 @@ describe("sessioni delle strutture", () => {
     useTreeStore.getState().applyDelete(path, removed.tree);
     useTreeStore.getState().edit(path, { ...useTreeStore.getState().sessions[path]!.data, title: "Toccato" });
     expect(useTreeStore.getState().undoMove(path)).toBe(false);
+  });
+
+  it("inserisce un fratello con edit: autosalva dopo 700 ms e dimentica l'annullamento, come un figlio", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 20, lastModified: 1 });
+    const write = vi.spyOn(vaultService, "writeText").mockImplementation(async (_path, content) => ({ size: content.length, lastModified: 2 }));
+    await useTreeStore.getState().load(path);
+    const plan = planMove(useTreeStore.getState().sessions[path]!.data, "n-04", "n-12");
+    expect(plan.tree).not.toBeNull();
+    useTreeStore.getState().applyMove(path, plan.tree!);
+    expect(useTreeStore.getState().sessions[path]!.moveUndo?.kind).toBe("move");
+    const current = useTreeStore.getState().sessions[path]!.data;
+    const codes = new Map(current.nodes.map(node => [node.id, node.code]));
+    const orders = current.nodes.filter(node => node.parentId === "n-07").sort((a, b) => a.order - b.order);
+    const result = addSibling(current, "n-0701");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    useTreeStore.getState().edit(path, result.tree);
+    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    expect(useTreeStore.getState().undoMove(path)).toBe(false);
+    const saved = useTreeStore.getState().sessions[path]!.data;
+    for (const [id, code] of codes) expect(saved.nodes.find(node => node.id === id)!.code).toBe(code);
+    const siblings = saved.nodes.filter(node => node.parentId === "n-07").sort((a, b) => a.order - b.order);
+    expect(siblings.map(node => node.id)).toEqual([orders[0]!.id, result.node.id, orders[1]!.id]);
+    expect(siblings.map(node => node.order)).toEqual([orders[0]!.order, orders[0]!.order + 1, orders[1]!.order + 1]);
+    expect(siblings.find(node => node.id === result.node.id)!.categoryMode).toBe("inherit");
+    expect(siblings.find(node => node.id === result.node.id)!.categoryId).toBeNull();
+    expect(write).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(write).toHaveBeenCalledTimes(1);
+    const file = JSON.parse(String(write.mock.calls[0]?.[1])) as { nodes: Array<{ id: string; code: string; order: number }> };
+    expect(file.nodes.find(node => node.id === result.node.id)?.code).toBe("FL-0703");
+    expect(file.nodes.find(node => node.id === "n-0702")?.code).toBe("FL-0702");
+    expect(file.nodes.find(node => node.id === "n-0702")?.order).toBe(orders[1]!.order + 1);
   });
 
   it("tiene lo stato di vista fuori dal file", () => {

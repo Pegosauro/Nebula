@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import {
-  childrenOf, deleteNodeError, moveCommandReason, moveDestinationReason, nodeById, planMove, principalCategory, readableOn,
+  childrenOf, addSiblingReason, deleteNodeError, moveCommandReason, moveDestinationReason, nodeById, planMove, principalCategory, readableOn,
   type MovePlan, type MoveRename, type Tree,
 } from "./model";
 
@@ -179,12 +179,13 @@ function destinationRows(tree: Tree, query: string): Array<{ id: string; depth: 
   return rows;
 }
 
-export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onObject, onRename, onMove, onDelete }: { tree: Tree; nodeId: string; x: number; y: number; onClose: () => void; onAdd: () => void; onObject: () => void; onRename: () => void; onMove: () => void; onDelete: () => void }) {
+export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onSibling, onObject, onRename, onMove, onDelete }: { tree: Tree; nodeId: string; x: number; y: number; onClose: () => void; onAdd: () => void; onSibling: () => void; onObject: () => void; onRename: () => void; onMove: () => void; onDelete: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [point, setPoint] = useState({ x, y });
   const node = nodeById(tree, nodeId);
   const moveReason = moveCommandReason(tree, nodeId);
   const deleteReason = deleteNodeError(tree, nodeId);
+  const siblingReason = addSiblingReason(tree, nodeId);
   useEffect(() => {
     const menu = ref.current;
     if (!menu) return;
@@ -202,11 +203,12 @@ export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onObject, 
   return (
     <div ref={ref} className="tree-context" role="menu" aria-label={`Azioni su ${node.code}`} style={{ left: point.x, top: point.y }}>
       <button type="button" role="menuitem" onClick={() => { onAdd(); onClose(); }}>Aggiungi figlio</button>
+      <button type="button" role="menuitem" disabled={Boolean(siblingReason)} title={siblingReason} onClick={() => { onSibling(); onClose(); }}>Aggiungi fratello{siblingReason && <small>{siblingReason}</small>}</button>
       <button type="button" role="menuitem" onClick={() => { onObject(); onClose(); }}>Nuova caratteristica</button>
       <button type="button" role="menuitem" onClick={() => { onRename(); onClose(); }}>Rinomina</button>
       <button type="button" role="menuitem" disabled={Boolean(moveReason)} title={moveReason} onClick={() => { onMove(); onClose(); }}>Sposta in…{moveReason && <small>{moveReason}</small>}</button>
       <button type="button" role="menuitem" disabled={Boolean(deleteReason)} title={deleteReason} onClick={() => { onDelete(); onClose(); }}>Elimina{deleteReason && <small>{deleteReason}</small>}</button>
-      <p>Alt ↑↓ riordina tra fratelli: i codici non cambiano. Per cambiare padre usa Sposta in… o il trascinamento.</p>
+      <p>Invio aggiunge un fratello subito dopo. Alt ↑↓ riordina tra fratelli: i codici non cambiano. Per cambiare padre usa Sposta in… o il trascinamento.</p>
     </div>
   );
 }
