@@ -1,4 +1,5 @@
-/** Albero libero `nebula-tree` v1. Le categorie effettive non vengono mai scritte nel file.
+/** Albero libero `nebula-tree` v1. La categoria effettiva non viene scritta nel file: un nodo `inherit` ha `categoryId` null.
+ *  In lettura, `categoryIds` dei file precedenti diventa la prima categoria, oppure null se l'elenco è vuoto.
  *  Lo spostamento cambia solo `parentId`, `order` e, se cambia il padre, i codici conformi (`conformSuffix`, `freeSuffix`). */
 
 export const TREE_FORMAT = "nebula-tree" as const;
@@ -35,7 +36,8 @@ export interface TreeNode {
   code: string;
   name: string;
   categoryMode: CategoryMode;
-  categoryIds: string[];
+  /** Null se il nodo non ha una categoria propria. Con `inherit` resta null: vale quella del padre. */
+  categoryId: string | null;
   note: string;
   objects: TreeObject[];
 }
@@ -167,21 +169,20 @@ export function proposeChildCode(tree: Tree, parentId: string): string | null {
   return suffix ? joinCode(tree, parent.code, suffix) : null;
 }
 
-const effectiveCache = new WeakMap<Tree, Map<string, readonly string[]>>();
-/** Categorie effettive, calcolate in una visita e memorizzate per l'oggetto immutabile. */
-export function effectiveCategoryMap(tree: Tree): Map<string, readonly string[]> {
+const effectiveCache = new WeakMap<Tree, Map<string, string | null>>();
+/** Categoria effettiva, calcolata in una visita e memorizzata per l'oggetto immutabile. */
+export function effectiveCategoryMap(tree: Tree): Map<string, string | null> {
   const cached = effectiveCache.get(tree);
   if (cached) return cached;
   const known = new Set(tree.categories.map(category => category.id));
   const byId = indexOf(tree).byId;
-  const map = new Map<string, readonly string[]>();
-  const visit = (id: string, guard = 0): readonly string[] => {
-    const found = map.get(id);
-    if (found) return found;
+  const map = new Map<string, string | null>();
+  const visit = (id: string, guard = 0): string | null => {
+    if (map.has(id)) return map.get(id) ?? null;
     const node = byId.get(id);
-    let result: readonly string[];
-    if (!node || guard > MAX_DEPTH + 2) result = [];
-    else if (node.parentId == null || node.categoryMode !== "inherit") result = node.categoryIds.filter(categoryId => known.has(categoryId));
+    let result: string | null;
+    if (!node || guard > MAX_DEPTH + 2) result = null;
+    else if (node.parentId == null || node.categoryMode !== "inherit") result = node.categoryId && known.has(node.categoryId) ? node.categoryId : null;
     else result = visit(node.parentId, guard + 1);
     map.set(id, result);
     return result;
@@ -190,8 +191,8 @@ export function effectiveCategoryMap(tree: Tree): Map<string, readonly string[]>
   effectiveCache.set(tree, map);
   return map;
 }
-export const effectiveCategories = (tree: Tree, id: string) => effectiveCategoryMap(tree).get(id) ?? [];
-/** Nodo `own` da cui un nodo `inherit` prende le categorie. */
+export const effectiveCategory = (tree: Tree, id: string): string | null => effectiveCategoryMap(tree).get(id) ?? null;
+/** Nodo `own` da cui un nodo `inherit` prende la categoria. */
 export function inheritSource(tree: Tree, id: string): TreeNode | undefined {
   let current = nodeById(tree, id);
   const seen = new Set<string>();
@@ -201,9 +202,9 @@ export function inheritSource(tree: Tree, id: string): TreeNode | undefined {
   }
   return current;
 }
-/** Il colore del nodo è quello della prima categoria effettiva. Isolato qui: è solo presentazione. */
+/** Il colore del nodo è quello della categoria effettiva. Isolato qui: è solo presentazione. */
 export function principalCategory(tree: Tree, id: string): TreeCategory | undefined {
-  const categoryId = effectiveCategories(tree, id)[0];
+  const categoryId = effectiveCategory(tree, id);
   return categoryId ? tree.categories.find(category => category.id === categoryId) : undefined;
 }
 export function readableOn(color: string): string {
@@ -245,16 +246,6 @@ function replaceNode(tree: Tree, id: string, update: (node: TreeNode) => void): 
 function knownCategories(tree: Tree): Set<string> {
   return new Set(tree.categories.map(category => category.id));
 }
-function uniqueCategoryIds(ids: readonly string[], valid: Set<string>): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const id of ids) {
-    if (!valid.has(id) || seen.has(id)) continue;
-    seen.add(id);
-    result.push(id);
-  }
-  return result;
-}
 function renumberSiblings(tree: Tree, parentId: string) {
   childrenOf(tree, parentId).forEach((child, index) => { child.order = index; });
 }
@@ -267,7 +258,7 @@ export function addChild(tree: Tree, parentId: string, patch: { code?: string; n
   const proposed = patch.code ?? proposeChildCode(tree, parentId);
   if (!proposed) return { ok: false, error: `Nessun codice libero tra ${codeRangeLabel(codeStep(tree))} sotto ${parent.code}` };
   const order = childrenOf(tree, parentId).reduce((max, child) => Math.max(max, child.order), -1) + 1;
-  const draft: TreeNode = { id: uid(), parentId, order, code: proposed.trim(), name: patch.name ?? "Nuovo nodo", categoryMode: "inherit", categoryIds: [], note: "", objects: [] };
+  const draft: TreeNode = { id: uid(), parentId, order, code: proposed.trim(), name: patch.name ?? "Nuovo nodo", categoryMode: "inherit", categoryId: null, note: "", objects: [] };
   const next = clone(tree);
   next.nodes.push(draft);
   const issues = codeIssues(next, draft.id, draft.code);
@@ -287,37 +278,47 @@ export function updateNode(tree: Tree, id: string, patch: { code?: string; name?
   if (patch.note !== undefined) node.note = String(patch.note);
   return { ok: true, tree: next };
 }
-export function leafDeleteError(tree: Tree, id: string): string | undefined {
+/** La radice non si elimina: il file deve averne esattamente una. I nodi con discendenti si possono eliminare. */
+export function deleteNodeError(tree: Tree, id: string): string | undefined {
   const node = nodeById(tree, id);
   if (!node) return "Nodo inesistente";
   if (node.parentId == null) return "La radice non si può eliminare";
-  const count = childrenOf(tree, id).length;
-  if (count) return `Ha ${count} ${count === 1 ? "figlio" : "figli"}: si possono eliminare solo le foglie`;
   return undefined;
 }
-export function deleteLeaf(tree: Tree, id: string): TreeSuccess | TreeFailure {
-  const reason = leafDeleteError(tree, id);
+export function descendantCount(tree: Tree, id: string): number {
+  return descendants(tree, id).length;
+}
+/** Conferma con il nodo e tutti i discendenti. Esempio: «Eliminare FL-12 e 5 nodi discendenti? Verranno eliminati 6 nodi.» */
+export function deleteConfirmText(code: string, descendantsCount: number): string {
+  if (descendantsCount <= 0) return `Eliminare ${code}? Verrà eliminato 1 nodo.`;
+  const branch = descendantsCount === 1 ? "1 nodo discendente" : `${descendantsCount} nodi discendenti`;
+  const total = descendantsCount + 1;
+  const all = total === 1 ? "1 nodo" : `${total} nodi`;
+  return `Eliminare ${code} e ${branch}? Verranno eliminati ${all}.`;
+}
+export function deleteNode(tree: Tree, id: string): TreeSuccess<{ removed: number }> | TreeFailure {
+  const reason = deleteNodeError(tree, id);
   if (reason) return { ok: false, error: reason };
   const node = nodeById(tree, id)!;
+  const removedIds = new Set([id, ...descendants(tree, id).map(item => item.id)]);
   const next = clone(tree);
-  next.nodes = next.nodes.filter(item => item.id !== id);
+  next.nodes = next.nodes.filter(item => !removedIds.has(item.id));
   renumberSiblings(next, node.parentId!);
-  return { ok: true, tree: next };
+  return { ok: true, tree: next, removed: removedIds.size };
 }
-export function setNodeCategories(tree: Tree, id: string, categoryIds: readonly string[]): TreeSuccess<{ detached: boolean }> | TreeFailure {
+export function setNodeCategory(tree: Tree, id: string, categoryId: string | null): TreeSuccess<{ detached: boolean }> | TreeFailure {
   const node = nodeById(tree, id);
   if (!node) return { ok: false, error: "Nodo inesistente" };
-  const nextIds = uniqueCategoryIds(categoryIds, knownCategories(tree));
-  const current = effectiveCategories(tree, id);
-  const same = current.length === nextIds.length && current.every((categoryId, index) => categoryId === nextIds[index]);
+  const nextId = categoryId && knownCategories(tree).has(categoryId) ? categoryId : null;
+  const current = effectiveCategory(tree, id);
   const wasInherit = node.parentId != null && node.categoryMode === "inherit";
-  if (wasInherit && same) return { ok: true, tree, detached: false };
-  return { ok: true, tree: replaceNode(tree, id, item => { item.categoryMode = "own"; item.categoryIds = nextIds; }), detached: wasInherit };
+  if (wasInherit && current === nextId) return { ok: true, tree, detached: false };
+  return { ok: true, tree: replaceNode(tree, id, item => { item.categoryMode = "own"; item.categoryId = nextId; }), detached: wasInherit };
 }
 export function inheritFromParent(tree: Tree, id: string): TreeSuccess | TreeFailure {
   const node = nodeById(tree, id);
-  if (!node || node.parentId == null) return { ok: false, error: "La radice ha sempre categorie proprie" };
-  return { ok: true, tree: replaceNode(tree, id, item => { item.categoryMode = "inherit"; item.categoryIds = []; }) };
+  if (!node || node.parentId == null) return { ok: false, error: "La radice ha sempre una categoria propria" };
+  return { ok: true, tree: replaceNode(tree, id, item => { item.categoryMode = "inherit"; item.categoryId = null; }) };
 }
 export function addCategory(tree: Tree, name: string, color?: string): TreeSuccess<{ category: TreeCategory }> | TreeFailure {
   if (color && !isPaletteColor(color)) return { ok: false, error: "Colore fuori tavolozza" };
@@ -349,7 +350,7 @@ export function moveCategory(tree: Tree, id: string, delta: number): TreeSuccess
   return { ok: true, tree: next };
 }
 export function categoryUsage(tree: Tree, categoryId: string): TreeNode[] {
-  return tree.nodes.filter(node => (node.parentId == null || node.categoryMode === "own") && node.categoryIds.includes(categoryId));
+  return tree.nodes.filter(node => (node.parentId == null || node.categoryMode === "own") && node.categoryId === categoryId);
 }
 /** `replacementId` omesso blocca l'eliminazione se la categoria è usata. `null` la toglie dai nodi. */
 export function deleteCategory(tree: Tree, categoryId: string, replacementId?: string | null): TreeSuccess | TreeFailure {
@@ -360,8 +361,8 @@ export function deleteCategory(tree: Tree, categoryId: string, replacementId?: s
   if (replacementId && (replacementId === categoryId || !tree.categories.some(category => category.id === replacementId))) return { ok: false, error: "Categoria di sostituzione non valida" };
   const next = clone(tree);
   for (const node of next.nodes) {
-    if (!node.categoryIds.includes(categoryId)) continue;
-    node.categoryIds = uniqueCategoryIds(node.categoryIds.map(id => id === categoryId ? replacementId ?? "" : id), knownCategories(next));
+    if (node.categoryId !== categoryId) continue;
+    node.categoryId = replacementId ?? null;
   }
   next.categories = next.categories.filter(category => category.id !== categoryId).sort((a, b) => a.order - b.order);
   next.categories.forEach((category, order) => { category.order = order; });
@@ -429,7 +430,7 @@ function blockedMove(message: string): MovePlan {
 function changedCategoryIds(before: Tree, after: Tree, ids: readonly string[]): string[] {
   const left = effectiveCategoryMap(before);
   const right = effectiveCategoryMap(after);
-  return ids.filter(id => (left.get(id) ?? []).join("|") !== (right.get(id) ?? []).join("|"));
+  return ids.filter(id => (left.get(id) ?? null) !== (right.get(id) ?? null));
 }
 
 /** Motivo per cui il comando «Sposta in…» non è disponibile sul nodo. */
@@ -600,7 +601,7 @@ export function inspectTree(tree: Tree): { errors: TreeIssue[]; warnings: TreeIs
     if (depth > MAX_DEPTH) issue(errors, `Profondità oltre ${MAX_DEPTH} livelli: ${node.code}`, node.id);
     if (node.categoryMode !== "inherit" && node.categoryMode !== "own") issue(errors, `categoryMode non valido su ${node.code}`, node.id);
     if (node.parentId == null && node.categoryMode !== "own") issue(errors, "La radice deve avere categoryMode \"own\"", node.id);
-    for (const categoryId of node.categoryIds ?? []) if (!categoryIds.has(categoryId)) issue(errors, `Categoria inesistente su ${node.code}`, node.id);
+    if (node.categoryId != null && !categoryIds.has(node.categoryId)) issue(errors, `Categoria inesistente su ${node.code}`, node.id);
     const normalized = normCode(node.code ?? "");
     if (!normalized) issue(errors, `Codice mancante (nodo «${node.name}»)`, node.id);
     else if (codes.has(normalized)) issue(errors, `Codice duplicato ${node.code} (anche «${codes.get(normalized)!.name}»)`, node.id);
@@ -628,6 +629,22 @@ function record(value: unknown): Record<string, unknown> | undefined {
 }
 function integer(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isInteger(value) ? value : fallback;
+}
+/** Prima categoria non vuota di un file precedente, oppure null. */
+function firstCategoryId(value: unknown): string | null {
+  if (!Array.isArray(value)) return null;
+  for (const id of value) {
+    const text = String(id ?? "").trim();
+    if (text) return text;
+  }
+  return null;
+}
+function readCategoryId(node: Record<string, unknown> | undefined, parentId: string | null, mode: unknown): string | null {
+  if (parentId != null && mode === "inherit") return null;
+  if (node && Object.prototype.hasOwnProperty.call(node, "categoryId")) {
+    return typeof node.categoryId === "string" && node.categoryId.trim() ? node.categoryId.trim() : null;
+  }
+  return firstCategoryId(node?.categoryIds);
 }
 export function parseTree(text: string): Tree {
   let raw: unknown;
@@ -664,7 +681,7 @@ export function parseTree(text: string): Tree {
       code: typeof node?.code === "string" ? node.code : "",
       name: typeof node?.name === "string" ? node.name : "",
       categoryMode: mode === "inherit" || mode === "own" ? mode : mode as CategoryMode,
-      categoryIds: parentId != null && mode === "inherit" ? [] : Array.isArray(node?.categoryIds) ? node.categoryIds.map(id => String(id)) : [],
+      categoryId: readCategoryId(node, parentId, mode),
       note: typeof node?.note === "string" ? node.note : "",
       objects,
     };
@@ -703,7 +720,7 @@ export function canonicalTree(tree: Tree): Tree {
       code: node.code,
       name: node.name,
       categoryMode: node.parentId == null ? "own" : node.categoryMode,
-      categoryIds: node.parentId != null && node.categoryMode === "inherit" ? [] : [...node.categoryIds],
+      categoryId: node.parentId != null && node.categoryMode === "inherit" ? null : node.categoryId,
       note: node.note || "",
       objects: [...node.objects].sort((a, b) => a.order - b.order).map(object => object.type === "externalTable"
         ? { id: object.id, type: "externalTable" as const, order: object.order, tableName: object.tableName }
@@ -715,6 +732,6 @@ export function canonicalTree(tree: Tree): Tree {
   return canonical;
 }
 export function newTree(title: string, rootCode: string, rootName: string): Tree {
-  const root: TreeNode = { id: uid(), parentId: null, order: 0, code: rootCode.trim(), name: rootName, categoryMode: "own", categoryIds: [], note: "", objects: [] };
+  const root: TreeNode = { id: uid(), parentId: null, order: 0, code: rootCode.trim(), name: rootName, categoryMode: "own", categoryId: null, note: "", objects: [] };
   return { format: TREE_FORMAT, version: TREE_VERSION, title: title.trim(), rootId: root.id, categories: [], nodes: [root] };
 }

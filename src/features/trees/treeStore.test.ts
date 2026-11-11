@@ -3,7 +3,7 @@ import { ExternalFileConflictError } from "../../infrastructure/filesystem/vault
 import { vaultService } from "../vault/vaultService";
 import { treeSaveStatus } from "../workspace/saveStatus";
 import { demoTree } from "./demoTree";
-import { newTree, planMove, upsertObject } from "./model";
+import { deleteNode, newTree, planMove, upsertObject } from "./model";
 import { serializeTree, serializeTreeFile } from "./serializeTree";
 import { useTreeStore } from "./treeStore";
 import { useTreeUiStore } from "./treeUiStore";
@@ -102,6 +102,36 @@ describe("sessioni delle strutture", () => {
     useTreeStore.getState().applyMove(path, again.tree!);
     useTreeStore.getState().edit(path, { ...useTreeStore.getState().sessions[path]!.data, title: "Toccato" });
     expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    expect(useTreeStore.getState().undoMove(path)).toBe(false);
+  });
+
+  it("annulla l'eliminazione di un ramo e ripristina ordine, codici, categorie e note", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 20, lastModified: 1 });
+    const write = vi.spyOn(vaultService, "writeText").mockImplementation(async (_path, content) => ({ size: content.length, lastModified: 3 }));
+    await useTreeStore.getState().load(path);
+    const before = useTreeStore.getState().sessions[path]!.data;
+    const snapshot = serializeTree(before);
+    const order = before.nodes.filter(node => node.parentId === "n-root").sort((a, b) => a.order - b.order).map(node => node.id);
+    const removed = deleteNode(before, "n-08");
+    expect(removed.ok).toBe(true);
+    if (!removed.ok) return;
+    useTreeStore.getState().applyDelete(path, removed.tree);
+    expect(useTreeStore.getState().sessions[path]!.moveUndo?.kind).toBe("delete");
+    expect(useTreeStore.getState().sessions[path]!.data.nodes.some(node => node.id === "n-0803")).toBe(false);
+    expect(useTreeStore.getState().undoMove(path)).toBe(true);
+    const restored = useTreeStore.getState().sessions[path]!.data;
+    expect(serializeTree(restored)).toBe(snapshot);
+    expect(restored.nodes.filter(node => node.parentId === "n-root").sort((a, b) => a.order - b.order).map(node => node.id)).toEqual(order);
+    const note = restored.nodes.find(node => node.id === "n-0803")!;
+    expect(note.code).toBe("FL-0803");
+    expect(note.categoryId).toBe("c-dim");
+    expect(note.note).toContain("Altezza utile");
+    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(write).not.toHaveBeenCalled();
+    useTreeStore.getState().applyDelete(path, removed.tree);
+    useTreeStore.getState().edit(path, { ...useTreeStore.getState().sessions[path]!.data, title: "Toccato" });
     expect(useTreeStore.getState().undoMove(path)).toBe(false);
   });
 

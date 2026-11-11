@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 import { isConfiguratorPath } from "../configurator/model";
 import { demoTree } from "./demoTree";
 import {
-  addChild, canonicalTree, childrenOf, codeIssues, deleteCategory, deleteLeaf, dropDestination, effectiveCategories,
+  addChild, canonicalTree, childrenOf, codeIssues, deleteCategory, deleteConfirmText, deleteNode, descendantCount, dropDestination, effectiveCategory,
   inheritFromParent, inspectTree, isTreePath, newTree, parseTree, planMove, principalCategory, proposeChildCode,
-  reorderSibling, setNodeCategories, updateCategory, updateNode, upsertObject, type Tree,
+  reorderSibling, setNodeCategory, updateCategory, updateNode, upsertObject, type Tree,
 } from "./model";
 import { serializeTree, serializeTreeFile } from "./serializeTree";
 
@@ -18,30 +18,64 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(inspectTree(demoTree()).errors).toEqual([]);
   });
 
-  it("modificare le categorie di un inherit lo passa a own e Eredita dal padre lo riallinea", () => {
+  it("modificare la categoria di un inherit lo passa a own e inheritFromParent lo riallinea", () => {
     const source = demoTree();
-    expect(effectiveCategories(source, "n-0701")).toEqual(["c-dim"]);
-    const detached = setNodeCategories(source, "n-0701", [...effectiveCategories(source, "n-0701"), "c-avv"]);
+    expect(effectiveCategory(source, "n-0701")).toBe("c-dim");
+    const same = setNodeCategory(source, "n-0701", "c-dim");
+    expect(same.ok && same.detached).toBe(false);
+    if (!same.ok) return;
+    expect(same.tree.nodes.find(item => item.id === "n-0701")!.categoryMode).toBe("inherit");
+    const detached = setNodeCategory(source, "n-0701", "c-avv");
     expect(detached.ok && detached.detached).toBe(true);
     if (!detached.ok) return;
     const node = detached.tree.nodes.find(item => item.id === "n-0701")!;
     expect(node.categoryMode).toBe("own");
-    expect(node.categoryIds).toEqual(["c-dim", "c-avv"]);
+    expect(node.categoryId).toBe("c-avv");
+    const cleared = setNodeCategory(detached.tree, "n-0701", null);
+    expect(cleared.ok).toBe(true);
+    if (!cleared.ok) return;
+    expect(cleared.tree.nodes.find(item => item.id === "n-0701")!.categoryId).toBeNull();
+    expect(effectiveCategory(cleared.tree, "n-0701")).toBeNull();
     const restored = inheritFromParent(detached.tree, "n-0701");
     expect(restored.ok).toBe(true);
     if (!restored.ok) return;
     const back = restored.tree.nodes.find(item => item.id === "n-0701")!;
     expect(back.categoryMode).toBe("inherit");
-    expect(back.categoryIds).toEqual([]);
-    expect(effectiveCategories(restored.tree, "n-0701")).toEqual(["c-dim"]);
+    expect(back.categoryId).toBeNull();
+    expect(effectiveCategory(restored.tree, "n-0701")).toBe("c-dim");
+    expect(inheritFromParent(source, "n-root").ok).toBe(false);
   });
 
   it("propaga il cambio del padre ai discendenti inherit fino al primo own", () => {
-    const changed = setNodeCategories(demoTree(), "n-07", ["c-avv"]);
+    const changed = setNodeCategory(demoTree(), "n-07", "c-avv");
     expect(changed.ok).toBe(true);
     if (!changed.ok) return;
-    expect(effectiveCategories(changed.tree, "n-0701")).toEqual(["c-avv"]);
-    expect(effectiveCategories(changed.tree, "n-0702")).toEqual(["c-avv"]);
+    expect(effectiveCategory(changed.tree, "n-0701")).toBe("c-avv");
+    expect(effectiveCategory(changed.tree, "n-0702")).toBe("c-avv");
+  });
+
+  it("in lettura tiene solo la prima categoria e tratta l'elenco vuoto come nessuna", () => {
+    const raw = JSON.parse(serializeTree(demoTree())) as { nodes: Array<Record<string, unknown>> };
+    const rewrite = (id: string, categoryIds: string[]) => {
+      const node = raw.nodes.find(item => item.id === id)!;
+      delete node.categoryId;
+      node.categoryIds = categoryIds;
+    };
+    rewrite("n-08", ["c-ins", "c-avv", "c-dim"]);
+    rewrite("n-44", []);
+    rewrite("n-47", ["", "c-mot"]);
+    const child = raw.nodes.find(item => item.id === "n-0701")!;
+    delete child.categoryId;
+    child.categoryMode = "inherit";
+    child.categoryIds = ["c-avv"];
+    const loaded = parseTree(JSON.stringify(raw));
+    expect(loaded.nodes.find(node => node.id === "n-08")!.categoryId).toBe("c-ins");
+    expect(loaded.nodes.find(node => node.id === "n-44")!.categoryId).toBeNull();
+    expect(loaded.nodes.find(node => node.id === "n-47")!.categoryId).toBe("c-mot");
+    expect(loaded.nodes.find(node => node.id === "n-0701")!.categoryId).toBeNull();
+    expect(effectiveCategory(loaded, "n-0701")).toBe("c-dim");
+    expect(serializeTree(loaded)).not.toContain("categoryIds");
+    expect(JSON.parse(serializeTree(loaded)).nodes.find((node: { id: string }) => node.id === "n-08").categoryId).toBe("c-ins");
   });
 
   it("blocca due sigle P nello stesso nodo, propria e acquisita, anche con spazi e maiuscole", () => {
@@ -111,15 +145,30 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(inspectTree(renamed.tree).errors).toEqual([]);
   });
 
-  it("elimina solo le foglie", () => {
+  it("elimina un nodo insieme ai discendenti e lascia la radice", () => {
     const source = demoTree();
-    expect(deleteLeaf(source, "n-08").ok).toBe(false);
-    expect(deleteLeaf(source, "n-root").ok).toBe(false);
-    const removed = deleteLeaf(source, "n-0702");
+    const root = deleteNode(source, "n-root");
+    expect(root.ok).toBe(false);
+    if (root.ok) return;
+    expect(root.error).toMatch(/radice/);
+    expect(descendantCount(source, "n-08")).toBe(4);
+    expect(deleteConfirmText("FL-12", 5)).toBe("Eliminare FL-12 e 5 nodi discendenti? Verranno eliminati 6 nodi.");
+    expect(deleteConfirmText("FL-08", descendantCount(source, "n-08"))).toBe("Eliminare FL-08 e 4 nodi discendenti? Verranno eliminati 5 nodi.");
+    expect(deleteConfirmText("FL-0702", 0)).toBe("Eliminare FL-0702? Verrà eliminato 1 nodo.");
+    const before = childrenOf(source, "n-root").map(node => node.id);
+    const removed = deleteNode(source, "n-08");
     expect(removed.ok).toBe(true);
     if (!removed.ok) return;
-    expect(removed.tree.nodes).toHaveLength(source.nodes.length - 1);
-    expect(deleteLeaf(source, "n-08").ok === false && (deleteLeaf(source, "n-08") as { error: string }).error).toMatch(/figli/);
+    expect(removed.removed).toBe(5);
+    expect(removed.tree.nodes).toHaveLength(source.nodes.length - 5);
+    expect(removed.tree.nodes.some(node => node.id === "n-0803" || node.id === "n-08")).toBe(false);
+    expect(childrenOf(removed.tree, "n-root").map(node => node.id)).toEqual(before.filter(id => id !== "n-08"));
+    expect(childrenOf(removed.tree, "n-root").map(node => node.order)).toEqual(childrenOf(removed.tree, "n-root").map((_, index) => index));
+    expect(removed.tree.nodes.find(node => node.id === "n-07")!.code).toBe("FL-07");
+    const leaf = deleteNode(source, "n-0702");
+    expect(leaf.ok).toBe(true);
+    if (!leaf.ok) return;
+    expect(leaf.removed).toBe(1);
   });
 
   it("chiede una sostituzione per eliminare una categoria usata e aggiorna chi eredita", () => {
@@ -128,13 +177,15 @@ describe("regole dell'albero nebula-tree v1", () => {
     const replaced = deleteCategory(source, "c-dim", "c-tes");
     expect(replaced.ok).toBe(true);
     if (!replaced.ok) return;
-    expect(replaced.tree.nodes.find(node => node.id === "n-07")!.categoryIds).toEqual(["c-tes"]);
-    expect(effectiveCategories(replaced.tree, "n-0701")).toEqual(["c-tes"]);
-    expect(replaced.tree.nodes.find(node => node.id === "n-08")!.categoryIds).toEqual(["c-tes", "c-ins"]);
+    expect(replaced.tree.nodes.find(node => node.id === "n-07")!.categoryId).toBe("c-tes");
+    expect(effectiveCategory(replaced.tree, "n-0701")).toBe("c-tes");
+    expect(replaced.tree.nodes.find(node => node.id === "n-08")!.categoryId).toBe("c-tes");
+    expect(replaced.tree.nodes.find(node => node.id === "n-0803")!.categoryId).toBe("c-tes");
     const removed = deleteCategory(source, "c-avv", null);
     expect(removed.ok).toBe(true);
     if (!removed.ok) return;
-    expect(removed.tree.nodes.find(node => node.id === "n-0803")!.categoryIds).toEqual(["c-dim", "c-ins"]);
+    expect(removed.tree.nodes.find(node => node.id === "n-47")!.categoryId).toBeNull();
+    expect(removed.tree.nodes.find(node => node.id === "n-0803")!.categoryId).toBe("c-dim");
   });
 
   it("fa il round-trip parseTree(serializeTree(x)) senza perdere il contenuto", () => {
@@ -227,15 +278,17 @@ describe("regole dell'albero nebula-tree v1", () => {
     if (!colored.ok) return;
     const inherited = planMove(colored.tree, "n-0801", "n-12");
     expect(inherited.ok).toBe(true);
-    expect(effectiveCategories(inherited.tree!, "n-0801")).toEqual(["c-mot"]);
+    expect(effectiveCategory(inherited.tree!, "n-0801")).toBe("c-mot");
     expect(inherited.catChanged).toEqual(["n-0801"]);
     expect(principalCategory(inherited.tree!, "n-0801")?.color).toBe("#e5534b");
     expect(inherited.tree!.nodes.find(node => node.id === "n-0801")!.categoryMode).toBe("inherit");
+    expect(inherited.tree!.nodes.find(node => node.id === "n-0801")!.categoryId).toBeNull();
     const own = planMove(colored.tree, "n-0803", "n-12");
     expect(own.ok).toBe(true);
-    expect(effectiveCategories(own.tree!, "n-0803")).toEqual(["c-dim", "c-ins", "c-avv"]);
+    expect(effectiveCategory(own.tree!, "n-0803")).toBe("c-dim");
     expect(own.catChanged).toHaveLength(0);
     expect(own.tree!.nodes.find(node => node.id === "n-0803")!.categoryMode).toBe("own");
+    expect(own.tree!.nodes.find(node => node.id === "n-0803")!.categoryId).toBe("c-dim");
     expect(principalCategory(own.tree!, "n-0803")?.color).toBe("#22d3ee");
   });
 

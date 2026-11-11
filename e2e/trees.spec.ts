@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("apre la struttura dimostrativa, propone il codice e blocca duplicato ed eliminazione di un ramo", async ({ page }, testInfo) => {
+test("apre la struttura dimostrativa, propone il codice, blocca il duplicato e protegge la radice", async ({ page }, testInfo) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Apri Vault di prova", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Vault pronto", exact: true })).toBeVisible();
@@ -26,14 +26,26 @@ test("apre la struttura dimostrativa, propone il codice e blocca duplicato ed el
   await page.getByRole("treeitem", { name: /FL-07(?!\d)/ }).click();
   await page.getByRole("button", { name: "Aggiungi figlio", exact: true }).click();
   await expect(page.getByLabel("Codice del nuovo nodo")).toHaveValue("FL-0703");
+  const newName = page.getByLabel("Nome del nuovo nodo");
+  await expect(newName).toBeFocused();
+  await expect(newName).toHaveValue("Nuovo nodo");
+  await expect.poll(() => newName.evaluate(element => {
+    const input = element as HTMLInputElement;
+    return input.selectionStart === 0 && input.selectionEnd === input.value.length;
+  })).toBe(true);
   await page.getByLabel("Codice del nuovo nodo").fill("FL-0701");
   await page.getByLabel("Codice del nuovo nodo").press("Enter");
   await expect(page.getByRole("alert").filter({ hasText: "Codice già usato" }).first()).toBeVisible();
   await page.getByLabel("Codice del nuovo nodo").press("Escape");
   const sheet = page.getByRole("button", { name: "Scheda nodo" });
   if (await sheet.isVisible()) await sheet.click();
-  await expect(page.getByRole("button", { name: "Elimina", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Elimina", exact: true })).toBeEnabled();
   const closeSheet = page.getByRole("button", { name: "Chiudi scheda" }).first();
+  if (await closeSheet.isVisible()) await closeSheet.click();
+  await page.getByRole("treeitem", { name: /Tenda finestra/ }).click();
+  if (await sheet.isVisible()) await sheet.click();
+  await expect(page.getByRole("button", { name: "Elimina", exact: true })).toBeDisabled();
+  await expect(page.getByText("La radice non si può eliminare")).toBeVisible();
   if (await closeSheet.isVisible()) await closeSheet.click();
   const expand = page.getByRole("button", { name: "Espandi FL-07", exact: true });
   if (await expand.isVisible()) await expand.click();

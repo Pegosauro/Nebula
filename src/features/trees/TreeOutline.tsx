@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, GripVertical, Link2 } from "lucide-react";
-import { dropDestination, dropZoneAt, isDescendant, nodeById, principalCategory, effectiveCategories, type DropZone, type Tree } from "./model";
+import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { dropDestination, dropZoneAt, isDescendant, nodeById, principalCategory, type DropZone, type Tree } from "./model";
 import { objectLeafText, objectPresentation } from "./objectIcons";
 import { ROW_HEIGHT, virtualWindow, type OutlineRow } from "./outline";
 
@@ -215,9 +215,8 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
   useEffect(() => { if (renaming) codeRef.current?.select(); }, [renaming]);
   if (!node) return null;
   const color = principalCategory(tree, node.id)?.color;
-  const extra = effectiveCategories(tree, node.id).slice(1);
-  const dots = extra.slice(0, 3);
-  const source = node.categoryMode === "inherit" ? nodeById(tree, node.parentId ?? "") : undefined;
+  const isRoot = node.id === tree.rootId;
+  const collapsible = !isRoot && row.hasChildren;
   const dropClass = drag?.overId === node.id ? drag.blocked ? "is-drop-no" : drag.zone === "inside" ? "is-drop-inside" : drag.zone === "before" ? "is-drop-before" : "is-drop-after" : "";
   return (
     <div
@@ -225,7 +224,7 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
       role="treeitem"
       data-node-id={node.id}
       aria-level={row.depth}
-      aria-expanded={row.hasChildren ? row.expanded : undefined}
+      aria-expanded={row.hasChildren ? (isRoot ? true : row.expanded) : undefined}
       aria-selected={selected}
       aria-setsize={total}
       aria-posinset={index + 1}
@@ -236,7 +235,7 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
       onDoubleClick={() => onStartRename(node.id)}
       onContextMenu={event => { event.preventDefault(); onSelect(node.id); onContextMenu(node.id, event.clientX, event.clientY); }}
     >
-      <button type="button" className="tree-disclosure" aria-label={row.expanded ? `Comprimi ${node.code}` : `Espandi ${node.code}`} disabled={!row.hasChildren} onClick={event => { event.stopPropagation(); onToggle(node.id); }}>{row.hasChildren ? row.expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} /> : <span className="tree-disclosure-spacer" />}</button>
+      {collapsible ? <button type="button" className="tree-disclosure" aria-label={row.expanded ? `Comprimi ${node.code}` : `Espandi ${node.code}`} onClick={event => { event.stopPropagation(); onToggle(node.id); }}>{row.expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</button> : <span className="tree-disclosure-spacer" />}
       {node.parentId != null && (
         <span
           role="button"
@@ -259,16 +258,11 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
         </span>
       ) : (
         <span className="tree-label">
-          <strong><Highlight text={node.code} query={query} /></strong>
-          <span><Highlight text={node.name} query={query} /></span>
+          <span className="tree-code"><Highlight text={node.code} query={query} /></span>
+          <span className="tree-name"><Highlight text={node.name} query={query} /></span>
         </span>
       )}
-      {node.categoryMode === "inherit" && source && <Link2 size={13} className="tree-inherit" aria-label={`Eredita le categorie da ${source.code}`} />}
-      {dots.map(id => {
-        const category = tree.categories.find(item => item.id === id);
-        return category ? <span key={id} className="tree-dot" style={{ background: category.color }} title={category.name} /> : null;
-      })}
-      {extra.length > dots.length && <span className="tree-more-cats">+{extra.length - dots.length}</span>}
+      {node.note.trim() && <span className="tree-note-dot" role="img" aria-label="Ha una nota" title="Ha una nota" />}
     </div>
   );
 }
@@ -289,16 +283,21 @@ function ObjectRow({ tree, row, onSelect }: { tree: Tree; row: Extract<OutlineRo
 }
 
 function DraftRow({ tree, draft, error, onChange }: { tree: Tree; draft: NodeDraft; error?: string; onChange: (draft: NodeDraft) => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { ref.current?.select(); }, [draft.parentId]);
+  const nameRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const field = nameRef.current;
+    if (!field) return;
+    field.focus();
+    field.select();
+  }, [draft.parentId]);
   const level = Math.max(2, depthOfParent(tree, draft.parentId) + 1);
   return (
     <div role="treeitem" aria-selected="true" aria-level={level} className="tree-item is-selected is-draft" style={{ paddingLeft: 8 + (level - 1) * 18 }}>
       <span className="tree-disclosure-spacer" />
       <span className="tree-swatch" />
       <span className="tree-rename">
-        <input ref={ref} aria-label="Codice del nuovo nodo" value={draft.code} onChange={event => onChange({ ...draft, code: event.target.value })} />
-        <input aria-label="Nome del nuovo nodo" value={draft.name} placeholder="Nome del nodo" onChange={event => onChange({ ...draft, name: event.target.value })} />
+        <input aria-label="Codice del nuovo nodo" value={draft.code} onChange={event => onChange({ ...draft, code: event.target.value })} />
+        <input ref={nameRef} aria-label="Nome del nuovo nodo" value={draft.name} placeholder="Nome del nodo" onChange={event => onChange({ ...draft, name: event.target.value })} />
       </span>
       {error && <span role="alert" className="tree-inline-error">{error}</span>}
     </div>

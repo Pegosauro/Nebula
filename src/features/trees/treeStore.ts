@@ -8,12 +8,13 @@ import { useWorkspaceStore } from "../workspace/workspaceStore";
 import { inspectTree, parseTree, type Tree } from "./model";
 import { serializeTree, serializeTreeFile } from "./serializeTree";
 
-interface Session { data: Tree; saved: string; expected: ExpectedFileMetadata; error?: string; conflict: boolean; saving: boolean; moveUndo?: { before: Tree } }
+interface Session { data: Tree; saved: string; expected: ExpectedFileMetadata; error?: string; conflict: boolean; saving: boolean; moveUndo?: { before: Tree; kind: "move" | "delete" } }
 interface State {
   sessions: Record<string, Session>;
   load: (path: string, force?: boolean) => Promise<void>;
   edit: (path: string, data: Tree) => void;
   applyMove: (path: string, data: Tree) => void;
+  applyDelete: (path: string, data: Tree) => void;
   undoMove: (path: string) => boolean;
   save: (path: string) => Promise<boolean>;
   flush: (path?: string) => Promise<boolean>;
@@ -75,7 +76,12 @@ export const useTreeStore = create<State>((set, get) => ({
   applyMove: (path, data) => {
     const current = get().sessions[path];
     if (!current) return;
-    commitSession(set, get, path, data, { before: current.data });
+    commitSession(set, get, path, data, { before: current.data, kind: "move" });
+  },
+  applyDelete: (path, data) => {
+    const current = get().sessions[path];
+    if (!current) return;
+    commitSession(set, get, path, data, { before: current.data, kind: "delete" });
   },
   undoMove: path => {
     const current = get().sessions[path];
