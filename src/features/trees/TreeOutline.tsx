@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, GripVertical, Link2 } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import { dropDestination, dropZoneAt, isDescendant, nodeById, principalCategory, type DropZone, type Tree } from "./model";
 import { objectLeafText, objectPresentation } from "./objectIcons";
 import { ROW_HEIGHT, virtualWindow, type OutlineRow } from "./outline";
@@ -215,7 +215,6 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
   useEffect(() => { if (renaming) codeRef.current?.select(); }, [renaming]);
   if (!node) return null;
   const color = principalCategory(tree, node.id)?.color;
-  const source = node.categoryMode === "inherit" ? nodeById(tree, node.parentId ?? "") : undefined;
   const isRoot = node.id === tree.rootId;
   const collapsible = !isRoot && row.hasChildren;
   const dropClass = drag?.overId === node.id ? drag.blocked ? "is-drop-no" : drag.zone === "inside" ? "is-drop-inside" : drag.zone === "before" ? "is-drop-before" : "is-drop-after" : "";
@@ -260,11 +259,10 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
       ) : (
         <span className="tree-label">
           <span className="tree-code"><Highlight text={node.code} query={query} /></span>
-          <strong className="tree-name"><Highlight text={node.name} query={query} /></strong>
+          <span className="tree-name"><Highlight text={node.name} query={query} /></span>
         </span>
       )}
       {node.note.trim() && <span className="tree-note-dot" role="img" aria-label="Ha una nota" title="Ha una nota" />}
-      {node.categoryMode === "inherit" && source && <Link2 size={13} className="tree-inherit" aria-label={`Eredita la categoria da ${source.code}`} />}
     </div>
   );
 }

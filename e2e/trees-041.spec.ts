@@ -54,7 +54,9 @@ test("categoria singola, nota, eliminazione, formato, inserimento e radice sempr
   expect(dot).toBe("rgb(245, 197, 24)");
   const nameWeight = await node(page, "FL-07").locator(".tree-name").evaluate(element => getComputedStyle(element).fontWeight);
   const codeWeight = await node(page, "FL-07").locator(".tree-code").evaluate(element => getComputedStyle(element).fontWeight);
-  expect(Number(nameWeight)).toBeGreaterThan(Number(codeWeight));
+  expect(["400", "normal"]).toContain(nameWeight);
+  expect(["400", "normal"]).toContain(codeWeight);
+  await expect(page.locator(".tree-inherit")).toHaveCount(0);
   const nameColor = await node(page, "FL-07").locator(".tree-name").evaluate(element => getComputedStyle(element).color);
   const codeColor = await node(page, "FL-07").locator(".tree-code").evaluate(element => getComputedStyle(element).color);
   expect(nameColor).not.toBe(codeColor);
@@ -80,12 +82,14 @@ test("categoria singola, nota, eliminazione, formato, inserimento e radice sempr
   const picker = page.getByLabel("Categoria del nodo");
   await expect(picker).toHaveValue("c-dim");
   await expect(picker.locator("option")).toHaveCount(8);
-  await expect(page.getByText("Ereditata da FL-07")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Eredita dal padre", exact: true })).toBeEnabled();
+  await expect(page.getByText("Ereditata da")).toHaveCount(0);
   await page.screenshot({ path: `/opt/cursor/artifacts/categoria-singola-${project}.png` });
   await picker.selectOption({ label: "Avvisi" });
   await expect(page.getByText("Hai modificato la categoria")).toBeVisible();
   await page.getByRole("button", { name: "Eredita dal padre", exact: true }).click();
-  await expect(page.getByText("Ereditata da FL-07")).toBeVisible();
+  await expect(picker).toHaveValue("c-dim");
+  await expect(page.getByText("Hai modificato la categoria")).toHaveCount(0);
   await closeSheet(page);
 
   await page.getByRole("region", { name: "Albero" }).getByRole("button", { name: "Aggiungi figlio", exact: true }).click();

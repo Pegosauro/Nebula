@@ -71,7 +71,9 @@ describe("vista Strutture", () => {
     expect(write).not.toHaveBeenCalled();
     await act(async () => code?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
     const rootRow = treeRow("FL");
-    expect(rootRow.querySelector("strong.tree-name")?.textContent).toBe("Tenda finestra");
+    expect(rootRow.querySelector("span.tree-name")?.textContent).toBe("Tenda finestra");
+    expect(rootRow.querySelector("strong.tree-name")).toBeNull();
+    expect(host!.querySelector(".tree-inherit")).toBeNull();
     expect(rootRow.querySelector("span.tree-code")?.textContent).toBe("FL");
     expect(rootRow.querySelector('[aria-label="Ha una nota"]')).not.toBeNull();
     expect(rootRow.querySelector('[aria-label="Comprimi FL"], [aria-label="Espandi FL"]')).toBeNull();
@@ -93,10 +95,12 @@ describe("vista Strutture", () => {
     await click("Espandi FL-08");
     await click("Espandi FL-0803");
     await click("P - PROFONDITA'");
-    await typeInput("Sigla", "H");
-    await click("Salva oggetto");
-    expect(host.textContent).toContain("già usata");
-    expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!.objects).toHaveLength(3);
+    await typeInput("Modifica sigla P", "H");
+    await pressKey("Modifica sigla P", "Enter");
+    expect(host!.querySelector("[role='alert']")?.textContent).toMatch(/già usata/);
+    const kept = useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!;
+    expect(kept.objects).toHaveLength(3);
+    expect(kept.objects.some(object => object.type === "characteristic" && object.code === "P")).toBe(true);
   });
 
   it("sceglie una sola categoria, elimina un ramo con conteggio e annulla", async () => {
@@ -112,7 +116,9 @@ describe("vista Strutture", () => {
     const picker = host!.querySelector<HTMLSelectElement>('[aria-label="Categoria del nodo"]');
     expect(picker?.value).toBe("c-dim");
     expect(picker?.querySelectorAll("option")).toHaveLength(demoTree().categories.length + 1);
-    expect(host!.textContent).toContain("Ereditata da FL-07");
+    expect(host!.textContent).not.toContain("Ereditata da");
+    expect(host!.textContent).not.toContain("Se la modifichi");
+    expect(host!.textContent).toContain("Eredita dal padre");
     await act(async () => {
       const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set;
       setter?.call(picker, "c-avv");
@@ -187,6 +193,50 @@ describe("vista Strutture", () => {
     expect(document.activeElement?.getAttribute("aria-label")).toBe("Nome del nuovo nodo");
   });
 
+  it("inserisce e modifica tabelle e caratteristiche in riga, con la sigla duplicata sulla riga", async () => {
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 40, lastModified: 1 });
+    vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 41, lastModified: 2 });
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => { root!.render(<TreeView path={path} />); });
+    await act(async () => { await Promise.resolve(); });
+    await click("Espandi FL-08");
+    await clickTreeItem("FL-0803");
+    expect(host!.textContent).not.toContain("Oggetto");
+    expect(host!.querySelector("dialog")).toBeNull();
+    const sigla = host!.querySelector<HTMLInputElement>('[aria-label="Nuova sigla propria"]')!;
+    const description = host!.querySelector<HTMLInputElement>('[aria-label="Nuova descrizione propria"]')!;
+    expect(sigla.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await typeInput("Nuova tabella", "TE_PROVA");
+    await pressKey("Nuova tabella", "Enter");
+    const saved = useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!;
+    expect(saved.objects.some(object => object.type === "externalTable" && object.tableName === "TE_PROVA")).toBe(true);
+    expect(host!.querySelector<HTMLInputElement>('[aria-label="Nuova tabella"]')!.value).toBe("");
+    expect(document.activeElement).toBe(host!.querySelector('[aria-label="Nuova tabella"]'));
+    await typeInput("Nuova sigla propria", "ZZ");
+    await typeInput("Nuova descrizione propria", "Prova");
+    await pressKey("Nuova descrizione propria", "Escape");
+    expect(host!.querySelector<HTMLInputElement>('[aria-label="Nuova sigla propria"]')!.value).toBe("");
+    expect(host!.querySelector<HTMLInputElement>('[aria-label="Nuova descrizione propria"]')!.value).toBe("");
+    await typeInput("Nuova sigla propria", "ZZ");
+    await typeInput("Nuova descrizione propria", "Prova");
+    await pressKey("Nuova sigla propria", "Enter");
+    expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!.objects.some(object => object.type === "characteristic" && object.code === "ZZ")).toBe(true);
+    expect(document.activeElement).toBe(host!.querySelector('[aria-label="Nuova sigla propria"]'));
+    const row = [...host!.querySelectorAll("button")].find(item => item.textContent?.includes("P - PROFONDITA'"));
+    await act(async () => row?.click());
+    await typeInput("Modifica descrizione P", "Profondità rivista");
+    await pressKey("Modifica descrizione P", "Enter");
+    expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!.objects.some(object => object.type === "characteristic" && object.code === "P" && object.description === "Profondità rivista")).toBe(true);
+    const again = [...host!.querySelectorAll("button")].find(item => item.textContent?.includes("P - Profondità rivista"));
+    await act(async () => again?.click());
+    await typeInput("Modifica sigla P", "H");
+    await pressKey("Modifica sigla P", "Enter");
+    expect(host!.querySelector("[role='alert']")?.textContent).toMatch(/già usata/);
+    expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!.objects.some(object => object.type === "characteristic" && object.code === "P")).toBe(true);
+  });
+
   it("anteprima di Sposta in, blocco del conflitto, annulla e riordino senza rinumerare", async () => {
     vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 40, lastModified: 1 });
     vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 41, lastModified: 2 });
@@ -239,6 +289,11 @@ function treeRow(code: string) {
   const row = [...host!.querySelectorAll<HTMLElement>('[role="treeitem"]')].find(item => item.querySelector(".tree-code")?.textContent === code);
   if (!row) throw new Error(`Nodo non trovato: ${code}`);
   return row;
+}
+async function pressKey(label: string, key: string) {
+  const field = host!.querySelector<HTMLInputElement>(`[aria-label="${label}"]`);
+  if (!field) throw new Error(label);
+  await act(async () => field.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })));
 }
 async function clickTreeItem(text: string) {
   await act(async () => treeRow(text).dispatchEvent(new MouseEvent("click", { bubbles: true })));

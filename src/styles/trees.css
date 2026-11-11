@@ -30,11 +30,10 @@
 .tree-disclosure-spacer { width: 22px; flex: none; }
 .tree-swatch { width: 8px; height: 18px; border-radius: 3px; background: var(--border-strong); flex: none; }
 .tree-label { display: flex; gap: 8px; min-width: 0; align-items: baseline; }
-.tree-label .tree-name { font-variant-numeric: tabular-nums; }
+.tree-label .tree-name, .tree-label .tree-name mark { font-variant-numeric: tabular-nums; font-weight: 400; }
 .tree-label .tree-code { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
 .tree-item.is-match .tree-name, .tree-item mark { background: transparent; color: var(--accent-secondary); }
 .tree-item.is-renamed .tree-code { color: var(--success); }
-.tree-inherit { color: var(--text-muted); flex: none; }
 .tree-note-dot { width: 8px; height: 8px; border-radius: 99px; background: #f5c518; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, .28); }
 .tree-object { cursor: pointer; color: var(--text-secondary); }
 .tree-object small, .tree-object-main small { margin-left: auto; font-size: .72rem; color: var(--text-muted); }
@@ -57,7 +56,9 @@
 .tree-panel h2, .tree-panel h3 { margin: 0; font-size: 1rem; }
 .tree-panel label, .tree-dialog-body label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: var(--text-secondary); }
 .tree-warning { color: #e0a33a; margin: 0; font-size: .85rem; }
-.tree-inherit-state { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .85rem; }
+.tree-inline-fields { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 1; min-width: 0; }
+.tree-inline-fields input { flex: 1; min-width: 72px; }
+.tree-inline-fields .tree-inline-error, .tree-inline-fields [role="alert"] { flex-basis: 100%; margin: 0; }
 .tree-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .tree-chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 8px; font-size: .78rem; }
 .tree-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0 2px; }

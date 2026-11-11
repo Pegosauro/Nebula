@@ -202,7 +202,7 @@ export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onObject, 
   return (
     <div ref={ref} className="tree-context" role="menu" aria-label={`Azioni su ${node.code}`} style={{ left: point.x, top: point.y }}>
       <button type="button" role="menuitem" onClick={() => { onAdd(); onClose(); }}>Aggiungi figlio</button>
-      <button type="button" role="menuitem" onClick={() => { onObject(); onClose(); }}>Aggiungi oggetto</button>
+      <button type="button" role="menuitem" onClick={() => { onObject(); onClose(); }}>Nuova caratteristica</button>
       <button type="button" role="menuitem" onClick={() => { onRename(); onClose(); }}>Rinomina</button>
       <button type="button" role="menuitem" disabled={Boolean(moveReason)} title={moveReason} onClick={() => { onMove(); onClose(); }}>Sposta in…{moveReason && <small>{moveReason}</small>}</button>
       <button type="button" role="menuitem" disabled={Boolean(deleteReason)} title={deleteReason} onClick={() => { onDelete(); onClose(); }}>Elimina{deleteReason && <small>{deleteReason}</small>}</button>
