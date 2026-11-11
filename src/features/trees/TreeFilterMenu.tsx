@@ -19,8 +19,12 @@ export function TreeFilterMenu({ categories, selected, showUnmatched, onChange, 
       setPosition(previous => previous.top === top && previous.left === left ? previous : { top, left });
     };
     place();
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(place);
+    if (trigger.current) observer?.observe(trigger.current);
+    const area = container.current?.closest(".tree-main");
+    if (area) observer?.observe(area);
     window.addEventListener("resize", place); window.addEventListener("scroll", place, true);
-    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
+    return () => { observer?.disconnect(); window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
   }, [open, categories.length]);
   useEffect(() => {
     if (!open) return;
