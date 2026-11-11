@@ -89,7 +89,7 @@ function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | 
       <div className="tree-row-actions">
         <button type="button" className="button" onMouseDown={event => event.preventDefault()} onClick={onManageCategories}>Gestisci…</button>
       </div>
-      <label>Note<textarea aria-label="Note del nodo" rows={4} value={node.note} onChange={event => onNote(event.target.value)} placeholder="Testo libero" /></label>
+      <label>Note<textarea aria-label="Note del nodo" className={node.note.trim() ? "tree-node-note-filled" : undefined} rows={4} value={node.note} onChange={event => onNote(event.target.value)} placeholder="Testo libero" /></label>
       <InlineObjects node={node} editingId={editingObjectId} focusList={focusList} focusToken={focusToken} onSave={onSaveObject} onRemove={onRemoveObject} />
       <div className="tree-row-actions tree-node-actions">
         <button type="button" className="button" onMouseDown={event => event.preventDefault()} onClick={onAddChild}><Plus size={15} />Figlio</button>

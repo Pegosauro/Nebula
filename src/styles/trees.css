@@ -12,6 +12,7 @@
 .tree-search { flex: 1; min-width: 180px; }
 .tree-search input, .tree-filter select, .tree-panel input, .tree-panel textarea, .tree-panel select, .tree-dialog-body input, .tree-dialog-body select, .tree-dialog-body textarea { background: transparent; color: var(--text-primary); border: 0; min-width: 0; width: 100%; font: inherit; }
 .tree-panel input, .tree-panel textarea, .tree-panel select, .tree-dialog-body input, .tree-dialog-body select { background: var(--bg-app); border: 1px solid var(--border-strong); border-radius: 6px; padding: 8px 10px; }
+.tree-panel textarea.tree-node-note-filled { background: #fff7cc; color: #422b0a; border-color: #d6b64a; color-scheme: light; }
 .tree-search input { padding: 8px 0; }
 .tree-search input:focus, .tree-filter select:focus { outline: none; }
 .tree-search:focus-within, .tree-filter:focus-within { border-color: var(--accent); }
