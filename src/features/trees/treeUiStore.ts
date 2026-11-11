@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 /** Stato della vista: non entra mai nel file `.tree.json`. */
-export interface TreeUi { expanded?: string[]; selectedId?: string; categoryId?: string }
+export interface TreeUi { expanded?: string[]; selectedId?: string; categoryId?: string; categoryIds?: string[]; showUnmatched?: boolean }
 interface State { trees: Record<string, TreeUi>; update: (scope: string, patch: Partial<TreeUi>) => void; clear: () => void; forget: (scope: string) => void }
 const storage = {
   getItem: (key: string) => { try { return localStorage.getItem(key); } catch { return null; } },
@@ -33,6 +33,8 @@ export const useTreeUiStore = create<State>()(persist((set) => ({
         expanded: strings(ui.expanded, 5000),
         selectedId: typeof ui.selectedId === "string" ? ui.selectedId : undefined,
         categoryId: typeof ui.categoryId === "string" ? ui.categoryId : undefined,
+        categoryIds: strings(ui.categoryIds, 5000),
+        showUnmatched: ui.showUnmatched === true,
       };
     }
     return { ...current, trees };

@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { TreeOutline } from "./TreeOutline";
 import { newTree } from "./model";
-import type { OutlineRow } from "./outline";
+import { ROW_HEIGHT, type OutlineRow } from "./outline";
 
 it("virtualizza seguendo lo scorrimento dell'area albero e raggiunge le ultime righe", async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -25,7 +25,7 @@ it("virtualizza seguendo lo scorrimento dell'area albero e raggiunge le ultime r
     expect(owner.querySelectorAll('[role="treeitem"]').length).toBeLessThan(50);
     expect(owner.textContent).not.toContain("Nodo 1200");
     await act(async () => {
-      owner.scrollTop = 200 + 1190 * 36;
+      owner.scrollTop = 200 + 1190 * ROW_HEIGHT;
       owner.dispatchEvent(new Event("scroll"));
     });
     expect(owner.querySelector('[data-node-id="n1200"]')).not.toBeNull();

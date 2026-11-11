@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsDownUp, ChevronsUpDown, Download, ListTree, Plus, Save, Search, X } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, Download, ListTree, Move, Plus, Save, Search, X } from "lucide-react";
 import { vaultService } from "../vault/vaultService";
 import { saveStatusLabel, saveStatusTone, treeSaveStatus } from "../workspace/saveStatus";
 import { CategoryDialog } from "./CategoryDialog";
 import { MoveBanner, MoveDialog, NodeContextMenu, type MoveNotice } from "./MoveDialog";
-import { NodePanel } from "./NodePanel";
+import { MultiNodePanel, NodePanel } from "./NodePanel";
 import type { ObjectListKind } from "./InlineObjects";
 import { TreeOutline, type InlineField, type NodeDraft, type RenameDraft } from "./TreeOutline";
 import { buildOutline } from "./outline";
+import { TreeFilterMenu } from "./TreeFilterMenu";
+import { CategoryChangeDialog, type CategoryChange } from "./CategoryChangeDialog";
 import {
   addCategory, addChild, addSibling, addSiblingReason, childrenOf, deleteCategory, deleteConfirmText, deleteNode, deleteNodeError, descendantCount, descendants, dropDestination,
-  inspectTree, moveCategory, moveCommandReason, nodeById, planMove, proposeChildCode, readableOn, removeObject,
-  reorderSibling, setNodeCategory, updateCategory, updateNode, upsertObject, type DropZone, type MovePlan, type Tree, type TreeObject,
+  inspectTree, moveCategory, moveCommandReason, nodeById, planMove, proposeChildCode, removeObject,
+  reorderSibling, setNodesCategory, updateCategory, updateNode, upsertObject, type DropZone, type MovePlan, type Tree, type TreeObject,
 } from "./model";
 import { serializeTreeFile } from "./serializeTree";
 import { useTreeStore } from "./treeStore";
-import { useTreeUiStore } from "./treeUiStore";
+import { useTreeUiStore, type TreeUi } from "./treeUiStore";
 
 type Confirm = { kind: "node"; id: string } | { kind: "object"; nodeId: string; object: TreeObject } | { kind: "reload" };
 
@@ -30,6 +32,10 @@ export default function TreeView({ path }: { path: string }) {
   const [draftError, setDraftError] = useState<string>();
   const [objectFocus, setObjectFocus] = useState<{ nodeId: string; objectId?: string; list?: ObjectListKind; token: number } | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [moveEnabled, setMoveEnabled] = useState(false);
+  const [rangeSelection, setRangeSelection] = useState<string[]>([]);
+  const selectionAnchor = useRef<string | null>(null);
+  const [categoryChange, setCategoryChange] = useState<CategoryChange | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [sheet, setSheet] = useState(false);
   const [movingId, setMovingId] = useState<string | null>(null);
@@ -55,10 +61,25 @@ export default function TreeView({ path }: { path: string }) {
     useTreeUiStore.getState().update(scope, { expanded: [tree.rootId, ...ui.expanded] });
   }, [tree?.rootId, ui?.expanded, scope]);
   useEffect(() => { ignoreBlur.current = false; });
-  const outline = useMemo(() => tree ? buildOutline(tree, expanded, query, ui?.categoryId) : { rows: [], matchCount: 0 }, [tree, expanded, query, ui?.categoryId]);
-  const selectedId = tree && nodeById(tree, ui?.selectedId ?? "") ? ui?.selectedId ?? tree.rootId : tree?.rootId;
+  const categoryIds = useMemo(() => ui?.categoryIds ?? (ui?.categoryId ? [ui.categoryId] : []), [ui?.categoryIds, ui?.categoryId]);
+  const outline = useMemo(() => tree ? buildOutline(tree, expanded, query, categoryIds, ui?.showUnmatched) : { rows: [], matchCount: 0 }, [tree, expanded, query, categoryIds, ui?.showUnmatched]);
+  const visibleIds = useMemo(() => outline.rows.flatMap(row => row.kind === "node" ? [row.id] : []), [outline.rows]);
+  const visibleSet = useMemo(() => new Set(visibleIds), [visibleIds]);
+  const selectedId = tree ? (visibleSet.has(ui?.selectedId ?? "") ? ui?.selectedId : visibleIds[0]) ?? tree.rootId : undefined;
   const selected = tree && selectedId ? nodeById(tree, selectedId) : undefined;
-  const persist = (patch: { expanded?: string[]; selectedId?: string; categoryId?: string }) => useTreeUiStore.getState().update(scope, patch);
+  const selectedIds = useMemo(() => new Set(rangeSelection.includes(selectedId ?? "") ? rangeSelection.filter(id => visibleSet.has(id)) : selectedId ? [selectedId] : []), [rangeSelection, selectedId, visibleSet]);
+  const persist = (patch: Partial<TreeUi>) => useTreeUiStore.getState().update(scope, patch);
+  const selectNode = (id: string, extend = false) => {
+    const anchor = selectionAnchor.current ?? selectedId ?? id;
+    const start = visibleIds.indexOf(anchor);
+    const end = visibleIds.indexOf(id);
+    if (extend && start >= 0 && end >= 0) setRangeSelection(visibleIds.slice(Math.min(start, end), Math.max(start, end) + 1));
+    else { setRangeSelection([id]); selectionAnchor.current = id; }
+    setMenu(null);
+    persist({ selectedId: id });
+  };
+  useEffect(() => { setRangeSelection([]); selectionAnchor.current = null; }, [scope, categoryIds, ui?.showUnmatched]);
+  useEffect(() => { setMoveEnabled(false); setMovingId(null); setCategoryChange(null); }, [scope]);
   const commit = (next: Tree) => {
     useTreeStore.getState().edit(path, next);
     setDraftError(undefined);
@@ -120,13 +141,13 @@ export default function TreeView({ path }: { path: string }) {
     });
   };
   const attemptDrop = (dragId: string, targetId: string, zone: DropZone) => {
-    if (!tree) return;
+    if (!tree || !moveEnabled) return;
     const destination = dropDestination(tree, dragId, targetId, zone);
     if (!destination) return;
     finishMove(planMove(tree, dragId, destination.parentId, destination.index), dragId);
   };
   const openMove = (id = selectedId) => {
-    if (!tree || !id) return;
+    if (!tree || !id || !moveEnabled) return;
     const reason = moveCommandReason(tree, id);
     if (reason) { setNotice({ kind: "info", title: reason, renames: [], open: false }); return; }
     setAdding(null);
@@ -137,6 +158,7 @@ export default function TreeView({ path }: { path: string }) {
   };
 
   const focusObjects = (nodeId: string, target: { objectId?: string; list?: ObjectListKind }) => {
+    setRangeSelection([nodeId]); selectionAnchor.current = nodeId;
     setObjectFocus({ nodeId, objectId: target.objectId, list: target.list, token: Date.now() });
     setSheet(true);
     const open = userExpanded();
@@ -177,6 +199,7 @@ export default function TreeView({ path }: { path: string }) {
     const node = nodeById(current, id);
     if (!node) return;
     setAdding(null);
+    setRangeSelection([id]); selectionAnchor.current = id;
     setRenaming({ id, code: node.code, name: node.name, field });
     setDraftError(undefined);
     persist({ selectedId: id });
@@ -237,6 +260,7 @@ export default function TreeView({ path }: { path: string }) {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !event.shiftKey && !typing) { event.preventDefault(); undoLastMove(); return; }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "m" && !typing) { event.preventDefault(); openMove(); return; }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") { event.preventDefault(); searchRef.current?.focus(); searchRef.current?.select(); return; }
+    if (!visibleIds.length && !typing) return;
     if (typing) {
       if (event.key === "Enter" && !event.shiftKey && (adding || renaming)) { event.preventDefault(); if (adding) commitAdd(); else commitRename(); }
       return;
@@ -246,6 +270,7 @@ export default function TreeView({ path }: { path: string }) {
     const current = selectedId ? nodeById(tree, selectedId) : undefined;
     if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown") && selectedId) {
       event.preventDefault();
+      if (!moveEnabled) return;
       const plan = reorderSibling(tree, selectedId, event.key === "ArrowUp" ? -1 : 1);
       if (plan) finishMove(plan, selectedId);
       return;
@@ -258,7 +283,7 @@ export default function TreeView({ path }: { path: string }) {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const next = nodeRows[index + (event.key === "ArrowDown" ? 1 : -1)];
-      if (next?.kind === "node") persist({ selectedId: next.id });
+      if (next?.kind === "node") selectNode(next.id, event.shiftKey);
     } else if (event.key === "ArrowRight" && current) {
       event.preventDefault();
       const row = outline.rows.find(item => item.kind === "node" && item.id === current.id);
@@ -302,9 +327,14 @@ export default function TreeView({ path }: { path: string }) {
   const report = inspectTree(tree);
   const levelCount = childrenOf(tree, tree.rootId).length;
   const applyCategory = (categoryId: string | null) => {
-    const result = setNodeCategory(tree, selected.id, categoryId);
-    if (!result.ok) return;
-    commit(result.tree);
+    if (!visibleIds.length) return;
+    const ids = [...selectedIds];
+    if (ids.length > 1 || ids.some(id => childrenOf(tree, id).length > 0)) {
+      setCategoryChange({ ids, categoryId });
+      return;
+    }
+    const result = setNodesCategory(tree, ids, categoryId);
+    if (result.ok) commit(result.tree);
   };
   const finishDelete = (id: string) => {
     const target = nodeById(tree, id);
@@ -349,35 +379,31 @@ export default function TreeView({ path }: { path: string }) {
         {report.errors.length > 0 && !session.error && <p role="alert" className="config-error">{report.errors.map(issue => issue.message).join(" ")}</p>}
         <div className="tree-toolbar">
           <label className="tree-search"><Search size={15} aria-hidden="true" /><input ref={searchRef} aria-label="Cerca codice o nome" placeholder="Cerca codice o nome" value={query} onChange={event => setQuery(event.target.value)} /></label>
-          <span className="tree-count" aria-live="polite">{query.trim() || ui?.categoryId ? `${outline.matchCount} ${outline.matchCount === 1 ? "risultato" : "risultati"}` : `${tree.nodes.length} nodi`}</span>
-          <label className="tree-filter">Categoria
-            <select aria-label="Filtra per categoria" value={ui?.categoryId ?? ""} onChange={event => persist({ categoryId: event.target.value || undefined })}>
-              <option value="">Tutte le categorie</option>
-              {[...tree.categories].sort((a, b) => a.order - b.order).map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
-            </select>
-          </label>
+          <span className="tree-count" aria-live="polite">{query.trim() || categoryIds.length ? `${outline.matchCount} ${outline.matchCount === 1 ? "risultato" : "risultati"}` : `${tree.nodes.length} nodi`}</span>
+          <TreeFilterMenu categories={tree.categories} selected={categoryIds} showUnmatched={ui?.showUnmatched === true} onChange={ids => { dismissUnsavedInline(); persist({ categoryIds: ids, categoryId: undefined }); }} onShowUnmatched={show => persist({ showUnmatched: show })} onManage={() => setCategoriesOpen(true)} />
           <button type="button" className="button" onMouseDown={keepEditingFocus} onClick={() => { dismissUnsavedInline(); persist({ expanded: tree.nodes.filter(node => childrenOf(tree, node.id).length || node.objects.length).map(node => node.id) }); }}><ChevronsUpDown size={15} />Espandi</button>
           <button type="button" className="button" onMouseDown={keepEditingFocus} onClick={() => { dismissUnsavedInline(); persist({ expanded: [tree.rootId] }); }}><ChevronsDownUp size={15} />Comprimi</button>
-          <button type="button" className="button button-primary" onMouseDown={keepEditingFocus} onClick={() => { dismissUnsavedInline(); startAdd(); }}><Plus size={15} />Aggiungi figlio</button>
+          <button type="button" className="button button-primary" disabled={!visibleIds.length} onMouseDown={keepEditingFocus} onClick={() => { dismissUnsavedInline(); startAdd(); }}><Plus size={15} />Aggiungi figlio</button>
           <button type="button" className="button" disabled={Boolean(addSiblingReason(tree, selected.id))} title={addSiblingReason(tree, selected.id) ?? "Subito dopo il nodo selezionato (Invio)"} onMouseDown={event => { if (!addSiblingReason(tree, selected.id)) keepEditingFocus(event); }} onClick={() => { dismissUnsavedInline(); startSibling(); }}><Plus size={15} />Aggiungi fratello</button>
-          <button type="button" className="button" disabled={Boolean(moveCommandReason(tree, selected.id))} title={moveCommandReason(tree, selected.id) ?? "Scegli il nuovo padre (Ctrl M)"} onMouseDown={event => { if (!moveCommandReason(tree, selected.id)) keepEditingFocus(event); }} onClick={() => { dismissUnsavedInline(); openMove(selected.id); }}>Sposta in…</button>
+          <button type="button" className={`button ${moveEnabled ? "button-primary" : ""}`} aria-pressed={moveEnabled} onClick={() => { dismissUnsavedInline(); setMoveEnabled(value => !value); setMovingId(null); }}><Move size={15} />Modalità spostamento</button>
+          {moveEnabled && <button type="button" className="button" disabled={Boolean(moveCommandReason(tree, selected.id))} onClick={() => { dismissUnsavedInline(); openMove(selected.id); }}>Sposta in…</button>}
+
           <button type="button" className="button tree-sheet-toggle" onMouseDown={keepEditingFocus} onClick={() => { dismissUnsavedInline(); setSheet(value => !value); }}>{sheet ? "Chiudi scheda" : "Scheda nodo"}</button>
         </div>
         {draftError && !adding && !renaming && <p role="alert" className="config-error">{draftError}</p>}
         {notice && <MoveBanner notice={notice} canUndo={Boolean(session.moveUndo)} onToggle={() => setNotice({ ...notice, open: !notice.open })} onUndo={undoLastMove} onClose={() => setNotice(null)} />}
-        <TreeOutline tree={tree} rows={outline.rows} selectedId={selected.id} query={query} renaming={renaming} adding={adding} draftError={draftError} renamedIds={renamed} onSelect={id => { setMenu(null); persist({ selectedId: id }); }} onToggle={id => { if (id === tree.rootId) return; const open = userExpanded(); if (open.has(id)) open.delete(id); else open.add(id); open.add(tree.rootId); persist({ expanded: [...open], selectedId: id }); }} onStartEdit={startEdit} onSelectObject={(nodeId, objectId) => focusObjects(nodeId, { objectId })} onRenameChange={draft => { setRenaming(draft); setDraftError(undefined); }} onAddChange={draft => { setAdding(draft); setDraftError(undefined); }} onMoveAttempt={attemptDrop} onRequestMove={openMove} onContextMenu={(id, x, y) => setMenu({ id, x, y })} onInlineBlur={onInlineBlur} holdInlineBlur={holdInlineBlur} />
-        <div className="tree-legend" aria-label="Legenda categorie">
-          {[...tree.categories].sort((a, b) => a.order - b.order).map(category => <button type="button" key={category.id} className={ui?.categoryId === category.id ? "is-active" : ""} style={{ background: category.color, color: readableOn(category.color) }} onClick={() => persist({ categoryId: ui?.categoryId === category.id ? undefined : category.id })}>{category.name}</button>)}
-          <button type="button" onClick={() => setCategoriesOpen(true)}>Gestisci…</button>
-        </div>
+        <TreeOutline tree={tree} rows={outline.rows} selectedId={selected.id} selectedIds={selectedIds} moveEnabled={moveEnabled} query={query} renaming={renaming} adding={adding} draftError={draftError} renamedIds={renamed} onSelect={selectNode} onToggle={id => { if (id === tree.rootId) return; const open = userExpanded(); if (open.has(id)) open.delete(id); else open.add(id); open.add(tree.rootId); persist({ expanded: [...open], selectedId: id }); }} onStartEdit={startEdit} onSelectObject={(nodeId, objectId) => focusObjects(nodeId, { objectId })} onRenameChange={draft => { setRenaming(draft); setDraftError(undefined); }} onAddChange={draft => { setAdding(draft); setDraftError(undefined); }} onMoveAttempt={attemptDrop} onRequestMove={openMove} onContextMenu={(id, x, y) => setMenu({ id, x, y })} onInlineBlur={onInlineBlur} holdInlineBlur={holdInlineBlur} />
+        {!visibleIds.length && <p className="tree-muted" role="status">Nessun nodo corrisponde ai filtri selezionati.</p>}
+        {selectedIds.size > 1 && <p className="tree-selection-count">{selectedIds.size} nodi selezionati · <button type="button" className="tree-link" onClick={() => selectNode(selected.id)}>Annulla selezione multipla</button></p>}
         {report.warnings.length > 0 && <details className="tree-warnings"><summary>{report.warnings.length} {report.warnings.length === 1 ? "avviso" : "avvisi"}, il salvataggio non è bloccato</summary><ul>{report.warnings.map(issue => <li key={`${issue.nodeId}:${issue.message}`}><button type="button" className="tree-link" onClick={() => issue.nodeId && persist({ selectedId: issue.nodeId })}>{issue.message}</button></li>)}</ul></details>}
-        <p className="tree-keys">↑↓ muovi · ←→ espandi · * ramo · Ins figlio · Invio fratello · F2 rinomina il nome · clic fuori annulla · Canc elimina · Alt ↑↓ riordina (i codici non cambiano) · Ctrl M sposta · Ctrl Z annulla spostamento o eliminazione · Ctrl F cerca · Ctrl O nuova caratteristica</p>
+        <p className="tree-keys">↑↓ seleziona · Shift + clic seleziona più nodi · ←→ espandi · * ramo · Ins figlio · Invio fratello · F2 rinomina il nome · clic fuori annulla · Canc elimina · Modalità spostamento: trascina o Alt ↑↓ riordina · Ctrl M sposta · Ctrl Z annulla spostamento o eliminazione · Ctrl F cerca · Ctrl O nuova caratteristica</p>
       </section>
       <div className={`tree-sheet ${sheet ? "is-open" : ""}`}>
         <button type="button" className="tree-sheet-close" aria-label="Chiudi scheda" onClick={() => setSheet(false)}><X size={16} /></button>
-        <NodePanel
+        {selectedIds.size > 1 ? <MultiNodePanel tree={tree} ids={[...selectedIds]} onCategory={applyCategory} onManageCategories={() => setCategoriesOpen(true)} onClear={() => selectNode(selected.id)} /> : <NodePanel
           tree={tree}
-          node={selected}
+          node={visibleIds.length ? selected : undefined}
+          moveEnabled={moveEnabled}
           adding={adding}
           draftError={draftError}
           onDraftChange={draft => { setAdding(draft); setDraftError(undefined); }}
@@ -398,13 +424,14 @@ export default function TreeView({ path }: { path: string }) {
           editingObjectId={objectFocus?.nodeId === selected.id ? objectFocus.objectId : undefined}
           focusList={objectFocus?.nodeId === selected.id ? objectFocus.list : undefined}
           focusToken={objectFocus?.nodeId === selected.id ? objectFocus.token : undefined}
-        />
+        />}
       </div>
       {categoriesOpen && (
         <CategoryDialog
           tree={tree}
           onClose={() => setCategoriesOpen(false)}
           rename={(id, name) => { const result = updateCategory(tree, id, { name }); if (result.ok) commit(result.tree); }}
+          format={(id, textStyle) => { const result = updateCategory(tree, id, { textStyle }); if (result.ok) commit(result.tree); }}
           recolor={(id, color) => { const result = updateCategory(tree, id, { color }); if (result.ok) commit(result.tree); }}
           move={(id, delta) => { const result = moveCategory(tree, id, delta); if (result.ok) commit(result.tree); }}
           remove={(id, replacementId) => { const result = deleteCategory(tree, id, replacementId); if (!result.ok) return result.error; commit(result.tree); return undefined; }}
@@ -412,7 +439,15 @@ export default function TreeView({ path }: { path: string }) {
         />
       )}
       {movingId && <MoveDialog tree={tree} nodeId={movingId} onClose={() => setMovingId(null)} onConfirm={parentId => { const id = movingId; finishMove(planMove(tree, id, parentId, null), id); }} />}
-      {menu && <NodeContextMenu tree={tree} nodeId={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onAdd={() => startAdd(menu.id)} onSibling={() => startSibling(menu.id)} onObject={() => focusObjects(menu.id, { list: "own" })} onRename={() => startEdit(menu.id, "name")} onMove={() => openMove(menu.id)} onDelete={() => { if (deleteNodeError(tree, menu.id)) return; setConfirm({ kind: "node", id: menu.id }); }} />}
+      {menu && <NodeContextMenu moveEnabled={moveEnabled} tree={tree} nodeId={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onAdd={() => startAdd(menu.id)} onSibling={() => startSibling(menu.id)} onObject={() => focusObjects(menu.id, { list: "own" })} onRename={() => startEdit(menu.id, "name")} onMove={() => openMove(menu.id)} onDelete={() => { if (deleteNodeError(tree, menu.id)) return; setConfirm({ kind: "node", id: menu.id }); }} />}
+      {categoryChange && <CategoryChangeDialog tree={tree} change={categoryChange} onClose={() => setCategoryChange(null)} onAccept={include => {
+        const current = liveTree();
+        if (!current) return;
+        const result = setNodesCategory(current, categoryChange.ids, categoryChange.categoryId, include);
+        if (result.ok) commit(result.tree);
+        else setDraftError(result.error);
+        setCategoryChange(null);
+      }} />}
       {confirm && <ConfirmDialog confirm={confirm} tree={tree} onClose={() => setConfirm(null)} onAccept={() => {
         if (confirm.kind === "reload") { setConfirm(null); void useTreeStore.getState().load(path, true).then(() => { setLoadError(undefined); cancelDraft(); }); return; }
         if (confirm.kind === "node") finishDelete(confirm.id);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import { codeIssues, dropDestination, dropZoneAt, isDescendant, nodeById, principalCategory, type CodeIssues, type DropZone, type Tree } from "./model";
+import { categoryNameStyle } from "./categoryTextStyle";
 import { objectLeafText, objectPresentation } from "./objectIcons";
 import { ROW_HEIGHT, virtualWindow, type OutlineRow } from "./outline";
 
@@ -12,12 +13,14 @@ interface TreeOutlineProps {
   tree: Tree;
   rows: OutlineRow[];
   selectedId?: string;
+  selectedIds?: ReadonlySet<string>;
+  moveEnabled?: boolean;
   query: string;
   renaming: RenameDraft | null;
   adding: NodeDraft | null;
   draftError?: string;
   renamedIds: ReadonlySet<string>;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, extend?: boolean) => void;
   onToggle: (id: string) => void;
   onStartEdit: (id: string, field: InlineField) => void;
   onSelectObject: (parentId: string, objectId: string) => void;
@@ -53,7 +56,7 @@ function useFinePointer(): boolean {
   return fine;
 }
 
-export function TreeOutline({ tree, rows, selectedId, query, renaming, adding, draftError, renamedIds, onSelect, onToggle, onStartEdit, onSelectObject, onRenameChange, onAddChange, onMoveAttempt, onRequestMove, onContextMenu, onInlineBlur, holdInlineBlur }: TreeOutlineProps) {
+export function TreeOutline({ tree, rows, selectedId, selectedIds, moveEnabled = true, query, renaming, adding, draftError, renamedIds, onSelect, onToggle, onStartEdit, onSelectObject, onRenameChange, onAddChange, onMoveAttempt, onRequestMove, onContextMenu, onInlineBlur, holdInlineBlur }: TreeOutlineProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const selected = useRef<HTMLDivElement>(null);
   const dragIdRef = useRef<string | null>(null);
@@ -64,6 +67,7 @@ export function TreeOutline({ tree, rows, selectedId, query, renaming, adding, d
   const [drag, setDrag] = useState<DragState | null>(null);
   const fine = useFinePointer();
   useEffect(() => () => gesture.current?.(), []);
+  useEffect(() => { if (!moveEnabled) gesture.current?.(); }, [moveEnabled]);
   useEffect(() => {
     const element = scroller.current;
     const owner = element?.closest<HTMLElement>(".tree-main");
@@ -101,7 +105,7 @@ export function TreeOutline({ tree, rows, selectedId, query, renaming, adding, d
     remember({ id: dragId, overId: targetId, zone, blocked, sameParent: Boolean(destination && dragged?.parentId === destination.parentId) });
   };
   const beginGesture = (event: React.PointerEvent<HTMLElement>, id: string) => {
-    if (event.button !== 0) return;
+    if (!moveEnabled || event.button !== 0) return;
     gesture.current?.();
     const pointerId = event.pointerId;
     const originX = event.clientX;
@@ -178,18 +182,19 @@ export function TreeOutline({ tree, rows, selectedId, query, renaming, adding, d
         onMouseDown={event => {
           const target = event.target as HTMLElement;
           if (target.closest("input, textarea, select")) return;
+          if (event.shiftKey) event.preventDefault();
           scroller.current?.focus({ preventScroll: true });
         }}
       >
         {virtual && <div style={{ height: range.start * ROW_HEIGHT }} />}
-        <div role="tree" aria-label={tree.title}>
+        <div role="tree" aria-label={tree.title} aria-multiselectable="true">
           {visible.map((row, offset) => {
             const index = range.start + offset;
             return (
               <div key={row.kind === "node" ? row.id : `${row.parentId}:${row.id}`}>
                 {adding && index === draftIndex && <DraftRow tree={tree} draft={adding} error={draftError} onChange={onAddChange} onBlur={onInlineBlur} holdBlur={holdInlineBlur} />}
                 {row.kind === "node"
-                  ? <NodeRow tree={tree} row={row} index={index} total={rows.length} selected={row.id === selectedId} query={query} renaming={renaming?.id === row.id ? renaming : null} renamed={renamedIds.has(row.id)} drag={drag} fine={fine} dragged={dropped} error={renaming?.id === row.id ? draftError : undefined} selectedRef={row.id === selectedId ? selected : undefined} onSelect={onSelect} onToggle={onToggle} onStartEdit={onStartEdit} onRenameChange={onRenameChange} onPointerDown={beginGesture} onRequestMove={onRequestMove} onContextMenu={onContextMenu} onBlur={onInlineBlur} holdBlur={holdInlineBlur} />
+                  ? <NodeRow tree={tree} row={row} index={index} total={rows.length} selected={selectedIds?.has(row.id) ?? row.id === selectedId} moveEnabled={moveEnabled} query={query} renaming={renaming?.id === row.id ? renaming : null} renamed={renamedIds.has(row.id)} drag={drag} fine={fine} dragged={dropped} error={renaming?.id === row.id ? draftError : undefined} selectedRef={row.id === selectedId ? selected : undefined} onSelect={onSelect} onToggle={onToggle} onStartEdit={onStartEdit} onRenameChange={onRenameChange} onPointerDown={beginGesture} onRequestMove={onRequestMove} onContextMenu={onContextMenu} onBlur={onInlineBlur} holdBlur={holdInlineBlur} />
                   : <ObjectRow tree={tree} row={row} onSelect={onSelectObject} />}
               </div>
             );
@@ -236,7 +241,7 @@ function draftInsert(rows: OutlineRow[], draft: NodeDraft): number {
   return index;
 }
 
-function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, drag, fine, dragged, error, selectedRef, onSelect, onToggle, onStartEdit, onRenameChange, onPointerDown, onRequestMove, onContextMenu, onBlur, holdBlur }: { tree: Tree; row: Extract<OutlineRow, { kind: "node" }>; index: number; total: number; selected: boolean; query: string; renaming: RenameDraft | null; renamed: boolean; drag: DragState | null; fine: boolean; dragged: React.RefObject<boolean>; error?: string; selectedRef?: React.Ref<HTMLDivElement>; onSelect: (id: string) => void; onToggle: (id: string) => void; onStartEdit: (id: string, field: InlineField) => void; onRenameChange: (draft: RenameDraft) => void; onPointerDown: (event: React.PointerEvent<HTMLElement>, id: string) => void; onRequestMove: (id: string) => void; onContextMenu: (id: string, x: number, y: number) => void; onBlur: (event: React.FocusEvent<HTMLInputElement>) => void; holdBlur: () => void }) {
+function NodeRow({ tree, row, index, total, selected, moveEnabled, query, renaming, renamed, drag, fine, dragged, error, selectedRef, onSelect, onToggle, onStartEdit, onRenameChange, onPointerDown, onRequestMove, onContextMenu, onBlur, holdBlur }: { tree: Tree; row: Extract<OutlineRow, { kind: "node" }>; index: number; total: number; selected: boolean; moveEnabled: boolean; query: string; renaming: RenameDraft | null; renamed: boolean; drag: DragState | null; fine: boolean; dragged: React.RefObject<boolean>; error?: string; selectedRef?: React.Ref<HTMLDivElement>; onSelect: (id: string, extend?: boolean) => void; onToggle: (id: string) => void; onStartEdit: (id: string, field: InlineField) => void; onRenameChange: (draft: RenameDraft) => void; onPointerDown: (event: React.PointerEvent<HTMLElement>, id: string) => void; onRequestMove: (id: string) => void; onContextMenu: (id: string, x: number, y: number) => void; onBlur: (event: React.FocusEvent<HTMLInputElement>) => void; holdBlur: () => void }) {
   const node = nodeById(tree, row.id);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -246,7 +251,9 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
     field.select();
   }, [renaming?.id, renaming?.field]);
   if (!node) return null;
-  const color = principalCategory(tree, node.id)?.color;
+  const category = principalCategory(tree, node.id);
+  const color = category?.color;
+  const nameStyle = categoryNameStyle(category?.textStyle);
   const isRoot = node.id === tree.rootId;
   const collapsible = !isRoot && row.hasChildren;
   const dropClass = drag?.overId === node.id ? drag.blocked ? "is-drop-no" : drag.zone === "inside" ? "is-drop-inside" : drag.zone === "before" ? "is-drop-before" : "is-drop-after" : "";
@@ -270,11 +277,11 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
       aria-grabbed={drag?.id === node.id || undefined}
       className={`tree-item ${selected ? "is-selected" : ""} ${row.dimmed ? "is-dimmed" : ""} ${row.matched ? "is-match" : ""} ${renamed ? "is-renamed" : ""} ${drag?.id === node.id ? "is-dragging" : ""} ${renaming ? "is-editing" : ""} ${dropClass}`}
       style={{ paddingLeft: 8 + (row.depth - 1) * 18 }}
-      onClick={() => onSelect(node.id)}
+      onClick={event => onSelect(node.id, event.shiftKey)}
       onContextMenu={event => { event.preventDefault(); onSelect(node.id); onContextMenu(node.id, event.clientX, event.clientY); }}
     >
       {collapsible ? <button type="button" className="tree-disclosure" aria-label={row.expanded ? `Comprimi ${node.code}` : `Espandi ${node.code}`} onClick={event => { event.stopPropagation(); onToggle(node.id); }}>{row.expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</button> : <span className="tree-disclosure-spacer" />}
-      {node.parentId != null && (
+      {moveEnabled && node.parentId != null && (
         <span
           role="button"
           tabIndex={-1}
@@ -295,8 +302,8 @@ function NodeRow({ tree, row, index, total, selected, query, renaming, renamed, 
           : <span className="tree-code" title="Doppio clic per modificare il codice" onMouseDown={event => { if (!renaming) return; event.preventDefault(); event.stopPropagation(); }} onDoubleClick={activate("code")}><Highlight text={node.code} query={query} /></span>}
         <span className="tree-name-line">
           {renaming?.field === "name"
-            ? <input ref={inputRef} className="tree-name-input" aria-label={`Nome di ${node.code}`} value={renaming.name} onChange={event => onRenameChange({ ...renaming, name: event.target.value })} onClick={event => event.stopPropagation()} onBlur={onBlur} />
-            : <span className="tree-name" title="Doppio clic per modificare il nome" onMouseDown={event => { if (!renaming) return; event.preventDefault(); event.stopPropagation(); }} onDoubleClick={activate("name")}><Highlight text={node.name} query={query} /></span>}
+            ? <input ref={inputRef} className="tree-name-input" style={nameStyle} aria-label={`Nome di ${node.code}`} value={renaming.name} onChange={event => onRenameChange({ ...renaming, name: event.target.value })} onClick={event => event.stopPropagation()} onBlur={onBlur} />
+            : <span className="tree-name" style={nameStyle} title="Doppio clic per modificare il nome" onMouseDown={event => { if (!renaming) return; event.preventDefault(); event.stopPropagation(); }} onDoubleClick={activate("name")}><Highlight text={node.name} query={query} /></span>}
           {node.note.trim() && <span className="tree-note-dot" role="img" aria-label="Ha una nota" title="Ha una nota" />}
         </span>
       </span>

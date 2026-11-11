@@ -260,6 +260,7 @@ describe("vista Strutture", () => {
     await act(async () => { root!.render(<TreeView path={path} />); });
     await act(async () => { await Promise.resolve(); });
     expect(button("Sposta in…").hasAttribute("disabled")).toBe(true);
+    await click("Modalità spostamento");
     await clickTreeItem("FL-07");
     await click("Sposta in…");
     const dialog = host!.querySelector("dialog");

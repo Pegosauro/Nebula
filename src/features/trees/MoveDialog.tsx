@@ -179,11 +179,11 @@ function destinationRows(tree: Tree, query: string): Array<{ id: string; depth: 
   return rows;
 }
 
-export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onSibling, onObject, onRename, onMove, onDelete }: { tree: Tree; nodeId: string; x: number; y: number; onClose: () => void; onAdd: () => void; onSibling: () => void; onObject: () => void; onRename: () => void; onMove: () => void; onDelete: () => void }) {
+export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onSibling, onObject, onRename, onMove, onDelete, moveEnabled = true }: { tree: Tree; nodeId: string; moveEnabled?: boolean; x: number; y: number; onClose: () => void; onAdd: () => void; onSibling: () => void; onObject: () => void; onRename: () => void; onMove: () => void; onDelete: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [point, setPoint] = useState({ x, y });
   const node = nodeById(tree, nodeId);
-  const moveReason = moveCommandReason(tree, nodeId);
+  const moveReason = moveEnabled ? moveCommandReason(tree, nodeId) : "Attiva la modalità spostamento";
   const deleteReason = deleteNodeError(tree, nodeId);
   const siblingReason = addSiblingReason(tree, nodeId);
   useEffect(() => {
@@ -208,7 +208,7 @@ export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onSibling,
       <button type="button" role="menuitem" onClick={() => { onRename(); onClose(); }}>Rinomina</button>
       <button type="button" role="menuitem" disabled={Boolean(moveReason)} title={moveReason} onClick={() => { onMove(); onClose(); }}>Sposta in…{moveReason && <small>{moveReason}</small>}</button>
       <button type="button" role="menuitem" disabled={Boolean(deleteReason)} title={deleteReason} onClick={() => { onDelete(); onClose(); }}>Elimina{deleteReason && <small>{deleteReason}</small>}</button>
-      <p>Invio aggiunge un fratello subito dopo. Alt ↑↓ riordina tra fratelli: i codici non cambiano. Per cambiare padre usa Sposta in… o il trascinamento.</p>
+      <p>Invio aggiunge un fratello. Per riordinare o cambiare padre attiva prima la modalità spostamento.</p>
     </div>
   );
 }

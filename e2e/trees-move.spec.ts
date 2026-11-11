@@ -21,6 +21,7 @@ async function openTenda(page: Page, testInfo: TestInfo) {
   const closeSidebar = page.getByRole("button", { name: "Chiudi pannello sinistro" });
   if (await closeSidebar.isVisible()) await closeSidebar.click();
   await expect(page.getByRole("heading", { name: "FL · Tenda finestra" })).toBeVisible();
+  await page.getByRole("button", { name: "Modalità spostamento", exact: true }).click();
   const closeSheet = page.getByRole("button", { name: "Chiudi scheda" });
   if (await closeSheet.isVisible()) await closeSheet.click();
 }

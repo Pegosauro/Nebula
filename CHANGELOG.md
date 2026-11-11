@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.45.0 — Filtri, selezione multipla e categorie formattate
+
+- Pulsante Filtro con icona: scelta di più categorie e opzione «Mostra anche gli altri nodi». Di base i nodi esclusi sono nascosti, anche se sono antenati dei risultati. Rimosso il filtro in fondo all’albero.
+- Shift + clic e Shift + frecce selezionano intervalli di nodi visibili. La categoria della selezione si modifica con conferma.
+- Cambiare la categoria di un padre richiede conferma, con scelta esplicita per includere anche tutti i discendenti. I nodi non inclusi conservano la categoria.
+- Trascinamento, Sposta in e Alt + frecce sono disponibili solo in modalità spostamento, disattivata all’apertura della struttura.
+- Albero più compatto: nomi a 13 px e righe ridotte, con virtualizzazione aggiornata.
+- Gestisci categorie: grassetto, corsivo, sottolineato e barrato combinabili, salvati nel file e applicati solo ai nomi dei nodi.
+
 ## 0.44.0 — Modifica nomi, scorrimento e categorie indipendenti
 
 - Il campo del nome nell’albero occupa lo spazio disponibile nella riga, anche durante l’inserimento.

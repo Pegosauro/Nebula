@@ -26,7 +26,8 @@ export const CATEGORY_PALETTE = [
 export type CategoryMode = "inherit" | "own";
 export type CharacteristicKind = "own" | "acquired";
 
-export interface TreeCategory { id: string; name: string; color: string; order: number }
+export interface CategoryTextStyle { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean }
+export interface TreeCategory { id: string; name: string; color: string; order: number; textStyle?: CategoryTextStyle }
 export interface ExternalTableObject { id: string; type: "externalTable"; order: number; tableName: string }
 export interface CharacteristicObject { id: string; type: "characteristic"; order: number; kind: CharacteristicKind; code: string; description: string }
 export type TreeObject = ExternalTableObject | CharacteristicObject;
@@ -349,6 +350,40 @@ export function setNodeCategory(tree: Tree, id: string, categoryId: string | nul
   const wasInherit = node.parentId != null && node.categoryMode === "inherit";
   return { ok: true, tree: replaceNode(independentCategories(tree), id, item => { item.categoryMode = "own"; item.categoryId = nextId; }), detached: wasInherit };
 }
+/** Unione dei rami in una sola visita, senza duplicati fra genitori e figli selezionati. */
+export function categoryTargetIds(tree: Tree, ids: readonly string[], includeDescendants = true): Set<string> {
+  const targets = new Set(ids);
+  if (includeDescendants) {
+    const children = new Map<string, string[]>();
+    for (const node of tree.nodes) if (node.parentId) {
+      const list = children.get(node.parentId) ?? [];
+      list.push(node.id); children.set(node.parentId, list);
+    }
+    const queue = [...targets];
+    for (let index = 0; index < queue.length; index += 1) for (const child of children.get(queue[index]!) ?? []) {
+      if (!targets.has(child)) { targets.add(child); queue.push(child); }
+    }
+  }
+  return targets;
+}
+/** Modifica atomica: ciascun nodo è aggiornato una sola volta, anche con rami sovrapposti. */
+export function setNodesCategory(tree: Tree, ids: readonly string[], categoryId: string | null, includeDescendants = false): TreeSuccess | TreeFailure {
+  const known = new Set(tree.nodes.map(node => node.id));
+  if (!ids.length || ids.some(id => !known.has(id))) return { ok: false, error: "Selezione di nodi non valida" };
+  if (categoryId && !tree.categories.some(category => category.id === categoryId)) return { ok: false, error: "Categoria inesistente" };
+  const targets = categoryTargetIds(tree, ids, includeDescendants);
+  const next = clone(independentCategories(tree));
+  for (const node of next.nodes) if (targets.has(node.id)) { node.categoryMode = "own"; node.categoryId = categoryId; }
+  return { ok: true, tree: next };
+}
+
+function readTextStyle(value: unknown): CategoryTextStyle | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const raw = value as Record<string, unknown>;
+  const result: CategoryTextStyle = {};
+  for (const key of ["bold", "italic", "underline", "strike"] as const) if (raw[key] === true) result[key] = true;
+  return Object.keys(result).length ? result : undefined;
+}
 export function inheritFromParent(tree: Tree, id: string): TreeSuccess | TreeFailure {
   const node = nodeById(tree, id);
   if (!node || node.parentId == null) return { ok: false, error: "La radice ha sempre una categoria propria" };
@@ -361,13 +396,18 @@ export function addCategory(tree: Tree, name: string, color?: string): TreeSucce
   next.categories.push(category);
   return { ok: true, tree: next, category };
 }
-export function updateCategory(tree: Tree, id: string, patch: { name?: string; color?: string }): TreeSuccess | TreeFailure {
+export function updateCategory(tree: Tree, id: string, patch: { name?: string; color?: string; textStyle?: CategoryTextStyle }): TreeSuccess | TreeFailure {
   if (patch.color && !isPaletteColor(patch.color)) return { ok: false, error: "Colore fuori tavolozza" };
   const next = clone(tree);
   const category = next.categories.find(item => item.id === id);
   if (!category) return { ok: false, error: "Categoria inesistente" };
   if (patch.name !== undefined) category.name = patch.name;
   if (patch.color !== undefined) category.color = patch.color;
+  if (patch.textStyle !== undefined) {
+    const style = readTextStyle(patch.textStyle);
+    if (style) category.textStyle = style;
+    else delete category.textStyle;
+  }
   return { ok: true, tree: next };
 }
 export function moveCategory(tree: Tree, id: string, delta: number): TreeSuccess | TreeFailure {
@@ -693,6 +733,7 @@ export function parseTree(text: string): Tree {
       name: typeof category?.name === "string" ? category.name : "",
       color: typeof category?.color === "string" ? category.color : "",
       order: integer(category?.order, index),
+      ...(readTextStyle(category?.textStyle) ? { textStyle: readTextStyle(category?.textStyle) } : {}),
     };
   }) : body.categories as TreeCategory[];
   const nodes = Array.isArray(body.nodes) ? body.nodes.map((item, index) => {
@@ -747,7 +788,7 @@ export function canonicalTree(tree: Tree): Tree {
     version: 1,
     title: tree.title,
     rootId: tree.rootId,
-    categories: [...tree.categories].sort((a, b) => a.order - b.order).map(category => ({ id: category.id, name: category.name, color: category.color, order: category.order })),
+    categories: [...tree.categories].sort((a, b) => a.order - b.order).map(category => ({ id: category.id, name: category.name, color: category.color, order: category.order, ...(readTextStyle(category.textStyle) ? { textStyle: readTextStyle(category.textStyle) } : {}) })),
     nodes: tree.nodes.map(node => ({
       id: node.id,
       parentId: node.parentId,

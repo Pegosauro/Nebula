@@ -6,7 +6,7 @@ import { demoTree } from "./demoTree";
 import {
   addChild, addSibling, canonicalTree, childrenOf, codeIssues, deleteCategory, deleteConfirmText, deleteNode, descendantCount, dropDestination, effectiveCategory,
   inheritFromParent, inspectTree, isTreePath, newTree, parseTree, planMove, principalCategory, proposeChildCode,
-  reorderSibling, setNodeCategory, updateCategory, updateNode, upsertObject, type Tree,
+  reorderSibling, setNodeCategory, setNodesCategory, updateCategory, updateNode, upsertObject, type Tree,
 } from "./model";
 import { serializeTree, serializeTreeFile } from "./serializeTree";
 
@@ -16,6 +16,36 @@ const code = (tree: Tree, id: string) => tree.nodes.find(node => node.id === id)
 describe("regole dell'albero nebula-tree v1", () => {
   it("accetta la demo senza errori bloccanti", () => {
     expect(inspectTree(demoTree()).errors).toEqual([]);
+  });
+
+  it("cambia categorie in blocco con discendenti opzionali senza toccare gli altri nodi", () => {
+    const source = parseTree(JSON.stringify(demoTree()));
+    const before = serializeTree(source);
+    const direct = setNodesCategory(source, ["n-07", "n-0701"], "c-avv");
+    if (!direct.ok) throw new Error(direct.error);
+    expect(effectiveCategory(direct.tree, "n-07")).toBe("c-avv");
+    expect(effectiveCategory(direct.tree, "n-0701")).toBe("c-avv");
+    expect(effectiveCategory(direct.tree, "n-0702")).toBe("c-dim");
+    const branch = setNodesCategory(source, ["n-07", "n-0701", "n-07"], null, true);
+    if (!branch.ok) throw new Error(branch.error);
+    for (const id of ["n-07", "n-0701", "n-0702"]) expect(effectiveCategory(branch.tree, id)).toBeNull();
+    expect(effectiveCategory(branch.tree, "n-08")).toBe("c-dim");
+    expect(serializeTree(source)).toBe(before);
+    expect(branch.tree.nodes.map(node => [node.id, node.code, node.order])).toEqual(source.nodes.map(node => [node.id, node.code, node.order]));
+    expect(setNodesCategory(source, ["n-07", "missing"], "c-avv").ok).toBe(false);
+    expect(setNodesCategory(source, ["n-07"], "missing").ok).toBe(false);
+  });
+
+  it("salva e rilegge insieme grassetto, corsivo, sottolineato e barrato", () => {
+    const source = demoTree();
+    const changed = updateCategory(source, "c-dim", { textStyle: { bold: true, italic: true, underline: true, strike: true } });
+    if (!changed.ok) throw new Error(changed.error);
+    const loaded = parseTree(serializeTreeFile(changed.tree));
+    expect(loaded.categories.find(category => category.id === "c-dim")?.textStyle).toEqual({ bold: true, italic: true, underline: true, strike: true });
+    expect(source.categories.find(category => category.id === "c-dim")?.textStyle).toBeUndefined();
+    const cleared = updateCategory(loaded, "c-dim", { textStyle: { bold: false } });
+    if (!cleared.ok) throw new Error(cleared.error);
+    expect(parseTree(serializeTreeFile(cleared.tree)).categories.find(category => category.id === "c-dim")?.textStyle).toBeUndefined();
   });
 
   it("modificare la categoria di un inherit lo passa a own e inheritFromParent lo riallinea", () => {

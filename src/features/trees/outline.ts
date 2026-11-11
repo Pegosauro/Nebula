@@ -1,6 +1,6 @@
-import { childrenOf, effectiveCategory, nodeById, type Tree, type TreeNode } from "./model";
+import { effectiveCategoryMap, type Tree, type TreeNode } from "./model";
 
-export const ROW_HEIGHT = 36;
+export const ROW_HEIGHT = 32;
 export const VIRTUALIZE_AFTER = 1000;
 
 export interface OutlineNodeRow { kind: "node"; id: string; depth: number; hasChildren: boolean; expanded: boolean; dimmed: boolean; matched: boolean }
@@ -18,53 +18,49 @@ function includesQuery(node: TreeNode, query: string): boolean {
   return node.code.toLocaleLowerCase().includes(query) || node.name.toLocaleLowerCase().includes(query);
 }
 
-/** Righe visibili. I filtri attenuano i nodi non pertinenti e non li nascondono. La ricerca tiene leggibili gli antenati. */
-export function buildOutline(tree: Tree, expanded: ReadonlySet<string>, query: string, categoryId?: string): { rows: OutlineRow[]; matchCount: number } {
+/** Il filtro categorie nasconde i nodi esclusi; gli antenati nascosti non interrompono i rami. */
+export function buildOutline(tree: Tree, expanded: ReadonlySet<string>, query: string, categoryFilter?: string | readonly string[], showUnmatched = false): { rows: OutlineRow[]; matchCount: number } {
   const normalized = query.trim().toLocaleLowerCase();
+  const filters = new Set(typeof categoryFilter === "string" ? [categoryFilter] : categoryFilter ?? []);
+  const filtered = filters.size > 0;
+  const hide = filtered && !showUnmatched;
+  const byId = new Map(tree.nodes.map(node => [node.id, node]));
+  const children = new Map<string, TreeNode[]>();
+  for (const node of tree.nodes) if (node.parentId) {
+    const list = children.get(node.parentId) ?? [];
+    list.push(node); children.set(node.parentId, list);
+  }
+  for (const list of children.values()) list.sort((a, b) => a.order - b.order);
+  const categories = effectiveCategoryMap(tree);
   const matching = new Set<string>();
-  if (normalized || categoryId) {
-    for (const node of tree.nodes) {
-      const queryOk = !normalized || includesQuery(node, normalized);
-      const categoryOk = !categoryId || effectiveCategory(tree, node.id) === categoryId;
-      if (queryOk && categoryOk) matching.add(node.id);
-    }
+  if (normalized || filtered) for (const node of tree.nodes) {
+    if ((!normalized || includesQuery(node, normalized)) && (!filtered || filters.has(categories.get(node.id) ?? ""))) matching.add(node.id);
   }
-  const keepBright = new Set<string>(matching);
-  if (normalized || categoryId) {
-    for (const id of matching) {
-      let current = nodeById(tree, id);
-      const seen = new Set<string>();
-      while (current?.parentId && !seen.has(current.id)) {
-        seen.add(current.id);
-        keepBright.add(current.parentId);
-        current = nodeById(tree, current.parentId);
-      }
-    }
-  }
+  const keepBright = new Set(matching);
   const forceOpen = new Set<string>();
-  if (normalized) {
-    for (const id of matching) {
-      let current = nodeById(tree, id);
-      const seen = new Set<string>();
-      while (current?.parentId && !seen.has(current.id)) {
-        seen.add(current.id);
-        forceOpen.add(current.parentId);
-        current = nodeById(tree, current.parentId);
-      }
+  for (const id of matching) {
+    let current = byId.get(id);
+    const seen = new Set<string>();
+    while (current?.parentId && !seen.has(current.id)) {
+      seen.add(current.id);
+      keepBright.add(current.parentId);
+      forceOpen.add(current.parentId);
+      current = byId.get(current.parentId);
     }
   }
   const rows: OutlineRow[] = [];
   const visit = (id: string, depth: number) => {
-    const node = nodeById(tree, id);
+    const node = byId.get(id);
     if (!node) return;
-    const children = childrenOf(tree, id);
+    const list = children.get(id) ?? [];
+    const visible = !hide || matching.has(id);
     const isOpen = id === tree.rootId || expanded.has(id) || forceOpen.has(id);
-    const dimmed = (normalized.length > 0 || Boolean(categoryId)) && !keepBright.has(id);
-    rows.push({ kind: "node", id, depth, hasChildren: children.length > 0 || node.objects.length > 0, expanded: isOpen, dimmed, matched: matching.has(id) });
+    const dimmed = (normalized.length > 0 || filtered) && !keepBright.has(id);
+    if (visible) rows.push({ kind: "node", id, depth, hasChildren: (hide ? list.some(child => keepBright.has(child.id)) : list.length > 0) || node.objects.length > 0, expanded: isOpen, dimmed, matched: matching.has(id) });
     if (!isOpen) return;
-    for (const child of children) visit(child.id, depth + 1);
-    for (const object of [...node.objects].sort((a, b) => a.order - b.order)) rows.push({ kind: "object", id: object.id, parentId: id, depth: depth + 1, dimmed });
+    for (const child of list) visit(child.id, depth + (visible ? 1 : 0));
+    if (visible) for (const object of [...node.objects].sort((a, b) => a.order - b.order)) rows.push({ kind: "object", id: object.id, parentId: id, depth: depth + 1, dimmed });
   };
   visit(tree.rootId, 1);
-  return { rows, matchCount: normalized || categoryId ? matching.size : tree.nodes.length };
+  return { rows, matchCount: normalized || filtered ? matching.size : tree.nodes.length };
 }

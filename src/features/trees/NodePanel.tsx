@@ -28,12 +28,26 @@ interface NodePanelProps {
   editingObjectId?: string;
   focusList?: ObjectListKind;
   focusToken?: number;
+  moveEnabled?: boolean;
 }
 
-export function NodePanel({ tree, node, adding, onCode, onName, onNote, onCategory, onAddChild, onAddSibling, siblingReason, onRename, onMove, onDelete, onSaveObject, onRemoveObject, onManageCategories, onDraftChange, onDraftBlur, draftError, editingObjectId, focusList, focusToken }: NodePanelProps) {
+export function NodePanel({ tree, node, adding, onCode, onName, onNote, onCategory, onAddChild, onAddSibling, siblingReason, onRename, onMove, onDelete, onSaveObject, onRemoveObject, onManageCategories, onDraftChange, onDraftBlur, draftError, editingObjectId, focusList, focusToken, moveEnabled }: NodePanelProps) {
   if (adding) return <DraftPanel tree={tree} draft={adding} error={draftError} onChange={onDraftChange} onBlur={onDraftBlur} onCategories={onManageCategories} />;
   if (!node) return <aside className="tree-panel"><p className="tree-muted">Seleziona un nodo.</p></aside>;
-  return <SelectedPanel tree={tree} node={node} onCode={onCode} onName={onName} onNote={onNote} onCategory={onCategory} onAddChild={onAddChild} onAddSibling={onAddSibling} siblingReason={siblingReason} onRename={onRename} onMove={onMove} onDelete={onDelete} onSaveObject={onSaveObject} onRemoveObject={onRemoveObject} onManageCategories={onManageCategories} editingObjectId={editingObjectId} focusList={focusList} focusToken={focusToken} />;
+  return <SelectedPanel tree={tree} node={node} onCode={onCode} onName={onName} onNote={onNote} onCategory={onCategory} onAddChild={onAddChild} onAddSibling={onAddSibling} siblingReason={siblingReason} onRename={onRename} onMove={onMove} onDelete={onDelete} onSaveObject={onSaveObject} onRemoveObject={onRemoveObject} onManageCategories={onManageCategories} editingObjectId={editingObjectId} focusList={focusList} focusToken={focusToken} moveEnabled={moveEnabled} />;
+}
+
+export function MultiNodePanel({ tree, ids, onCategory, onManageCategories, onClear }: { tree: Tree; ids: readonly string[]; onCategory: (id: string | null) => void; onManageCategories: () => void; onClear: () => void }) {
+  const targets = new Set(ids);
+  const values = ids.map(id => effectiveCategory(tree, id));
+  const mixed = values.some(value => value !== values[0]);
+  return <aside className="tree-panel" aria-label="Nodi selezionati">
+    <h2>{ids.length} nodi selezionati</h2>
+    <p className="tree-muted">Scegli la categoria da applicare alla selezione. La modifica richiede conferma.</p>
+    <NodeCategoryPicker categories={tree.categories} value={values[0] ?? null} mixed={mixed} onChange={onCategory} />
+    <div className="tree-row-actions"><button type="button" className="button" onClick={onManageCategories}>Gestisci categorie…</button><button type="button" className="button" onClick={onClear}>Annulla selezione multipla</button></div>
+    <p className="tree-muted">{tree.nodes.filter(node => targets.has(node.id)).map(node => node.code).join(", ")}</p>
+  </aside>;
 }
 
 function DraftPanel({ tree, draft, error, onChange, onBlur, onCategories }: { tree: Tree; draft: NodeDraft; error?: string; onChange: (draft: NodeDraft) => void; onBlur: (event: React.FocusEvent<HTMLInputElement>) => void; onCategories: () => void }) {
@@ -63,7 +77,7 @@ function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | 
   const issues = codeIssues(tree, node.id, code);
   const categoryId = effectiveCategory(tree, node.id);
   const deleteReason = deleteNodeError(tree, node.id);
-  const moveReason = moveCommandReason(tree, node.id);
+  const moveReason = props.moveEnabled === false ? "Attiva la modalità spostamento" : moveCommandReason(tree, node.id);
   const principal = principalCategory(tree, node.id);
   const commitCode = () => {
     if (code.trim() === node.code) { setCodeError(undefined); return; }
