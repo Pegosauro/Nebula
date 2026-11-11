@@ -4,6 +4,7 @@ import {
   ChevronsRight,
   Files,
   GitBranch,
+  ListTree,
   Search,
   Settings,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const primaryItems: Array<{
 }> = [
   { id: "files", label: "File", icon: Files },
   { id: "search", label: "Cerca", icon: Search },
+  { id: "structures", label: "Strutture", icon: ListTree },
   { id: "configurators", label: "Configuratori", icon: GitBranch },
   { id: "recent", label: "Recenti", icon: Clock3 },
 ];

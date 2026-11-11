@@ -1,4 +1,5 @@
 import { configTitle, isConfiguratorPath } from "../configurator/model";
+import { isTreePath, treeTitle } from "../trees/model";
 import { withoutFrontmatter } from "../../domain/noteProperties";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FilePlus2, FolderInput, FolderPlus, Pencil, Trash2, X } from "lucide-react";
@@ -52,7 +53,7 @@ export function VaultOperationDialog({ request, snapshot, onClose, onCompleted }
   const moveEntry = useVaultStore((state) => state.moveEntry);
   const deleteEntry = useVaultStore((state) => state.deleteEntry);
   const [value, setValue] = useState(
-    request.type === "rename" && isConfiguratorPath(request.entry.path) ? configTitle(basename(request.entry.path)) : request.type === "rename" && request.entry.extension === ".md"
+    request.type === "rename" && isConfiguratorPath(request.entry.path) ? configTitle(basename(request.entry.path)) : request.type === "rename" && isTreePath(request.entry.path) ? treeTitle(basename(request.entry.path)) : request.type === "rename" && request.entry.extension === ".md"
       ? withoutMarkdownExtension(basename(request.entry.path))
       : request.type === "rename" ? basename(request.entry.path) : request.type === "create-note" && request.quickNote ? quickNoteTitle(request.quickNote.text) : "",
   );

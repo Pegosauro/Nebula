@@ -1,4 +1,4 @@
-# Architettura Nebula · 0.31.0
+# Architettura Nebula · 0.39.0
 
 ## Moduli e responsabilità
 
@@ -6,10 +6,17 @@
 | --- | --- |
 | Shell e workspace | Navigazione, schede, visibilità dei pannelli, preferenze UI |
 | Editor | Sessioni Markdown, CodeMirror, rendering, tabelle, proprietà, appunti e modelli |
+| Strutture | Alberi liberi `nebula-tree` v1, categorie, oggetti e validazione |
 | Configuratore | Definizioni, condizioni, misure, selezione, distinta e analisi |
 | Knowledge e ricerca | Indici derivati dai file, risoluzione dei collegamenti e ricerca |
 | Filesystem e storage | File reali del Vault; IndexedDB per handle, cache degli indici |
 | Worker locali | Indicizzazione e calcolo delle configurazioni |
+
+## Strutture 0.39.0
+
+`src/features/trees/` tiene il formato, le operazioni e la vista. Un albero è un file `Strutture/<nome>.tree.json`, riconosciuto da `isTreePath`, letto con `parseTree` e scritto da `treeStore` con lo stesso ciclo del configuratore: sessione per percorso, autosalvataggio a 700 ms, validazione prima della scrittura, metadati attesi e conflitto esterno. `createTree` crea la cartella `Strutture/`. Lo stato di apertura, selezione e filtro sta in `treeUiStore` (`nebula.tree-ui.v1`), mai nel file. Le categorie effettive si calcolano a ogni lettura e non vengono salvate.
+
+Il colore del nodo è isolato in `principalCategory`: è quello della prima categoria effettiva. Le icone degli oggetti stanno in `objectIcons.tsx` (tabella, caratteristica propria, caratteristica acquisita). `conformSuffix` e `freeSuffix` preparano la rinumerazione dello spostamento, che non è in questa versione: non ci sono trascinamento, «Sposta in…» né annullamento dell'ultimo spostamento. Un futuro spostamento potrà sostituire `parentId` e `order` e poi chiamare `edit`.
 
 Nessun nuovo backend. I dati del progetto rimangono nei file del Vault.
 

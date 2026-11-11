@@ -1,4 +1,5 @@
 import { configTitle, isConfiguratorPath } from "../configurator/model";
+import { isTreePath, treeTitle } from "../trees/model";
 import { create } from "zustand";
 import { panelArea, readPanelLayouts, savePanelLayouts, type PanelLayouts } from "./panelLayout";
 import { basename, isPathInside, withoutMarkdownExtension } from "../../domain/path";
@@ -7,7 +8,7 @@ import { useSearchStore } from "../search/searchStore";
 import { useDocumentStore } from "../editor/documentStore";
 import { loadMarkdownEditor } from "../editor/loadEditor";
 
-export type ActivitySection = "files" | "configurators" | "search" | "recent" | "settings";
+export type ActivitySection = "files" | "structures" | "configurators" | "search" | "recent" | "settings";
 
 export interface WorkspaceTab {
   id: string;
@@ -113,7 +114,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
               {
                 id,
                 kind: "document",
-                title: isConfiguratorPath(entry.path) ? configTitle(entry.name) : entry.extension === ".md" ? withoutMarkdownExtension(entry.name) : entry.name,
+                title: isConfiguratorPath(entry.path) ? configTitle(entry.name) : isTreePath(entry.path) ? treeTitle(entry.name) : entry.extension === ".md" ? withoutMarkdownExtension(entry.name) : entry.name,
                 path: entry.path,
                 extension: entry.extension,
                 newlyCreated,
@@ -137,7 +138,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       const tabs = state.tabs.map((tab) => {
         const path = remap(tab.path);
         if (!path || path === tab.path) return tab;
-        return { ...tab, id: `document:${path}`, path, title: isConfiguratorPath(path) ? configTitle(basename(path)) : tab.extension === ".md" ? withoutMarkdownExtension(basename(path)) : basename(path) };
+        return { ...tab, id: `document:${path}`, path, title: isConfiguratorPath(path) ? configTitle(basename(path)) : isTreePath(path) ? treeTitle(basename(path)) : tab.extension === ".md" ? withoutMarkdownExtension(basename(path)) : basename(path) };
       });
       const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId);
       const activePath = remap(activeTab?.path);
@@ -163,7 +164,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
           : state.selectedEntry,
       };
     }),
-  activateTab: activeTabId => set(state => movePanels(state, { activeTabId, activity: state.activity === "settings" || state.activity === "configurators" && state.tabs.find(t => t.id === activeTabId)?.extension === ".md" ? "files" : state.activity })),
+  activateTab: activeTabId => set(state => {
+    const tab = state.tabs.find(item => item.id === activeTabId);
+    let activity = state.activity;
+    if (activity === "settings" || (activity === "configurators" && tab?.extension === ".md")) activity = "files";
+    else if (activity === "configurators" && tab?.path && isTreePath(tab.path)) activity = "structures";
+    else if (activity === "structures" && tab?.path && !isTreePath(tab.path)) activity = "files";
+    return movePanels(state, { activeTabId, activity });
+  }),
   closeTab: (id) =>
     set((state) => {
       const index = state.tabs.findIndex((tab) => tab.id === id);

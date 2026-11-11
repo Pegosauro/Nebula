@@ -46,6 +46,10 @@ export class BrowserVaultAdapter {
     return this.operations.createConfigurator(handle, name, content);
   }
 
+  createTree(handle: FileSystemDirectoryHandle, name: string, content: string): Promise<string> {
+    return this.operations.createTree(handle, name, content);
+  }
+
   createNote(handle: FileSystemDirectoryHandle, parentPath: string, name: string, content?: string): Promise<string> {
     return this.operations.createNote(handle, parentPath, name, content);
   }

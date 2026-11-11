@@ -112,6 +112,19 @@ describe("VaultFileOperations", () => {
     expect(folder.children.has("Failed.config.json")).toBe(false);
     await expect(operations.createConfigurator(handle,"../Escape","test")).rejects.toThrow();
   });
+  it("creates trees in Strutture and keeps the extension when renaming", async () => {
+    const root = new MemoryDirectory("Vault");
+    const operations = new VaultFileOperations();
+    const handle = root as unknown as FileSystemDirectoryHandle;
+    const path = await operations.createTree(handle, "FL · Tenda finestra", '{"format":"nebula-tree"}\n');
+    expect(path).toBe("Strutture/FL · Tenda finestra.tree.json");
+    expect((await operations.readText(handle, path)).content).toContain("nebula-tree");
+    await expect(operations.createTree(handle, "fl · tenda finestra", "overwrite")).rejects.toBeInstanceOf(VaultCollisionError);
+    const renamed = await operations.rename(handle, entry(path, "file", ".json"), "Tenda nuova");
+    expect(renamed).toBe("Strutture/Tenda nuova.tree.json");
+    await operations.writeText(handle, renamed, "saved", await operations.readText(handle, renamed));
+    expect((await operations.readText(handle, renamed)).content).toBe("saved");
+  });
   it("writes the whole template during note creation and never overwrites an existing file", async () => {
     const root = new MemoryDirectory("Vault");
     const handle = root as unknown as FileSystemDirectoryHandle;

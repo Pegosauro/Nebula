@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.39.0 — Strutture ad albero
+
+- Nuova sezione Strutture: file `Strutture/<nome>.tree.json` nel formato `nebula-tree` v1, separato dai configuratori.
+- Vista ad albero con ricerca, filtro per categoria, espansione e scheda del nodo. Autosalvataggio dopo 700 ms, conflitti e stato «Non salvato» come nel resto dell'app.
+- Figlio sempre in coda, con codice proposto dal padre più la prima coppia libera. Rinomina di codice e nome. Eliminazione solo delle foglie, con conferma.
+- Categorie dell'albero, eredità dinamica e distacco, note, tabelle esterne e caratteristiche propria/acquisita con sigla unica nel nodo.
+- Lo spostamento, il riordino, la rinumerazione e l'annullamento dell'ultimo spostamento restano per la PR successiva. Il modello tiene già `parentId`, `order` e i controlli di conformità del codice.
+
 ## 0.38.0 — Inserimento rapido dei componenti
 
 - Griglia editabile in Componenti per codice, descrizione, famiglia, gruppo, unità, scheda tecnica e dimensioni per posizione.

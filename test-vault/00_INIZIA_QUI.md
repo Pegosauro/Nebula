@@ -12,6 +12,7 @@ Dati dimostrativi, senza informazioni personali. Puoi modificarli liberamente.
 6. Scegli Materiale telo = PVC oppure Acrilico: AC019 segue la scelta. AC020 mantiene Materiale: Poliestere. Puoi anche scrivere un testo personalizzato.
 7. Prova ricerca, filtri, raggruppamento e zoom del grafo.
 8. Apri [[Configurators/Diagnostica intenzionale.config.json]] per segnalazioni intenzionali.
+9. Apri [[Strutture/FL · Tenda finestra.tree.json]] nella sezione Strutture: albero, categorie e oggetti.
 
 ## Conservazione
 

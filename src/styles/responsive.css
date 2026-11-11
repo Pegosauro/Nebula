@@ -69,6 +69,7 @@
   .activity-rail .rail-expand { display: none; }
   .activity-rail .rail-label { display: block; max-width: none; font-size: 10px; line-height: 1.2; white-space: nowrap; }
   .activity-rail .icon-button[aria-label="Configuratori"] .rail-label,
+  .activity-rail .icon-button[aria-label="Strutture"] .rail-label,
   .activity-rail .icon-button[aria-label="Impostazioni"] .rail-label { display: none; }
   .has-expanded-navigation .activity-rail .icon-button { width: min(64px, 18vw); height: 49px; padding: 0; flex-direction: column; justify-content: center; gap: 4px; }
   .has-expanded-navigation .activity-rail .rail-expand { display: none; }

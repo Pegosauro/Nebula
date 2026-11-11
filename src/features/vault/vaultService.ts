@@ -114,6 +114,12 @@ export class VaultService {
     return { path, snapshot: await this.adapter.scan(handle) };
   }
 
+  async createTree(name: string, content: string): Promise<{ path: string; snapshot: VaultSnapshot }> {
+    const handle = this.requireHandle();
+    const path = await this.adapter.createTree(handle, name, content);
+    return { path, snapshot: await this.adapter.scan(handle) };
+  }
+
   async createNote(parentPath: string, name: string, content?: string): Promise<{ path: string; snapshot: VaultSnapshot }> {
     const handle = this.requireHandle();
     const path = await this.adapter.createNote(handle, parentPath, name, content);

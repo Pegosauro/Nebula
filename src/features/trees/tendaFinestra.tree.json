@@ -1,0 +1,494 @@
+{
+  "format": "nebula-tree",
+  "version": 1,
+  "title": "FL · Tenda finestra",
+  "rootId": "n-root",
+  "categories": [
+    {
+      "id": "c-cfg",
+      "name": "Configurazione",
+      "color": "#8b5cf6",
+      "order": 0
+    },
+    {
+      "id": "c-dim",
+      "name": "Dimensioni",
+      "color": "#22d3ee",
+      "order": 1
+    },
+    {
+      "id": "c-avv",
+      "name": "Avvisi",
+      "color": "#e0a33a",
+      "order": 2
+    },
+    {
+      "id": "c-tes",
+      "name": "Telo e tessuti",
+      "color": "#2aa99a",
+      "order": 3
+    },
+    {
+      "id": "c-col",
+      "name": "Colori e finiture",
+      "color": "#ec6fb0",
+      "order": 4
+    },
+    {
+      "id": "c-ins",
+      "name": "Installazione",
+      "color": "#5b8def",
+      "order": 5
+    },
+    {
+      "id": "c-mot",
+      "name": "Motorizzazione",
+      "color": "#f2784b",
+      "order": 6
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n-root",
+      "parentId": null,
+      "order": 0,
+      "code": "FL",
+      "name": "Tenda finestra",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-cfg"
+      ],
+      "note": "Struttura dimostrativa ricavata dallo screenshot del gestionale legacy.",
+      "objects": []
+    },
+    {
+      "id": "n-01",
+      "parentId": "n-root",
+      "order": 0,
+      "code": "FL-01",
+      "name": "Tipologia di configurazione",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-03",
+      "parentId": "n-root",
+      "order": 1,
+      "code": "FL-03",
+      "name": "Riferimento listino",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-44",
+      "parentId": "n-root",
+      "order": 2,
+      "code": "FL-44",
+      "name": "Riferimento installazione",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-ins"
+      ],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-04",
+      "parentId": "n-root",
+      "order": 3,
+      "code": "FL-04",
+      "name": "Modello",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-47",
+      "parentId": "n-root",
+      "order": 4,
+      "code": "FL-47",
+      "name": "ATTENZIONE! Tessuto in esaurimento",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-avv"
+      ],
+      "note": "Avviso mostrato in fase d'ordine.",
+      "objects": []
+    },
+    {
+      "id": "n-59",
+      "parentId": "n-root",
+      "order": 5,
+      "code": "FL-59",
+      "name": ">>>> Tipologia T-LOOP",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-07",
+      "parentId": "n-root",
+      "order": 6,
+      "code": "FL-07",
+      "name": "Larghezza tenda",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-dim"
+      ],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0701",
+      "parentId": "n-07",
+      "order": 0,
+      "code": "FL-0701",
+      "name": "Limite larghezza",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0702",
+      "parentId": "n-07",
+      "order": 1,
+      "code": "FL-0702",
+      "name": "Larghezza",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-08",
+      "parentId": "n-root",
+      "order": 7,
+      "code": "FL-08",
+      "name": "Altezza tenda",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-dim",
+        "c-ins"
+      ],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0801",
+      "parentId": "n-08",
+      "order": 0,
+      "code": "FL-0801",
+      "name": "Limite altezza da tabella",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0804",
+      "parentId": "n-08",
+      "order": 1,
+      "code": "FL-0804",
+      "name": "H max * interni (da tabella)",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": [
+        {
+          "id": "o-1",
+          "type": "externalTable",
+          "order": 0,
+          "tableName": "TE_LIMITI_CHIUSURE"
+        }
+      ]
+    },
+    {
+      "id": "n-0802",
+      "parentId": "n-08",
+      "order": 2,
+      "code": "FL-0802",
+      "name": "H max per superficie max * interni",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0803",
+      "parentId": "n-08",
+      "order": 3,
+      "code": "FL-0803",
+      "name": "Altezza",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-dim",
+        "c-ins",
+        "c-avv"
+      ],
+      "note": "Altezza utile in mm, da sotto cassonetto.",
+      "objects": [
+        {
+          "id": "o-2",
+          "type": "characteristic",
+          "order": 0,
+          "kind": "own",
+          "code": "P",
+          "description": "PROFONDITA'"
+        },
+        {
+          "id": "o-3",
+          "type": "characteristic",
+          "order": 1,
+          "kind": "own",
+          "code": "H",
+          "description": "Altezza utile"
+        },
+        {
+          "id": "o-4",
+          "type": "characteristic",
+          "order": 2,
+          "kind": "acquired",
+          "code": "HT",
+          "description": "Altezza tenda"
+        }
+      ]
+    },
+    {
+      "id": "n-09",
+      "parentId": "n-root",
+      "order": 8,
+      "code": "FL-09",
+      "name": "Dimensioni tenda",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-dim"
+      ],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0901",
+      "parentId": "n-09",
+      "order": 0,
+      "code": "FL-0901",
+      "name": "Larghezza finita",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0902",
+      "parentId": "n-09",
+      "order": 1,
+      "code": "FL-0902",
+      "name": "Altezza finita",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0903",
+      "parentId": "n-09",
+      "order": 2,
+      "code": "FL-0903",
+      "name": "Sormonto",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0904",
+      "parentId": "n-09",
+      "order": 3,
+      "code": "FL-0904",
+      "name": "Fuori luce",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0905",
+      "parentId": "n-09",
+      "order": 4,
+      "code": "FL-0905",
+      "name": "Luce netta",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-0906",
+      "parentId": "n-09",
+      "order": 5,
+      "code": "FL-0906",
+      "name": "Tolleranza",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-10",
+      "parentId": "n-root",
+      "order": 9,
+      "code": "FL-10",
+      "name": "Tipologia confezionamento telo",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-tes"
+      ],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-1001",
+      "parentId": "n-10",
+      "order": 0,
+      "code": "FL-1001",
+      "name": "Telo singolo",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-1002",
+      "parentId": "n-10",
+      "order": 1,
+      "code": "FL-1002",
+      "name": "Telo doppio",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-x1",
+      "parentId": "n-10",
+      "order": 2,
+      "code": "X-1",
+      "name": "Nota libera di confezione",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "Codice libero: non segue il prefisso del padre.",
+      "objects": []
+    },
+    {
+      "id": "n-x1a",
+      "parentId": "n-x1",
+      "order": 0,
+      "code": "X-101",
+      "name": "Dettaglio nota",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-12",
+      "parentId": "n-root",
+      "order": 10,
+      "code": "FL-12",
+      "name": "Accessori",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-mot"
+      ],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-19",
+      "parentId": "n-root",
+      "order": 11,
+      "code": "FL-19",
+      "name": "Colore struttura",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-col"
+      ],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-1901",
+      "parentId": "n-19",
+      "order": 0,
+      "code": "FL-1901",
+      "name": "RAL standard",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-fake",
+      "parentId": "n-19",
+      "order": 1,
+      "code": "FL-0907",
+      "name": "Colore speciale (codice storico)",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "Codice storico fuori prefisso: provoca un conflitto se sposti un nodo conforme dentro FL-09.",
+      "objects": []
+    },
+    {
+      "id": "n-57",
+      "parentId": "n-root",
+      "order": 12,
+      "code": "FL-57",
+      "name": "Guida laterale",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-58",
+      "parentId": "n-root",
+      "order": 13,
+      "code": "FL-58",
+      "name": "Alimentazione motore",
+      "categoryMode": "own",
+      "categoryIds": [
+        "c-mot"
+      ],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-5801",
+      "parentId": "n-58",
+      "order": 0,
+      "code": "FL-5801",
+      "name": "Motore radio",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    },
+    {
+      "id": "n-71",
+      "parentId": "n-root",
+      "order": 14,
+      "code": "FL-71",
+      "name": "Note di produzione",
+      "categoryMode": "inherit",
+      "categoryIds": [],
+      "note": "",
+      "objects": []
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import type { KnowledgeIndexData } from "../../domain/knowledge";
 import type { VaultEntry } from "../../domain/vault";
 import type { SearchResult } from "../../domain/search";
 import { buildQuickSearchDocument, searchQuickDocuments, type QuickSearchSource } from "../../domain/searchIndex";
+import { isTreePath, treeTitle } from "../trees/model";
 
 export type QuickSearchRequest = { type: "catalog"; documents: QuickSearchSource[] } | { type: "search"; id: number; query: string; recentPaths: string[]; limit: number };
 export type QuickSearchResponse = { id: number; results: SearchResult[] };
@@ -13,6 +14,7 @@ export function quickCatalog(entries: VaultEntry[], knowledge: KnowledgeIndexDat
     for (const entry of items) {
       if (entry.type === "directory") visit(entry.children ?? []);
       else if (entry.extension === ".md") catalog.push({ path: entry.path, title: knowledge[entry.path]?.title, aliases: knowledge[entry.path]?.aliases, modifiedAt: entry.modifiedAt });
+      else if (isTreePath(entry.path)) catalog.push({ path: entry.path, title: treeTitle(entry.name), modifiedAt: entry.modifiedAt });
     }
   };
   visit(entries); return catalog;

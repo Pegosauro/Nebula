@@ -39,7 +39,7 @@ describe("contextual shell", () => {
   });
   it("exposes all navigation destinations and an expansion control", async () => {
     const host = await mount(<ActivityRail />);
-    for (const label of ["File", "Cerca", "Configuratori", "Recenti", "Impostazioni"]) expect(host.querySelector(`button[aria-label="${label}"]`)).not.toBeNull();
+    for (const label of ["File", "Cerca", "Strutture", "Configuratori", "Recenti", "Impostazioni"]) expect(host.querySelector(`button[aria-label="${label}"]`)).not.toBeNull();
     for (const label of ["Grafo", "Lavagne"]) expect(host.querySelector(`button[aria-label="${label}"]`)).toBeNull();
     expect(host.querySelector('.rail-expand')).not.toBeNull();
   });
