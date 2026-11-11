@@ -265,6 +265,33 @@ export function addChild(tree: Tree, parentId: string, patch: { code?: string; n
   if (issues.errors.length) return { ok: false, error: issues.errors[0]! };
   return { ok: true, tree: next, node: draft };
 }
+/** Motivo per cui «Aggiungi fratello» non è disponibile. La radice non ha un padre. */
+export function addSiblingReason(tree: Tree, nodeId: string): string | undefined {
+  const node = nodeById(tree, nodeId);
+  if (!node) return "Nodo inesistente";
+  if (node.parentId == null) return "La radice non ha fratelli";
+  return undefined;
+}
+/** Nuovo nodo con lo stesso padre, subito dopo `nodeId`. I fratelli successivi scalano di uno; i codici già presenti restano. */
+export function addSibling(tree: Tree, nodeId: string, patch: { code?: string; name?: string } = {}): TreeSuccess<{ node: TreeNode }> | TreeFailure {
+  const reason = addSiblingReason(tree, nodeId);
+  if (reason) return { ok: false, error: reason };
+  const node = nodeById(tree, nodeId)!;
+  const parent = nodeById(tree, node.parentId!)!;
+  if (tree.nodes.length >= MAX_NODES) return { ok: false, error: `Limite di ${MAX_NODES} nodi raggiunto` };
+  if (depthOf(tree, parent.id) + 1 > MAX_DEPTH) return { ok: false, error: `Profondità massima di ${MAX_DEPTH} livelli` };
+  const proposed = patch.code ?? proposeChildCode(tree, parent.id);
+  if (!proposed) return { ok: false, error: `Nessun codice libero tra ${codeRangeLabel(codeStep(tree))} sotto ${parent.code}` };
+  const draft: TreeNode = { id: uid(), parentId: parent.id, order: node.order + 1, code: proposed.trim(), name: patch.name ?? "Nuovo nodo", categoryMode: "inherit", categoryId: null, note: "", objects: [] };
+  const next = clone(tree);
+  for (const item of next.nodes) {
+    if (item.parentId === parent.id && item.order > node.order) item.order += 1;
+  }
+  next.nodes.push(draft);
+  const issues = codeIssues(next, draft.id, draft.code);
+  if (issues.errors.length) return { ok: false, error: issues.errors[0]! };
+  return { ok: true, tree: next, node: draft };
+}
 export function updateNode(tree: Tree, id: string, patch: { code?: string; name?: string; note?: string }): TreeSuccess | TreeFailure {
   if (!nodeById(tree, id)) return { ok: false, error: "Nodo inesistente" };
   const next = clone(tree);

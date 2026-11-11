@@ -30,11 +30,13 @@
 .tree-disclosure-spacer { width: 22px; flex: none; }
 .tree-swatch { width: 8px; height: 18px; border-radius: 3px; background: var(--border-strong); flex: none; }
 .tree-label { display: flex; gap: 8px; min-width: 0; align-items: baseline; flex: 1; }
+.tree-name-line { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.tree-name-line .tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tree-label .tree-name, .tree-label .tree-name mark { font-variant-numeric: tabular-nums; font-weight: 400; }
 .tree-label .tree-code { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
 .tree-label input { background: var(--bg-app); color: var(--text-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 4px 6px; min-width: 0; font: inherit; }
 .tree-label input.tree-code-input { max-width: 140px; flex: 0 1 140px; }
-.tree-label input.tree-name-input { flex: 1; }
+.tree-name-line .tree-name-input, .tree-label input.tree-name-input { width: 14rem; max-width: 100%; flex: 0 1 auto; }
 .tree-item.is-editing { flex-wrap: wrap; }
 .tree-item.is-editing > .tree-warning { flex: 1 0 calc(100% - 36px); margin-left: 36px; min-width: 0; overflow-wrap: anywhere; }
 .tree-item.is-match .tree-name, .tree-item mark { background: transparent; color: var(--accent-secondary); }

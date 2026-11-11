@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.43.0 — Fratello, nota accanto al nome, clic fuori
+
+- «Aggiungi fratello» sta accanto a «Aggiungi figlio» nella barra, nella scheda del nodo («Fratello») e nel menu della riga. Il nodo ha lo stesso padre e si inserisce subito dopo quello selezionato: i fratelli successivi scalano di una posizione e i codici già presenti restano.
+- Il codice proposto è il prefisso del padre più la prima coppia libera, saltando i codici già usati nel file. Si modifica dopo, solo sul codice. La categoria si eredita dal padre, come per un figlio. Il nome prende subito il focus, con «Nuovo nodo» selezionato.
+- Sulla radice il comando è disattivato, con il suggerimento «La radice non ha fratelli», e la scorciatoia non fa nulla.
+- La scorciatoia è Invio, con una riga selezionata e senza una modifica in corso. Ins resta il figlio, F2 il nome, Alt ↑↓ il riordino. Invio dentro un campo conferma ancora la modifica: Ctrl+Invio non serve, perché Invio sulla riga era libero.
+- Il punto giallo «Ha una nota» sta subito dopo il testo del nome, sulla stessa riga, e non più in fondo alla riga.
+- Un clic fuori dal nome o dal codice annulla la modifica e chiude il campo, come Esc. Solo Invio salva. Su un nodo appena creato, figlio o fratello, il clic fuori non annulla l'inserimento: il nodo resta e si chiama «Nuovo nodo». I pulsanti della barra e della scheda, premuti durante la modifica, non salvano il testo ancora aperto.
+
 ## 0.42.0 — Nome e codice separati nell'albero
 
 - Il doppio clic sul nome di un nodo apre solo il nome; il doppio clic sul codice apre solo il codice. F2 e Rinomina aprono solo il nome.

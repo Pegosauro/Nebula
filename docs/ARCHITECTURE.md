@@ -1,4 +1,4 @@
-# Architettura Nebula · 0.42.0
+# Architettura Nebula · 0.43.0
 
 ## Moduli e responsabilità
 
@@ -11,6 +11,16 @@
 | Knowledge e ricerca | Indici derivati dai file, risoluzione dei collegamenti e ricerca |
 | Filesystem e storage | File reali del Vault; IndexedDB per handle, cache degli indici |
 | Worker locali | Indicizzazione e calcolo delle configurazioni |
+
+## Strutture 0.43.0
+
+`addSibling` inserisce un nodo con lo stesso `parentId` del nodo selezionato e `order` subito successivo: i fratelli con ordine maggiore scalano di uno, i codici esistenti non cambiano. Il codice proposto resta `proposeChildCode` (prefisso del padre e prima coppia libera, anche se il codice è già usato altrove nel file). La categoria nasce `inherit`, come in `addChild`. Il comando passa da `edit`, quindi l'autosalvataggio a 700 ms e la cancellazione dell'istantanea di annullamento sono gli stessi di un figlio. Sulla radice `addSiblingReason` blocca il comando.
+
+Invio, senza modificatori e fuori da un campo, chiama lo stesso comando. Ins, F2, Alt ↑↓, Ctrl M, Ctrl Z, Ctrl F e Ctrl O restano quelli di prima. Invio dentro il campo aperto conferma ancora solo quel campo.
+
+Il punto «Ha una nota» è nel gruppo del nome, subito dopo il testo, non in fondo alla riga.
+
+Il blur di nome o codice chiude la modifica senza scrivere, come Esc. Solo Invio chiama `updateNode` o conferma l'inserimento col valore digitato. Se il blur interrompe un inserimento ancora aperto, il nodo viene comunque creato con il codice proposto e il nome «Nuovo nodo»: l'inserimento non si annulla. I pulsanti della barra e della scheda scartano il testo non confermato prima di eseguire l'azione.
 
 ## Strutture 0.42.0
 

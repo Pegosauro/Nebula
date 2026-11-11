@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { isConfiguratorPath } from "../configurator/model";
 import { demoTree } from "./demoTree";
 import {
-  addChild, canonicalTree, childrenOf, codeIssues, deleteCategory, deleteConfirmText, deleteNode, descendantCount, dropDestination, effectiveCategory,
+  addChild, addSibling, canonicalTree, childrenOf, codeIssues, deleteCategory, deleteConfirmText, deleteNode, descendantCount, dropDestination, effectiveCategory,
   inheritFromParent, inspectTree, isTreePath, newTree, parseTree, planMove, principalCategory, proposeChildCode,
   reorderSibling, setNodeCategory, updateCategory, updateNode, upsertObject, type Tree,
 } from "./model";
@@ -99,6 +99,59 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(result.node.categoryMode).toBe("inherit");
     const children = result.tree.nodes.filter(node => node.parentId === "n-07").sort((a, b) => a.order - b.order);
     expect(children.at(-1)?.id).toBe(result.node.id);
+  });
+
+  it("inserisce un fratello subito dopo, propone la prima coppia libera e non cambia i codici", () => {
+    const source = demoTree();
+    const snapshot = serializeTree(source);
+    const before = childrenOf(source, "n-07").map(node => ({ id: node.id, order: node.order, code: node.code }));
+    const rootBefore = childrenOf(source, "n-root").map(node => ({ id: node.id, order: node.order, code: node.code }));
+    const result = addSibling(source, "n-0701");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(serializeTree(source)).toBe(snapshot);
+    expect(result.node.code).toBe("FL-0703");
+    expect(result.node.name).toBe("Nuovo nodo");
+    expect(result.node.parentId).toBe("n-07");
+    expect(result.node.categoryMode).toBe("inherit");
+    expect(result.node.categoryId).toBeNull();
+    expect(effectiveCategory(result.tree, result.node.id)).toBe("c-dim");
+    const children = childrenOf(result.tree, "n-07");
+    expect(children.map(node => node.id)).toEqual([before[0]!.id, result.node.id, before[1]!.id]);
+    expect(children.map(node => node.order)).toEqual([before[0]!.order, before[0]!.order + 1, before[1]!.order + 1]);
+    expect(children.map(node => node.code)).toEqual([before[0]!.code, "FL-0703", before[1]!.code]);
+    expect(childrenOf(result.tree, "n-root").map(node => node.code)).toEqual(rootBefore.map(node => node.code));
+    const shifted = addSibling(source, "n-04");
+    expect(shifted.ok).toBe(true);
+    if (!shifted.ok) return;
+    expect(shifted.node.code).toBe("FL-02");
+    const root = childrenOf(shifted.tree, "n-root");
+    const at = rootBefore.findIndex(node => node.id === "n-04");
+    expect(root.map(node => node.id).slice(at, at + 3)).toEqual([rootBefore[at]!.id, shifted.node.id, rootBefore[at + 1]!.id]);
+    expect(root.find(node => node.id === "n-47")!.order).toBe(rootBefore.find(node => node.id === "n-47")!.order + 1);
+    expect(root.find(node => node.id === "n-47")!.code).toBe("FL-47");
+    expect(root.find(node => node.id === "n-04")!.code).toBe("FL-04");
+    const skipped = addSibling(source, "n-0901");
+    expect(skipped.ok).toBe(true);
+    if (!skipped.ok) return;
+    expect(skipped.node.code).toBe("FL-0908");
+    const blocked = addSibling(source, "n-root");
+    expect(blocked.ok).toBe(false);
+    if (blocked.ok) return;
+    expect(blocked.error).toMatch(/radice/);
+    let narrow = newTree("t", "A", "A");
+    narrow = { ...narrow, codeStep: 1 };
+    for (let index = 0; index < 9; index += 1) {
+      const added = addChild(narrow, narrow.rootId);
+      expect(added.ok).toBe(true);
+      if (!added.ok) return;
+      narrow = added.tree;
+    }
+    const first = childrenOf(narrow, narrow.rootId)[0]!;
+    const full = addSibling(narrow, first.id);
+    expect(full.ok).toBe(false);
+    if (full.ok) return;
+    expect(full.error).toContain("Nessun codice libero");
   });
 
   it("propone FL-02 come prima coppia libera sotto la radice", () => {

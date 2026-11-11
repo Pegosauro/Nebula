@@ -62,17 +62,14 @@ test("nome e codice si modificano separatamente", async ({ page }, testInfo) => 
   await expect(model.locator(".tree-code")).toHaveText("FL-04");
   await expect(page.getByLabel("Codice di FL-04")).toHaveCount(0);
   await name.fill("Modello in modifica");
+  await editing(page, "Nome di FL-04").screenshot({ path: shot(project, "name-only-editing") });
   await name.blur();
-  await expect(name).toBeVisible();
-  await expect(name).toHaveValue("Modello in modifica");
+  await expect(page.getByLabel("Nome di FL-04")).toHaveCount(0);
+  await expect(model.locator(".tree-name")).toHaveText("Modello");
   await openSheet(page);
   await expect(page.getByLabel("Nome del nodo")).toHaveValue("Modello");
   await expect(page.getByLabel("Codice del nodo")).toHaveValue("FL-04");
   await closeSheet(page);
-  await editing(page, "Nome di FL-04").screenshot({ path: shot(project, "name-only-editing") });
-  await name.press("Escape");
-  await expect(model.locator(".tree-name")).toHaveText("Modello");
-  await expect(model.locator("input")).toHaveCount(0);
 
   await model.locator(".tree-code").dblclick();
   const code = page.getByLabel("Codice di FL-04");
