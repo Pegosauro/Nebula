@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link2, Plus, Star, Trash2, X } from "lucide-react";
-import { codeIssues, effectiveCategories, inheritSource, leafDeleteError, principalCategory, readableOn, type Tree, type TreeNode, type TreeObject } from "./model";
+import { codeIssues, effectiveCategories, inheritSource, leafDeleteError, moveCommandReason, principalCategory, readableOn, type Tree, type TreeNode, type TreeObject } from "./model";
 import { objectLeafText, objectPresentation } from "./objectIcons";
 import type { NodeDraft } from "./TreeOutline";
 
@@ -17,6 +17,7 @@ interface NodePanelProps {
   onUndoDetach: () => void;
   onAddChild: () => void;
   onRename: () => void;
+  onMove: () => void;
   onDelete: () => void;
   onAddObject: () => void;
   onEditObject: (object: TreeObject) => void;
@@ -27,10 +28,10 @@ interface NodePanelProps {
   draftError?: string;
 }
 
-export function NodePanel({ tree, node, adding, detach, onCode, onName, onNote, onCategories, onInherit, onUndoDetach, onAddChild, onRename, onDelete, onAddObject, onEditObject, onKind, onRemoveObject, onManageCategories, onDraftChange, draftError }: NodePanelProps) {
+export function NodePanel({ tree, node, adding, detach, onCode, onName, onNote, onCategories, onInherit, onUndoDetach, onAddChild, onRename, onMove, onDelete, onAddObject, onEditObject, onKind, onRemoveObject, onManageCategories, onDraftChange, draftError }: NodePanelProps) {
   if (adding) return <DraftPanel tree={tree} draft={adding} error={draftError} onChange={onDraftChange} onCategories={onManageCategories} />;
   if (!node) return <aside className="tree-panel"><p className="tree-muted">Seleziona un nodo.</p></aside>;
-  return <SelectedPanel tree={tree} node={node} detach={detach?.nodeId === node.id ? detach : null} onCode={onCode} onName={onName} onNote={onNote} onCategories={onCategories} onInherit={onInherit} onUndoDetach={onUndoDetach} onAddChild={onAddChild} onRename={onRename} onDelete={onDelete} onAddObject={onAddObject} onEditObject={onEditObject} onKind={onKind} onRemoveObject={onRemoveObject} onManageCategories={onManageCategories} />;
+  return <SelectedPanel tree={tree} node={node} detach={detach?.nodeId === node.id ? detach : null} onCode={onCode} onName={onName} onNote={onNote} onCategories={onCategories} onInherit={onInherit} onUndoDetach={onUndoDetach} onAddChild={onAddChild} onRename={onRename} onMove={onMove} onDelete={onDelete} onAddObject={onAddObject} onEditObject={onEditObject} onKind={onKind} onRemoveObject={onRemoveObject} onManageCategories={onManageCategories} />;
 }
 
 function DraftPanel({ tree, draft, error, onChange, onCategories }: { tree: Tree; draft: NodeDraft; error?: string; onChange: (draft: NodeDraft) => void; onCategories: () => void }) {
@@ -53,7 +54,7 @@ function DraftPanel({ tree, draft, error, onChange, onCategories }: { tree: Tree
 }
 
 function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | "draftError"> & { node: TreeNode; detach: { nodeId: string; from: string } | null }) {
-  const { tree, node, detach, onCode, onName, onNote, onCategories, onInherit, onUndoDetach, onAddChild, onRename, onDelete, onAddObject, onEditObject, onKind, onRemoveObject, onManageCategories } = props;
+  const { tree, node, detach, onCode, onName, onNote, onCategories, onInherit, onUndoDetach, onAddChild, onRename, onMove, onDelete, onAddObject, onEditObject, onKind, onRemoveObject, onManageCategories } = props;
   const [code, setCode] = useState(node.code);
   const [codeError, setCodeError] = useState<string>();
   useEffect(() => { setCode(node.code); setCodeError(undefined); }, [node.id, node.code]);
@@ -62,6 +63,7 @@ function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | 
   const source = inheritSource(tree, node.id);
   const inherited = node.categoryMode === "inherit" && node.parentId != null;
   const deleteReason = leafDeleteError(tree, node.id);
+  const moveReason = moveCommandReason(tree, node.id);
   const principal = principalCategory(tree, node.id);
   const commitCode = () => {
     if (code.trim() === node.code) { setCodeError(undefined); return; }
@@ -126,6 +128,7 @@ function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | 
       <div className="tree-row-actions tree-node-actions">
         <button type="button" className="button" onClick={onAddChild}><Plus size={15} />Figlio</button>
         <button type="button" className="button" onClick={onRename}>Rinomina</button>
+        <button type="button" className="button" disabled={Boolean(moveReason)} title={moveReason ?? "Scegli il nuovo padre"} onClick={onMove}>Sposta in…</button>
         <button type="button" className="button tree-danger" disabled={Boolean(deleteReason)} title={deleteReason} onClick={onDelete}><Trash2 size={15} />Elimina</button>
       </div>
       {deleteReason && <p className="tree-muted">{deleteReason}</p>}

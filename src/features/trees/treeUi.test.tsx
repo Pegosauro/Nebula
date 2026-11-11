@@ -83,4 +83,62 @@ describe("vista Strutture", () => {
     expect(host.textContent).toContain("già usata");
     expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!.objects).toHaveLength(3);
   });
+
+  it("anteprima di Sposta in, blocco del conflitto, annulla e riordino senza rinumerare", async () => {
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 40, lastModified: 1 });
+    vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 41, lastModified: 2 });
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => { root!.render(<TreeView path={path} />); });
+    await act(async () => { await Promise.resolve(); });
+    expect(button("Sposta in…").hasAttribute("disabled")).toBe(true);
+    await clickTreeItem("FL-07");
+    await click("Sposta in…");
+    const dialog = host!.querySelector("dialog");
+    if (!dialog) throw new Error("Manca la finestra Sposta in");
+    await clickOption(dialog, "FL-12");
+    expect(dialog.textContent).toContain("FL-1201");
+    expect(dialog.textContent).toContain("FL-120101");
+    expect(dialog.textContent).toContain("FL-120102");
+    await act(async () => dialog.querySelector<HTMLButtonElement>("button.button-primary")?.click());
+    const moved = useTreeStore.getState().sessions[path]!.data;
+    expect(moved.nodes.find(node => node.id === "n-07")!.code).toBe("FL-1201");
+    expect(moved.nodes.find(node => node.id === "n-0701")!.code).toBe("FL-120101");
+    expect(moved.nodes.find(node => node.id === "n-07")!.parentId).toBe("n-12");
+    await click("Annulla spostamento");
+    expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-07")!.code).toBe("FL-07");
+    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    await click("Espandi FL-08");
+    await clickTreeItem("FL-0804");
+    await click("Sposta in…");
+    const blocked = host!.querySelector("dialog");
+    if (!blocked) throw new Error("Manca la finestra del conflitto");
+    await clickOption(blocked, "FL-09");
+    expect(blocked.textContent).toContain("FL-0907");
+    expect(blocked.querySelector<HTMLButtonElement>("button.button-primary")?.disabled).toBe(true);
+    expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0804")!.code).toBe("FL-0804");
+    await act(async () => [...blocked.querySelectorAll("button")].find(item => item.textContent === "Annulla")?.click());
+    await clickTreeItem("FL-04");
+    const workspace = host!.querySelector(".tree-workspace");
+    await act(async () => workspace?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", altKey: true, bubbles: true })));
+    const reordered = useTreeStore.getState().sessions[path]!.data;
+    const ids = reordered.nodes.filter(node => node.parentId === "n-root").sort((a, b) => a.order - b.order).map(node => node.id);
+    expect(ids.indexOf("n-04")).toBe(ids.indexOf("n-47") + 1);
+    expect(reordered.nodes.find(node => node.id === "n-04")!.code).toBe("FL-04");
+    await click("Annulla spostamento");
+    const restored = useTreeStore.getState().sessions[path]!.data.nodes.filter(node => node.parentId === "n-root").sort((a, b) => a.order - b.order).map(node => node.id);
+    expect(restored.indexOf("n-04")).toBeLessThan(restored.indexOf("n-47"));
+  });
 });
+
+async function clickTreeItem(text: string) {
+  const row = [...host!.querySelectorAll('[role="treeitem"]')].find(item => item.querySelector("strong")?.textContent === text);
+  if (!row) throw new Error(`Nodo non trovato: ${text}`);
+  await act(async () => row.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+}
+async function clickOption(dialog: Element, code: string) {
+  const option = [...dialog.querySelectorAll("button")].find(item => item.querySelector("strong")?.textContent === code);
+  if (!option) throw new Error(`Destinazione non trovata: ${code}`);
+  await act(async () => option.click());
+}

@@ -103,3 +103,43 @@
   .tree-heading-actions, .tree-toolbar .button span { font-size: .85rem; }
   .tree-main { padding: 12px 10px 80px; }
 }
+.tree-grip { width: 18px; height: 22px; display: grid; place-items: center; flex: none; color: var(--text-muted); border-radius: 4px; cursor: grab; touch-action: manipulation; }
+.tree-grip:active { cursor: grabbing; }
+.tree-item.is-dragging { opacity: .4; }
+.tree-item.is-drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+.tree-item.is-drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+.tree-item.is-drop-inside { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.tree-item.is-drop-no { box-shadow: inset 0 0 0 2px var(--danger); }
+.tree-item.is-renamed strong { color: var(--success); }
+.tree-outline { position: relative; }
+.tree-drop-hint { position: absolute; z-index: 2; left: 12px; top: 8px; margin: 0; pointer-events: none; font-size: .8rem; color: var(--accent-hover); background: var(--bg-panel); border: 1px solid var(--accent); border-radius: 6px; padding: 3px 8px; }
+.tree-banner { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; padding: 9px 12px; border-radius: 9px; background: color-mix(in srgb, var(--success) 12%, var(--bg-panel)); border: 1px solid color-mix(in srgb, var(--success) 45%, transparent); }
+.tree-banner.is-info { background: var(--bg-elevated); border-color: var(--border-strong); }
+.tree-banner.is-err { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+.tree-banner-copy { flex: 1; min-width: 180px; }
+.tree-banner-copy p { margin: 0; overflow-wrap: anywhere; }
+.tree-banner-close { border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; width: 28px; height: 28px; display: grid; place-items: center; }
+.tree-rename-table { width: 100%; border-collapse: collapse; font-size: .82rem; margin-top: 8px; }
+.tree-rename-table th, .tree-rename-table td { text-align: left; padding: 3px 8px 3px 0; }
+.tree-old-code { color: #ff9b9b; text-decoration: line-through; font-variant-numeric: tabular-nums; }
+.tree-new-code { color: var(--success); font-weight: 650; font-variant-numeric: tabular-nums; }
+.tree-move-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; min-height: 0; }
+.tree-dest-list, .tree-move-preview { min-width: 0; max-height: 46vh; overflow: auto; border: 1px solid var(--border); border-radius: 8px; padding: 4px; }
+.tree-move-preview { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.tree-move-preview h3 { margin: 0; font-size: .92rem; }
+.tree-dest { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; border-radius: 7px; padding: 7px 8px; cursor: pointer; font: inherit; }
+.tree-dest[aria-selected="true"] { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.tree-dest:disabled { opacity: .45; cursor: not-allowed; }
+.tree-dest small, .tree-context small { flex-basis: 100%; color: var(--text-muted); font-size: .75rem; }
+.tree-move-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.tree-move-badges span { border-radius: 999px; padding: 2px 8px; background: var(--bg-elevated); font-size: .78rem; }
+.tree-color-change { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.tree-context { position: fixed; z-index: 70; min-width: 220px; max-width: min(320px, calc(100vw - 16px)); display: flex; flex-direction: column; gap: 2px; padding: 6px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg-panel); box-shadow: var(--shadow-float); }
+.tree-context button { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; border-radius: 6px; padding: 7px 8px; cursor: pointer; font: inherit; }
+.tree-context button:hover:not(:disabled) { background: var(--bg-hover); }
+.tree-context button:disabled { opacity: .45; cursor: not-allowed; }
+.tree-context p { margin: 4px 6px 2px; color: var(--text-secondary); font-size: .75rem; }
+@media (max-width: 720px) {
+  .tree-move-grid { grid-template-columns: 1fr; }
+  .tree-dest-list, .tree-move-preview { max-height: 28vh; }
+}

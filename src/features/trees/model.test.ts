@@ -4,13 +4,13 @@ import { describe, expect, it } from "vitest";
 import { isConfiguratorPath } from "../configurator/model";
 import { demoTree } from "./demoTree";
 import {
-  addChild, canonicalTree, codeIssues, deleteCategory, deleteLeaf, effectiveCategories, inheritFromParent,
-  inspectTree, isTreePath, newTree, parseTree, proposeChildCode, setNodeCategories, updateNode, upsertObject,
-  type Tree,
+  addChild, canonicalTree, childrenOf, codeIssues, deleteCategory, deleteLeaf, dropDestination, effectiveCategories,
+  inheritFromParent, inspectTree, isTreePath, newTree, parseTree, planMove, principalCategory, proposeChildCode,
+  reorderSibling, setNodeCategories, updateCategory, updateNode, upsertObject, type Tree,
 } from "./model";
 import { serializeTree, serializeTreeFile } from "./serializeTree";
 
-/** Portati da test-logica.mjs (21 test nodo). Quelli di spostamento, rinumerazione e annulla restano per la PR2. */
+/** Portati da test-logica.mjs. I criteri 6 e 8 restano qui come regressione; lo spostamento è nella sezione sotto. */
 const code = (tree: Tree, id: string) => tree.nodes.find(node => node.id === id)!.code;
 
 describe("regole dell'albero nebula-tree v1", () => {
@@ -87,6 +87,15 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(blocked.ok).toBe(false);
     if (blocked.ok) return;
     expect(blocked.error).toContain("Nessun codice libero");
+    const parent = tree.nodes.find(node => node.parentId === tree.rootId)!;
+    const nested = addChild(tree, parent.id);
+    expect(nested.ok).toBe(true);
+    if (!nested.ok) return;
+    const leaf = nested.tree.nodes.find(node => node.parentId === parent.id)!;
+    const moved = planMove(nested.tree, leaf.id, nested.tree.rootId);
+    expect(moved.ok).toBe(false);
+    expect(moved.tree).toBeNull();
+    expect(moved.errors[0]).toContain("Nessun codice libero");
   });
 
   it("avvisa se il codice è fuori prefisso e blocca il duplicato", () => {
@@ -160,5 +169,107 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(isConfiguratorPath("Strutture/FL.tree.json")).toBe(false);
     expect(isTreePath("Strutture/FL.tree.json")).toBe(true);
     expect(code(demoTree(), "n-07")).toBe("FL-07");
+  });
+
+  it("sposta FL-07 sotto FL-12 e rinumera il nodo e i figli conformi", () => {
+    const source = demoTree();
+    const plan = planMove(source, "n-07", "n-12");
+    expect(plan.ok).toBe(true);
+    expect(plan.tree).not.toBeNull();
+    expect(code(plan.tree!, "n-07")).toBe("FL-1201");
+    expect(code(plan.tree!, "n-0701")).toBe("FL-120101");
+    expect(code(plan.tree!, "n-0702")).toBe("FL-120102");
+    expect(plan.renames).toHaveLength(3);
+    expect(code(source, "n-07")).toBe("FL-07");
+    expect(source.nodes.find(node => node.id === "n-07")!.parentId).toBe("n-root");
+  });
+
+  it("lascia invariato un codice libero e i suoi discendenti, con avviso fuori prefisso", () => {
+    const plan = planMove(demoTree(), "n-x1", "n-12");
+    expect(plan.ok).toBe(true);
+    expect(code(plan.tree!, "n-x1")).toBe("X-1");
+    expect(code(plan.tree!, "n-x1a")).toBe("X-101");
+    expect(plan.renames).toHaveLength(0);
+    expect(plan.warnings.some(warning => warning.includes("fuori prefisso"))).toBe(true);
+    expect(inspectTree(plan.tree!).warnings.some(issue => issue.nodeId === "n-x1")).toBe(true);
+  });
+
+  it("blocca lo spostamento se il nuovo codice coincide con uno già nel file", () => {
+    const source = demoTree();
+    const plan = planMove(source, "n-0804", "n-09");
+    expect(plan.ok).toBe(false);
+    expect(plan.tree).toBeNull();
+    expect(plan.errors.some(error => error.includes("FL-0907") && error.includes("FL-19"))).toBe(true);
+    expect(code(source, "n-0804")).toBe("FL-0804");
+  });
+
+  it("riordinare nello stesso padre non cambia nessun codice", () => {
+    const source = demoTree();
+    const plan = planMove(source, "n-0803", "n-08", 0);
+    expect(plan.ok && plan.sameParent).toBe(true);
+    expect(plan.renames).toHaveLength(0);
+    expect(plan.tree!.nodes.map(node => node.code)).toEqual(source.nodes.map(node => node.code));
+    expect(childrenOf(plan.tree!, "n-08")[0]?.id).toBe("n-0803");
+    const down = reorderSibling(source, "n-04", 1);
+    expect(down?.ok && down.sameParent).toBe(true);
+    expect(down?.renames).toHaveLength(0);
+    const order = childrenOf(down!.tree!, "n-root").map(node => node.id);
+    expect(order.indexOf("n-04")).toBe(order.indexOf("n-47") + 1);
+    expect(code(down!.tree!, "n-04")).toBe("FL-04");
+    expect(dropDestination(source, "n-07", "n-12", "inside")).toEqual({ parentId: "n-12", index: null });
+    const withoutDragged = childrenOf(source, "n-root").filter(node => node.id !== "n-04");
+    expect(dropDestination(source, "n-04", "n-47", "before")).toEqual({ parentId: "n-root", index: withoutDragged.findIndex(node => node.id === "n-47") });
+  });
+
+  it("un inherit spostato prende subito le categorie del nuovo padre, un own le tiene", () => {
+    const colored = updateCategory(demoTree(), "c-mot", { color: "#e5534b" });
+    expect(colored.ok).toBe(true);
+    if (!colored.ok) return;
+    const inherited = planMove(colored.tree, "n-0801", "n-12");
+    expect(inherited.ok).toBe(true);
+    expect(effectiveCategories(inherited.tree!, "n-0801")).toEqual(["c-mot"]);
+    expect(inherited.catChanged).toEqual(["n-0801"]);
+    expect(principalCategory(inherited.tree!, "n-0801")?.color).toBe("#e5534b");
+    expect(inherited.tree!.nodes.find(node => node.id === "n-0801")!.categoryMode).toBe("inherit");
+    const own = planMove(colored.tree, "n-0803", "n-12");
+    expect(own.ok).toBe(true);
+    expect(effectiveCategories(own.tree!, "n-0803")).toEqual(["c-dim", "c-ins", "c-avv"]);
+    expect(own.catChanged).toHaveLength(0);
+    expect(own.tree!.nodes.find(node => node.id === "n-0803")!.categoryMode).toBe("own");
+    expect(principalCategory(own.tree!, "n-0803")?.color).toBe("#22d3ee");
+  });
+
+  it("lo snapshot precedente allo spostamento resta identico e distinto dal risultato", () => {
+    const source = demoTree();
+    const snapshot = serializeTree(source);
+    const plan = planMove(source, "n-07", "n-12");
+    expect(plan.ok).toBe(true);
+    expect(serializeTree(plan.tree!)).not.toBe(snapshot);
+    expect(serializeTree(source)).toBe(snapshot);
+  });
+
+  it("vieta di spostare la radice o un nodo dentro se stesso o un discendente", () => {
+    const source = demoTree();
+    expect(planMove(source, "n-08", "n-0803").ok).toBe(false);
+    expect(planMove(source, "n-08", "n-0803").errors[0]).toMatch(/discendente/);
+    expect(planMove(source, "n-08", "n-08").ok).toBe(false);
+    expect(planMove(source, "n-root", "n-07").ok).toBe(false);
+    expect(planMove(source, "n-root", "n-07").errors[0]).toMatch(/radice/);
+  });
+
+  it("un discendente con codice libero interrompe la catena di rinumerazione", () => {
+    const first = addChild(demoTree(), "n-0701", { code: "ZZ", name: "libero" });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const freeNode = first.tree.nodes.find(node => node.code === "ZZ")!;
+    const second = addChild(first.tree, freeNode.id, { code: "ZZ01", name: "sotto libero" });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    const plan = planMove(second.tree, "n-07", "n-12");
+    expect(plan.ok).toBe(true);
+    expect(code(plan.tree!, "n-07")).toBe("FL-1201");
+    expect(code(plan.tree!, "n-0701")).toBe("FL-120101");
+    expect(plan.tree!.nodes.find(node => node.id === freeNode.id)!.code).toBe("ZZ");
+    expect(plan.tree!.nodes.some(node => node.code === "ZZ01")).toBe(true);
   });
 });

@@ -8,11 +8,13 @@ import { useWorkspaceStore } from "../workspace/workspaceStore";
 import { inspectTree, parseTree, type Tree } from "./model";
 import { serializeTree, serializeTreeFile } from "./serializeTree";
 
-interface Session { data: Tree; saved: string; expected: ExpectedFileMetadata; error?: string; conflict: boolean; saving: boolean }
+interface Session { data: Tree; saved: string; expected: ExpectedFileMetadata; error?: string; conflict: boolean; saving: boolean; moveUndo?: { before: Tree } }
 interface State {
   sessions: Record<string, Session>;
   load: (path: string, force?: boolean) => Promise<void>;
   edit: (path: string, data: Tree) => void;
+  applyMove: (path: string, data: Tree) => void;
+  undoMove: (path: string) => boolean;
   save: (path: string) => Promise<boolean>;
   flush: (path?: string) => Promise<boolean>;
   reset: () => void;
@@ -29,6 +31,21 @@ let generation = 0;
 
 function dirty(session: Session | undefined): boolean {
   return Boolean(session && serializeTree(session.data) !== session.saved);
+}
+
+function commitSession(set: (partial: Partial<State> | ((state: State) => Partial<State>)) => void, get: () => State, path: string, data: Tree, moveUndo: Session["moveUndo"] | null) {
+  if (!get().sessions[path]) return;
+  set(state => {
+    const session = state.sessions[path];
+    if (!session) return state;
+    const next: Session = { ...session, data, error: session.conflict ? session.error : undefined };
+    if (moveUndo) next.moveUndo = moveUndo;
+    else delete next.moveUndo;
+    return { sessions: { ...state.sessions, [path]: next } };
+  });
+  if (get().sessions[path]?.conflict) return;
+  clearTimeout(timers.get(path));
+  timers.set(path, setTimeout(() => { timers.delete(path); void get().save(path); }, 700));
 }
 
 export const useTreeStore = create<State>((set, get) => ({
@@ -54,16 +71,17 @@ export const useTreeStore = create<State>((set, get) => ({
     loading.set(path, task);
     try { await task; } finally { if (loading.get(path) === task) loading.delete(path); }
   },
-  edit: (path, data) => {
+  edit: (path, data) => { commitSession(set, get, path, data, null); },
+  applyMove: (path, data) => {
     const current = get().sessions[path];
     if (!current) return;
-    set(state => {
-      const session = state.sessions[path];
-      return session ? { sessions: { ...state.sessions, [path]: { ...session, data, error: session.conflict ? session.error : undefined } } } : state;
-    });
-    if (get().sessions[path]?.conflict) return;
-    clearTimeout(timers.get(path));
-    timers.set(path, setTimeout(() => { timers.delete(path); void get().save(path); }, 700));
+    commitSession(set, get, path, data, { before: current.data });
+  },
+  undoMove: path => {
+    const current = get().sessions[path];
+    if (!current?.moveUndo) return false;
+    commitSession(set, get, path, current.moveUndo.before, null);
+    return true;
   },
   save: async path => {
     clearTimeout(timers.get(path));

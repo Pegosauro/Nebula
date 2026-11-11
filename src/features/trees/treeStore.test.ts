@@ -3,7 +3,7 @@ import { ExternalFileConflictError } from "../../infrastructure/filesystem/vault
 import { vaultService } from "../vault/vaultService";
 import { treeSaveStatus } from "../workspace/saveStatus";
 import { demoTree } from "./demoTree";
-import { newTree, upsertObject } from "./model";
+import { newTree, planMove, upsertObject } from "./model";
 import { serializeTree, serializeTreeFile } from "./serializeTree";
 import { useTreeStore } from "./treeStore";
 import { useTreeUiStore } from "./treeUiStore";
@@ -73,6 +73,36 @@ describe("sessioni delle strutture", () => {
     finish(snapshot());
     await pending;
     expect(useTreeStore.getState().sessions).toEqual({});
+  });
+
+  it("annulla l'ultimo spostamento con una scrittura e lo dimentica alla modifica successiva", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 20, lastModified: 1 });
+    const write = vi.spyOn(vaultService, "writeText").mockImplementation(async (_path, content) => ({ size: content.length, lastModified: 2 }));
+    await useTreeStore.getState().load(path);
+    const before = serializeTree(useTreeStore.getState().sessions[path]!.data);
+    const plan = planMove(useTreeStore.getState().sessions[path]!.data, "n-07", "n-12");
+    expect(plan.tree).not.toBeNull();
+    useTreeStore.getState().applyMove(path, plan.tree!);
+    expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-07")!.code).toBe("FL-1201");
+    expect(useTreeStore.getState().undoMove(path)).toBe(true);
+    expect(serializeTree(useTreeStore.getState().sessions[path]!.data)).toBe(before);
+    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(write).not.toHaveBeenCalled();
+    useTreeStore.getState().applyMove(path, plan.tree!);
+    await vi.advanceTimersByTimeAsync(700);
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(useTreeStore.getState().undoMove(path)).toBe(true);
+    await vi.advanceTimersByTimeAsync(700);
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(write.mock.calls[1]?.[1]).toContain("\"code\": \"FL-0701\"");
+    expect(write.mock.calls[1]?.[1]).not.toContain("FL-120101");
+    const again = planMove(useTreeStore.getState().sessions[path]!.data, "n-07", "n-12");
+    useTreeStore.getState().applyMove(path, again.tree!);
+    useTreeStore.getState().edit(path, { ...useTreeStore.getState().sessions[path]!.data, title: "Toccato" });
+    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    expect(useTreeStore.getState().undoMove(path)).toBe(false);
   });
 
   it("tiene lo stato di vista fuori dal file", () => {
