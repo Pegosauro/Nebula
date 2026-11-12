@@ -110,6 +110,47 @@ it("blocca gli spostamenti fuori modalità e limita la formattazione ai nomi", a
   expect(button("Colore testo per Dimensioni")!.getAttribute("aria-pressed")).toBe("false");
 });
 
+it("mostra l'anteprima dal menu o dalla barra e duplica un ramo con un solo passo di annulla/ripristina", async () => {
+  await mount(); await click(row("n-08"));
+  const data = () => useTreeStore.getState().sessions[path]!.data;
+  const before = serializeTree(data());
+  await act(async () => { row("n-08")!.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 })); });
+  await click(button("Duplica nodo o ramo…"));
+  expect(host.querySelector("dialog caption")?.textContent).toBe("Anteprima dei nuovi codici");
+  expect(host.querySelector("dialog tbody")?.textContent).toContain("FL-0204");
+  expect(host.querySelectorAll("dialog tbody tr")).toHaveLength(5);
+  expect(serializeTree(data())).toBe(before);
+  await click(button("Annulla"));
+  expect(serializeTree(data())).toBe(before);
+  await click(button("Duplica nodo…"));
+  await click(host.querySelector('dialog input[type="checkbox"]'));
+  expect(host.querySelectorAll("dialog tbody tr")).toHaveLength(1);
+  await click(host.querySelector('dialog input[type="checkbox"]'));
+  const preview = [...host.querySelectorAll("dialog tbody tr")].map(tr => tr.children[1]!.textContent);
+  await click(button("Conferma duplicazione"));
+  expect(host.querySelector("dialog")).toBeNull();
+  const copied = data().nodes.slice(demoTree().nodes.length);
+  expect(copied.map(node => node.code)).toEqual(preview);
+  expect(copied.find(node => node.code === "FL-0203")?.objects).toHaveLength(3);
+  expect(copied.find(node => node.code === "FL-0203")?.note).toBe("Altezza utile in mm, da sotto cassonetto.");
+  expect(row(copied[0]!.id)?.getAttribute("aria-selected")).toBe("true");
+  const after = serializeTree(data());
+  await click(button("Annulla ultima modifica")); expect(serializeTree(data())).toBe(before);
+  await click(button("Ripristina modifica")); expect(serializeTree(data())).toBe(after);
+});
+
+it("duplica solo la radice sotto il padre scelto senza creare una seconda radice", async () => {
+  await mount(); await click(button("Duplica nodo…"));
+  await click(host.querySelector('dialog input[type="checkbox"]'));
+  const select = host.querySelector<HTMLSelectElement>('[aria-label="Padre della copia"]')!;
+  await act(async () => { select.value = "n-08"; select.dispatchEvent(new Event("change", { bubbles: true })); });
+  expect(host.querySelector("dialog tbody")?.textContent).toContain("FL-0805");
+  await click(button("Conferma duplicazione"));
+  const tree = useTreeStore.getState().sessions[path]!.data;
+  expect(tree.nodes.filter(node => node.parentId === null)).toHaveLength(1);
+  expect(tree.nodes.at(-1)).toMatchObject({ parentId: "n-08", code: "FL-0805", name: "Tenda finestra", note: demoTree().nodes[0]!.note });
+});
+
 it("importa Nome, Categoria e Note con codici automatici e annulla/ripristina l'intero gruppo", async () => {
   await mount(); await click(row("n-07"));
   const before = serializeTree(useTreeStore.getState().sessions[path]!.data);

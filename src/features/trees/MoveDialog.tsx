@@ -179,7 +179,7 @@ function destinationRows(tree: Tree, query: string): Array<{ id: string; depth: 
   return rows;
 }
 
-export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onSibling, onObject, onRename, onMove, onDelete, moveEnabled = true }: { tree: Tree; nodeId: string; moveEnabled?: boolean; x: number; y: number; onClose: () => void; onAdd: () => void; onSibling: () => void; onObject: () => void; onRename: () => void; onMove: () => void; onDelete: () => void }) {
+export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onSibling, onDuplicate, onObject, onRename, onMove, onDelete, moveEnabled = true }: { tree: Tree; nodeId: string; moveEnabled?: boolean; x: number; y: number; onClose: () => void; onAdd: () => void; onSibling: () => void; onDuplicate: () => void; onObject: () => void; onRename: () => void; onMove: () => void; onDelete: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [point, setPoint] = useState({ x, y });
   const node = nodeById(tree, nodeId);
@@ -206,6 +206,7 @@ export function NodeContextMenu({ tree, nodeId, x, y, onClose, onAdd, onSibling,
       <button type="button" role="menuitem" disabled={Boolean(siblingReason)} title={siblingReason} onClick={() => { onSibling(); onClose(); }}>Aggiungi fratello{siblingReason && <small>{siblingReason}</small>}</button>
       <button type="button" role="menuitem" onClick={() => { onObject(); onClose(); }}>Nuova caratteristica</button>
       <button type="button" role="menuitem" onClick={() => { onRename(); onClose(); }}>Rinomina</button>
+      <button type="button" role="menuitem" onClick={() => { onDuplicate(); onClose(); }}>Duplica nodo o ramo…</button>
       <button type="button" role="menuitem" disabled={Boolean(moveReason)} title={moveReason} onClick={() => { onMove(); onClose(); }}>Sposta in…{moveReason && <small>{moveReason}</small>}</button>
       <button type="button" role="menuitem" disabled={Boolean(deleteReason)} title={deleteReason} onClick={() => { onDelete(); onClose(); }}>Elimina{deleteReason && <small>{deleteReason}</small>}</button>
       <p>Invio aggiunge un fratello. Per riordinare o cambiare padre attiva prima la modalità spostamento.</p>

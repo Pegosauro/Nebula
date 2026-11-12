@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsDownUp, ChevronsUpDown, ClipboardPaste, Download, ListTree, Move, Plus, Redo2, Save, Search, Undo2, X } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, ClipboardPaste, Copy, Download, ListTree, Move, Plus, Redo2, Save, Search, Undo2, X } from "lucide-react";
 import { vaultService } from "../vault/vaultService";
 import { saveStatusLabel, saveStatusTone, treeSaveStatus } from "../workspace/saveStatus";
 import { CategoryDialog } from "./CategoryDialog";
@@ -17,6 +17,7 @@ import {
 } from "./model";
 import { serializeTreeFile } from "./serializeTree";
 import { ImportNodesDialog } from "./ImportNodesDialog";
+import { DuplicateDialog } from "./DuplicateDialog";
 import { planNodeImport } from "./importNodes";
 import { useTreeStore, type TreeEdit } from "./treeStore";
 import { useTreeUiStore, type TreeUi } from "./treeUiStore";
@@ -35,6 +36,7 @@ export default function TreeView({ path }: { path: string }) {
   const [objectFocus, setObjectFocus] = useState<{ nodeId: string; objectId?: string; list?: ObjectListKind; token: number } | null>(null);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [moveEnabled, setMoveEnabled] = useState(false);
   const [rangeSelection, setRangeSelection] = useState<string[]>([]);
   const selectionAnchor = useRef<string | null>(null);
@@ -394,6 +396,7 @@ export default function TreeView({ path }: { path: string }) {
           <button type="button" className="button button-primary" disabled={!visibleIds.length} onMouseDown={keepEditingFocus} onClick={() => { dismissUnsavedInline(); startAdd(); }}><Plus size={15} />Aggiungi figlio</button>
           <button type="button" className="button" disabled={Boolean(addSiblingReason(tree, selected.id))} title={addSiblingReason(tree, selected.id) ?? "Subito dopo il nodo selezionato (Invio)"} onMouseDown={event => { if (!addSiblingReason(tree, selected.id)) keepEditingFocus(event); }} onClick={() => { dismissUnsavedInline(); startSibling(); }}><Plus size={15} />Aggiungi fratello</button>
           <button type="button" className="button" onMouseDown={keepEditingFocus} onClick={() => { dismissUnsavedInline(); setImportOpen(true); }}><ClipboardPaste size={15} />Incolla da Excel</button>
+          <button type="button" className="button" disabled={!visibleIds.length || selectedIds.size > 1} title={selectedIds.size > 1 ? "Seleziona un solo nodo da duplicare" : "Duplica il nodo o l’intero ramo con anteprima dei codici"} onMouseDown={keepEditingFocus} onClick={() => { dismissUnsavedInline(); setDuplicatingId(selected.id); }}><Copy size={15} />Duplica nodo…</button>
           <button type="button" className={`button ${moveEnabled ? "button-primary" : ""}`} aria-pressed={moveEnabled} onClick={() => { dismissUnsavedInline(); setMoveEnabled(value => !value); setMovingId(null); }}><Move size={15} />Modalità spostamento</button>
           {moveEnabled && <button type="button" className="button" disabled={Boolean(moveCommandReason(tree, selected.id))} onClick={() => { dismissUnsavedInline(); openMove(selected.id); }}>Sposta in…</button>}
 
@@ -464,8 +467,22 @@ export default function TreeView({ path }: { path: string }) {
           add={(name, color) => { const result = addCategory(tree, name, color); if (!result.ok) return result.error; commit(result.tree, "Aggiungi categoria"); return undefined; }}
         />
       )}
+      {duplicatingId && <DuplicateDialog tree={tree} nodeId={duplicatingId} onClose={() => setDuplicatingId(null)} onDuplicate={plan => {
+        if (liveTree() !== tree) return "La struttura è cambiata. Controlla l’anteprima aggiornata prima di confermare.";
+        if (!plan.tree || !plan.copyId) return plan.errors[0] ?? "Duplicazione non disponibile.";
+        commit(plan.tree, `Duplica ${plan.rows.length === 1 ? "nodo" : "ramo"}`);
+        const open = userExpanded();
+        for (const row of plan.rows) open.add(row.id);
+        let cursor = nodeById(plan.tree, plan.copyId);
+        while (cursor) { open.add(cursor.id); cursor = cursor.parentId ? nodeById(plan.tree, cursor.parentId) : undefined; }
+        setQuery(""); setRangeSelection([plan.copyId]); selectionAnchor.current = plan.copyId;
+        persist({ expanded: [...open], selectedId: plan.copyId, categoryIds: [], categoryId: undefined });
+        setDuplicatingId(null);
+        setNotice({ kind: "ok", title: `Duplicazione completata: ${plan.rows.length} ${plan.rows.length === 1 ? "nodo copiato" : "nodi copiati"}.`, renames: [], open: false, undoLabel: "Annulla duplicazione" });
+        return undefined;
+      }} />}
       {movingId && <MoveDialog tree={tree} nodeId={movingId} onClose={() => setMovingId(null)} onConfirm={parentId => { const id = movingId; finishMove(planMove(tree, id, parentId, null), id); }} />}
-      {menu && <NodeContextMenu moveEnabled={moveEnabled} tree={tree} nodeId={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onAdd={() => startAdd(menu.id)} onSibling={() => startSibling(menu.id)} onObject={() => focusObjects(menu.id, { list: "own" })} onRename={() => startEdit(menu.id, "name")} onMove={() => openMove(menu.id)} onDelete={() => { if (deleteNodeError(tree, menu.id)) return; setConfirm({ kind: "node", id: menu.id }); }} />}
+      {menu && <NodeContextMenu moveEnabled={moveEnabled} tree={tree} nodeId={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onAdd={() => startAdd(menu.id)} onSibling={() => startSibling(menu.id)} onDuplicate={() => { dismissUnsavedInline(); setDuplicatingId(menu.id); }} onObject={() => focusObjects(menu.id, { list: "own" })} onRename={() => startEdit(menu.id, "name")} onMove={() => openMove(menu.id)} onDelete={() => { if (deleteNodeError(tree, menu.id)) return; setConfirm({ kind: "node", id: menu.id }); }} />}
       {categoryChange && <CategoryChangeDialog tree={tree} change={categoryChange} onClose={() => setCategoryChange(null)} onAccept={include => {
         const current = liveTree();
         if (!current) return;

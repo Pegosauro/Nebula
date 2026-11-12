@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.47.0 — Duplica nodo o ramo
+
+- Nuovo comando «Duplica nodo…» nella barra dell’albero e nel menu del nodo: copia il solo nodo oppure tutti i discendenti, mantenendo nomi, categorie, note, tabelle e caratteristiche.
+- Anteprima completa dei nuovi codici e scelta del padre di destinazione prima della conferma. Di base la copia viene inserita subito dopo l’originale; scegliendo un altro padre va in coda ai suoi figli.
+- Nuovi identificativi per nodi e oggetti, copie indipendenti, codici automatici univoci in tutta la struttura e controlli su profondità e numero massimo di nodi. L’intera duplicazione si annulla o ripristina in un solo passo.
+
 ## 0.46.5 — Comandi fissi e scorrimento solo dei nodi
 
 - Titolo, salvataggio, ricerca, filtri e pulsanti dell’albero restano fermi. Solo il riquadro dei nodi scorre quando il contenuto è lungo.
