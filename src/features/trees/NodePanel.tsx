@@ -29,12 +29,13 @@ interface NodePanelProps {
   focusList?: ObjectListKind;
   focusToken?: number;
   moveEnabled?: boolean;
+  onEditBlur?: () => void;
 }
 
-export function NodePanel({ tree, node, adding, onCode, onName, onNote, onCategory, onAddChild, onAddSibling, siblingReason, onRename, onMove, onDelete, onSaveObject, onRemoveObject, onManageCategories, onDraftChange, onDraftBlur, draftError, editingObjectId, focusList, focusToken, moveEnabled }: NodePanelProps) {
+export function NodePanel({ tree, node, adding, onCode, onName, onNote, onCategory, onAddChild, onAddSibling, siblingReason, onRename, onMove, onDelete, onSaveObject, onRemoveObject, onManageCategories, onDraftChange, onDraftBlur, draftError, editingObjectId, focusList, focusToken, moveEnabled, onEditBlur }: NodePanelProps) {
   if (adding) return <DraftPanel tree={tree} draft={adding} error={draftError} onChange={onDraftChange} onBlur={onDraftBlur} onCategories={onManageCategories} />;
   if (!node) return <aside className="tree-panel"><p className="tree-muted">Seleziona un nodo.</p></aside>;
-  return <SelectedPanel tree={tree} node={node} onCode={onCode} onName={onName} onNote={onNote} onCategory={onCategory} onAddChild={onAddChild} onAddSibling={onAddSibling} siblingReason={siblingReason} onRename={onRename} onMove={onMove} onDelete={onDelete} onSaveObject={onSaveObject} onRemoveObject={onRemoveObject} onManageCategories={onManageCategories} editingObjectId={editingObjectId} focusList={focusList} focusToken={focusToken} moveEnabled={moveEnabled} />;
+  return <SelectedPanel tree={tree} node={node} onCode={onCode} onName={onName} onNote={onNote} onCategory={onCategory} onAddChild={onAddChild} onAddSibling={onAddSibling} siblingReason={siblingReason} onRename={onRename} onMove={onMove} onDelete={onDelete} onSaveObject={onSaveObject} onRemoveObject={onRemoveObject} onManageCategories={onManageCategories} editingObjectId={editingObjectId} focusList={focusList} focusToken={focusToken} moveEnabled={moveEnabled} onEditBlur={onEditBlur} />;
 }
 
 export function MultiNodePanel({ tree, ids, onCategory, onManageCategories, onClear }: { tree: Tree; ids: readonly string[]; onCategory: (id: string | null) => void; onManageCategories: () => void; onClear: () => void }) {
@@ -89,7 +90,7 @@ function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | 
       <label>Codice<input aria-label="Codice del nodo" value={code} onChange={event => { setCode(event.target.value); setCodeError(undefined); }} onBlur={commitCode} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); commitCode(); } }} /></label>
       {codeError && <p role="alert" className="config-error">{codeError}</p>}
       {!codeError && code !== node.code && issues.warnings.map(warning => <p key={warning} className="tree-warning">{warning}</p>)}
-      <label>Nome<input aria-label="Nome del nodo" value={node.name} onChange={event => onName(event.target.value)} /></label>
+      <label>Nome<input aria-label="Nome del nodo" onBlur={props.onEditBlur} value={node.name} onChange={event => onName(event.target.value)} /></label>
       <div className="tree-category-head">
         <span>Categoria</span>
         {principal && <span className="tree-chip" style={{ background: principal.color, color: readableOn(principal.color) }}>{principal.name}</span>}
@@ -99,7 +100,7 @@ function SelectedPanel(props: Omit<NodePanelProps, "adding" | "onDraftChange" | 
       <div className="tree-row-actions">
         <button type="button" className="button" onMouseDown={event => event.preventDefault()} onClick={onManageCategories}>Gestisci…</button>
       </div>
-      <label>Note<textarea aria-label="Note del nodo" className={node.note.trim() ? "tree-node-note-filled" : undefined} rows={4} value={node.note} onChange={event => onNote(event.target.value)} placeholder="Testo libero" /></label>
+      <label>Note<textarea aria-label="Note del nodo" onBlur={props.onEditBlur} className={node.note.trim() ? "tree-node-note-filled" : undefined} rows={4} value={node.note} onChange={event => onNote(event.target.value)} placeholder="Testo libero" /></label>
       <InlineObjects node={node} editingId={editingObjectId} focusList={focusList} focusToken={focusToken} onSave={onSaveObject} onRemove={onRemoveObject} />
       <div className="tree-row-actions tree-node-actions">
         <button type="button" className="button" onMouseDown={event => event.preventDefault()} onClick={onAddChild}><Plus size={15} />Figlio</button>

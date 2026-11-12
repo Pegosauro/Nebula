@@ -75,7 +75,7 @@ describe("sessioni delle strutture", () => {
     expect(useTreeStore.getState().sessions).toEqual({});
   });
 
-  it("annulla l'ultimo spostamento con una scrittura e lo dimentica alla modifica successiva", async () => {
+  it("annulla lo spostamento anche dopo altre modifiche e mantiene l'autosalvataggio", async () => {
     vi.useFakeTimers();
     vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 20, lastModified: 1 });
     const write = vi.spyOn(vaultService, "writeText").mockImplementation(async (_path, content) => ({ size: content.length, lastModified: 2 }));
@@ -85,15 +85,15 @@ describe("sessioni delle strutture", () => {
     expect(plan.tree).not.toBeNull();
     useTreeStore.getState().applyMove(path, plan.tree!);
     expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-07")!.code).toBe("FL-1201");
-    expect(useTreeStore.getState().undoMove(path)).toBe(true);
+    expect(useTreeStore.getState().undo(path)).toBe(true);
     expect(serializeTree(useTreeStore.getState().sessions[path]!.data)).toBe(before);
-    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    expect(useTreeStore.getState().sessions[path]!.undoStack).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(700);
     expect(write).not.toHaveBeenCalled();
     useTreeStore.getState().applyMove(path, plan.tree!);
     await vi.advanceTimersByTimeAsync(700);
     expect(write).toHaveBeenCalledTimes(1);
-    expect(useTreeStore.getState().undoMove(path)).toBe(true);
+    expect(useTreeStore.getState().undo(path)).toBe(true);
     await vi.advanceTimersByTimeAsync(700);
     expect(write).toHaveBeenCalledTimes(2);
     expect(write.mock.calls[1]?.[1]).toContain("\"code\": \"FL-0701\"");
@@ -101,8 +101,10 @@ describe("sessioni delle strutture", () => {
     const again = planMove(useTreeStore.getState().sessions[path]!.data, "n-07", "n-12");
     useTreeStore.getState().applyMove(path, again.tree!);
     useTreeStore.getState().edit(path, { ...useTreeStore.getState().sessions[path]!.data, title: "Toccato" });
-    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
-    expect(useTreeStore.getState().undoMove(path)).toBe(false);
+    expect(useTreeStore.getState().sessions[path]!.undoStack).toHaveLength(2);
+    expect(useTreeStore.getState().undo(path)).toBe(true);
+    expect(useTreeStore.getState().undo(path)).toBe(true);
+    expect(serializeTree(useTreeStore.getState().sessions[path]!.data)).toBe(before);
   });
 
   it("annulla l'eliminazione di un ramo e ripristina ordine, codici, categorie e note", async () => {
@@ -117,9 +119,9 @@ describe("sessioni delle strutture", () => {
     expect(removed.ok).toBe(true);
     if (!removed.ok) return;
     useTreeStore.getState().applyDelete(path, removed.tree);
-    expect(useTreeStore.getState().sessions[path]!.moveUndo?.kind).toBe("delete");
+    expect(useTreeStore.getState().sessions[path]!.undoStack.at(-1)?.label).toBe("Eliminazione");
     expect(useTreeStore.getState().sessions[path]!.data.nodes.some(node => node.id === "n-0803")).toBe(false);
-    expect(useTreeStore.getState().undoMove(path)).toBe(true);
+    expect(useTreeStore.getState().undo(path)).toBe(true);
     const restored = useTreeStore.getState().sessions[path]!.data;
     expect(serializeTree(restored)).toBe(snapshot);
     expect(restored.nodes.filter(node => node.parentId === "n-root").sort((a, b) => a.order - b.order).map(node => node.id)).toEqual(order);
@@ -127,15 +129,17 @@ describe("sessioni delle strutture", () => {
     expect(note.code).toBe("FL-0803");
     expect(note.categoryId).toBe("c-dim");
     expect(note.note).toContain("Altezza utile");
-    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    expect(useTreeStore.getState().sessions[path]!.undoStack).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(700);
     expect(write).not.toHaveBeenCalled();
     useTreeStore.getState().applyDelete(path, removed.tree);
     useTreeStore.getState().edit(path, { ...useTreeStore.getState().sessions[path]!.data, title: "Toccato" });
-    expect(useTreeStore.getState().undoMove(path)).toBe(false);
+    expect(useTreeStore.getState().undo(path)).toBe(true);
+    expect(useTreeStore.getState().undo(path)).toBe(true);
+    expect(serializeTree(useTreeStore.getState().sessions[path]!.data)).toBe(snapshot);
   });
 
-  it("inserisce un fratello con edit: autosalva dopo 700 ms e dimentica l'annullamento, come un figlio", async () => {
+  it("inserisce un fratello con autosalvataggio e conserva lo storico precedente", async () => {
     vi.useFakeTimers();
     vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 20, lastModified: 1 });
     const write = vi.spyOn(vaultService, "writeText").mockImplementation(async (_path, content) => ({ size: content.length, lastModified: 2 }));
@@ -143,7 +147,7 @@ describe("sessioni delle strutture", () => {
     const plan = planMove(useTreeStore.getState().sessions[path]!.data, "n-04", "n-12");
     expect(plan.tree).not.toBeNull();
     useTreeStore.getState().applyMove(path, plan.tree!);
-    expect(useTreeStore.getState().sessions[path]!.moveUndo?.kind).toBe("move");
+    expect(useTreeStore.getState().sessions[path]!.undoStack.at(-1)?.label).toBe("Spostamento");
     const current = useTreeStore.getState().sessions[path]!.data;
     const codes = new Map(current.nodes.map(node => [node.id, node.code]));
     const orders = current.nodes.filter(node => node.parentId === "n-07").sort((a, b) => a.order - b.order);
@@ -151,8 +155,7 @@ describe("sessioni delle strutture", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     useTreeStore.getState().edit(path, result.tree);
-    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
-    expect(useTreeStore.getState().undoMove(path)).toBe(false);
+    expect(useTreeStore.getState().sessions[path]!.undoStack).toHaveLength(2);
     const saved = useTreeStore.getState().sessions[path]!.data;
     for (const [id, code] of codes) expect(saved.nodes.find(node => node.id === id)!.code).toBe(code);
     const siblings = saved.nodes.filter(node => node.parentId === "n-07").sort((a, b) => a.order - b.order);

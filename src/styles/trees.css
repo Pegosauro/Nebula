@@ -1,5 +1,5 @@
 .tree-workspace { height: 100%; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, .78fr); background: var(--bg-app); color: var(--text-primary); }
-.tree-main { min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px 16px 24px; }
+.tree-main { min-width: 0; min-height: 0; overflow: auto; scroll-padding-top: var(--tree-toolbar-height, 100px); display: flex; flex-direction: column; gap: 10px; padding: 16px 16px 24px; }
 .tree-main > * { flex-shrink: 0; }
 .tree-heading, .tree-toolbar, .tree-heading-actions, .tree-row-actions, .tree-category-head { display: flex; align-items: center; gap: 8px; }
 .tree-heading { flex-wrap: wrap; }
@@ -8,7 +8,24 @@
 .tree-heading p, .tree-kicker { margin: 0; font-size: .82rem; }
 .tree-heading-text { flex: 1; min-width: 180px; }
 .tree-heading-actions { margin-left: auto; display: flex; gap: 8px; }
-.tree-toolbar { flex-wrap: wrap; }
+.tree-toolbar { flex-wrap: wrap; position: sticky; top: 0; z-index: 25; background: var(--bg-app); padding: 8px 0; border-bottom: 1px solid var(--border); box-shadow: 0 4px 0 var(--bg-app); }
+.tree-toolbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.tree-history-controls { display: flex; gap: 4px; }
+.tree-history-controls .button { padding: 8px; }
+.tree-active-filters { flex-basis: 100%; min-width: 0; display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 2px 0; }
+.tree-active-filter { flex: none; display: inline-flex; align-items: center; gap: 6px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 8px; border: 1px solid var(--accent); border-radius: 99px; background: var(--accent-soft); color: var(--text-primary); font-size: 12px; cursor: pointer; }
+.tree-active-filters .tree-link { flex: none; white-space: nowrap; font-size: 12px; }
+.editor-dialog.tree-import-dialog { width: min(960px, calc(100vw - 32px)); }
+.tree-import-dialog .editor-dialog-inner { width: 100%; }
+.tree-import-dialog textarea { background: var(--bg-app); border: 1px solid var(--border-strong); border-radius: 6px; padding: 8px 10px; min-height: 96px; resize: vertical; }
+.tree-import-options { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.tree-import-preview { max-height: 32dvh; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
+.tree-import-preview table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tree-import-preview caption { text-align: left; font-weight: 600; padding: 8px; }
+.tree-import-preview th { position: sticky; top: 0; background: var(--bg-elevated); z-index: 1; text-align: left; }
+.tree-import-preview th, .tree-import-preview td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.tree-import-preview td { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 240px; }
+.tree-import-preview tr.has-error { background: var(--danger-soft); }
 .tree-search, .tree-filter { display: flex; align-items: center; gap: 6px; background: var(--bg-panel); border: 1px solid var(--border-strong); border-radius: 8px; padding: 0 8px; min-height: 36px; }
 .tree-search { flex: 1; min-width: 180px; }
 .tree-search input, .tree-filter select, .tree-panel input, .tree-panel textarea, .tree-panel select, .tree-dialog-body input, .tree-dialog-body select, .tree-dialog-body textarea { background: transparent; color: var(--text-primary); border: 0; min-width: 0; width: 100%; font: inherit; }

@@ -8,14 +8,18 @@ import { useWorkspaceStore } from "../workspace/workspaceStore";
 import { inspectTree, parseTree, type Tree } from "./model";
 import { serializeTree, serializeTreeFile } from "./serializeTree";
 
-interface Session { data: Tree; saved: string; expected: ExpectedFileMetadata; error?: string; conflict: boolean; saving: boolean; moveUndo?: { before: Tree; kind: "move" | "delete" } }
+export interface TreeEdit { label?: string; group?: string }
+interface HistoryEntry { data: Tree; label: string }
+interface Session { data: Tree; saved: string; expected: ExpectedFileMetadata; error?: string; conflict: boolean; saving: boolean; undoStack: HistoryEntry[]; redoStack: HistoryEntry[]; historyGroup?: { key: string; at: number } }
 interface State {
   sessions: Record<string, Session>;
   load: (path: string, force?: boolean) => Promise<void>;
-  edit: (path: string, data: Tree) => void;
+  edit: (path: string, data: Tree, edit?: TreeEdit) => void;
   applyMove: (path: string, data: Tree) => void;
   applyDelete: (path: string, data: Tree) => void;
-  undoMove: (path: string) => boolean;
+  undo: (path: string) => boolean;
+  redo: (path: string) => boolean;
+  endEditGroup: (path: string) => void;
   save: (path: string) => Promise<boolean>;
   flush: (path?: string) => Promise<boolean>;
   reset: () => void;
@@ -34,19 +38,47 @@ function dirty(session: Session | undefined): boolean {
   return Boolean(session && serializeTree(session.data) !== session.saved);
 }
 
-function commitSession(set: (partial: Partial<State> | ((state: State) => Partial<State>)) => void, get: () => State, path: string, data: Tree, moveUndo: Session["moveUndo"] | null) {
-  if (!get().sessions[path]) return;
-  set(state => {
-    const session = state.sessions[path];
-    if (!session) return state;
-    const next: Session = { ...session, data, error: session.conflict ? session.error : undefined };
-    if (moveUndo) next.moveUndo = moveUndo;
-    else delete next.moveUndo;
-    return { sessions: { ...state.sessions, [path]: next } };
-  });
+type Setter = (partial: Partial<State> | ((state: State) => Partial<State>)) => void;
+const HISTORY_LIMIT = 100;
+const HISTORY_BYTES = 8 * 1024 * 1024;
+function boundedHistory(entries: HistoryEntry[]): HistoryEntry[] {
+  let bytes = 0;
+  let start = entries.length;
+  while (start > 0 && entries.length - start < HISTORY_LIMIT) {
+    const size = serializeTree(entries[start - 1]!.data).length * 2;
+    if (start < entries.length && bytes + size > HISTORY_BYTES) break;
+    bytes += size; start -= 1;
+  }
+  return entries.slice(start);
+}
+function scheduleSave(get: () => State, path: string) {
+  clearTimeout(timers.get(path)); timers.delete(path);
   if (get().sessions[path]?.conflict) return;
-  clearTimeout(timers.get(path));
   timers.set(path, setTimeout(() => { timers.delete(path); void get().save(path); }, 700));
+}
+function commitSession(set: Setter, get: () => State, path: string, data: Tree, edit: TreeEdit = {}) {
+  const session = get().sessions[path];
+  if (!session || data === session.data || serializeTree(data) === serializeTree(session.data)) return;
+  const now = Date.now();
+  const grouped = Boolean(edit.group && session.historyGroup?.key === edit.group && now - session.historyGroup.at < 1000 && !session.redoStack.length);
+  const next: Session = { ...session, data, error: session.conflict ? session.error : undefined,
+    undoStack: grouped ? session.undoStack : boundedHistory([...session.undoStack, { data: session.data, label: edit.label ?? "Modifica struttura" }]), redoStack: [],
+    historyGroup: edit.group ? { key: edit.group, at: now } : undefined };
+  set(state => ({ sessions: { ...state.sessions, [path]: next } }));
+  scheduleSave(get, path);
+}
+function travelHistory(set: Setter, get: () => State, path: string, redo: boolean): boolean {
+  const session = get().sessions[path];
+  const stack = redo ? session?.redoStack : session?.undoStack;
+  const entry = stack?.at(-1);
+  if (!session || !entry) return false;
+  const current: HistoryEntry = { data: session.data, label: entry.label };
+  const next: Session = { ...session, data: entry.data, error: session.conflict ? session.error : undefined, historyGroup: undefined,
+    undoStack: redo ? boundedHistory([...session.undoStack, current]) : session.undoStack.slice(0, -1),
+    redoStack: redo ? session.redoStack.slice(0, -1) : boundedHistory([...session.redoStack, current]) };
+  set(state => ({ sessions: { ...state.sessions, [path]: next } }));
+  scheduleSave(get, path);
+  return true;
 }
 
 export const useTreeStore = create<State>((set, get) => ({
@@ -67,28 +99,20 @@ export const useTreeStore = create<State>((set, get) => ({
       }
       const data = parseTree(snapshot.content);
       if (currentGeneration !== generation || loadEpoch !== (loadEpochs.get(path) ?? 0)) return;
-      set(state => ({ sessions: { ...state.sessions, [path]: { data, saved: serializeTree(data), expected: { size: snapshot.size, lastModified: snapshot.lastModified }, saving: false, conflict: false } } }));
+      set(state => ({ sessions: { ...state.sessions, [path]: { data, saved: serializeTree(data), expected: { size: snapshot.size, lastModified: snapshot.lastModified }, saving: false, conflict: false, undoStack: [], redoStack: [] } } }));
     })();
     loading.set(path, task);
     try { await task; } finally { if (loading.get(path) === task) loading.delete(path); }
   },
-  edit: (path, data) => { commitSession(set, get, path, data, null); },
-  applyMove: (path, data) => {
-    const current = get().sessions[path];
-    if (!current) return;
-    commitSession(set, get, path, data, { before: current.data, kind: "move" });
-  },
-  applyDelete: (path, data) => {
-    const current = get().sessions[path];
-    if (!current) return;
-    commitSession(set, get, path, data, { before: current.data, kind: "delete" });
-  },
-  undoMove: path => {
-    const current = get().sessions[path];
-    if (!current?.moveUndo) return false;
-    commitSession(set, get, path, current.moveUndo.before, null);
-    return true;
-  },
+  edit: (path, data, edit) => { commitSession(set, get, path, data, edit); },
+  applyMove: (path, data) => { commitSession(set, get, path, data, { label: "Spostamento" }); },
+  applyDelete: (path, data) => { commitSession(set, get, path, data, { label: "Eliminazione" }); },
+  undo: path => travelHistory(set, get, path, false),
+  redo: path => travelHistory(set, get, path, true),
+  endEditGroup: path => set(state => {
+    const session = state.sessions[path];
+    return session?.historyGroup ? { sessions: { ...state.sessions, [path]: { ...session, historyGroup: undefined } } } : state;
+  }),
   save: async path => {
     clearTimeout(timers.get(path));
     timers.delete(path);

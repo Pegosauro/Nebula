@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.46.0 — Storico completo, ricerca fissa e incolla da Excel
+
+- Annulla e Ripristina per nomi, codici, note, categorie, formattazioni, oggetti, inserimenti, spostamenti, eliminazioni e importazioni. Ctrl+Z, Ctrl+Y e Ctrl+Shift+Z; la digitazione consecutiva viene raggruppata. Lo storico è per struttura, limitato a 100 passi e mantenuto durante la sessione, anche dopo il salvataggio.
+- Ricerca, filtro e comandi dello storico restano visibili mentre si scorre l’albero. I filtri attivi si possono rimuovere singolarmente o azzerare insieme.
+- Incolla da Excel: colonne Nome, Categoria e Note. Solo Nome è obbligatorio. I codici vengono assegnati automaticamente sotto il padre scelto, evitando tutti i codici già presenti.
+- Anteprima prima dell’importazione, intestazioni opzionali, note multilinea e creazione esplicita delle categorie mancanti. Le righe non valide bloccano l’intera importazione. Il gruppo importato si annulla e ripristina con un solo comando.
+
 ## 0.45.0 — Filtri, selezione multipla e categorie formattate
 
 - Pulsante Filtro con icona: scelta di più categorie e opzione «Mostra anche gli altri nodi». Di base i nodi esclusi sono nascosti, anche se sono antenati dei risultati. Rimosso il filtro in fondo all’albero.

@@ -276,7 +276,7 @@ describe("vista Strutture", () => {
     expect(moved.nodes.find(node => node.id === "n-07")!.parentId).toBe("n-12");
     await click("Annulla spostamento");
     expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-07")!.code).toBe("FL-07");
-    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    expect(useTreeStore.getState().sessions[path]!.undoStack).toHaveLength(0);
     await click("Espandi FL-08");
     await clickTreeItem("FL-0804");
     await click("Sposta in…");
@@ -431,7 +431,7 @@ describe("vista Strutture", () => {
     const siblings = useTreeStore.getState().sessions[path]!.data.nodes.filter(node => node.parentId === "n-07").sort((a, b) => a.order - b.order);
     expect(siblings.map(node => node.code)).toEqual(["FL-0701", "FL-0703", "FL-0702"]);
     expect(siblings.map(node => node.order)).toEqual([0, 1, 2]);
-    expect(useTreeStore.getState().sessions[path]!.moveUndo).toBeUndefined();
+    expect(useTreeStore.getState().sessions[path]!.undoStack.length).toBeGreaterThan(0);
 
     await clickTreeItem("FL-04");
     await dblclick(treeRow("FL-04").querySelector(".tree-name")!);
