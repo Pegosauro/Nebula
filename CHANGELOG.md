@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.46.5 — Comandi fissi e scorrimento solo dei nodi
+
+- Titolo, salvataggio, ricerca, filtri e pulsanti dell’albero restano fermi. Solo il riquadro dei nodi scorre quando il contenuto è lungo.
+- Virtualizzazione degli alberi oltre 1.000 righe e selezione da tastiera aggiornate per usare lo scorrimento interno, senza spostare la barra superiore.
+
 ## 0.46.4 — Colore del nome dalla categoria
 
 - Nelle formattazioni delle categorie, nuovo pulsante «Colore testo» per colorare i nomi dei nodi con il colore della categoria. Si combina con grassetto, corsivo, sottolineato e barrato.

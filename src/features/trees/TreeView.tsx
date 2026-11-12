@@ -46,7 +46,6 @@ export default function TreeView({ path }: { path: string }) {
   const [renamedIds, setRenamedIds] = useState<string[]>([]);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const toolbarRef = useRef<HTMLDivElement>(null);
   const ignoreBlur = useRef(false);
   const renamed = useMemo(() => new Set(renamedIds), [renamedIds]);
   useEffect(() => {
@@ -55,15 +54,6 @@ export default function TreeView({ path }: { path: string }) {
     return () => { cancelled = true; };
   }, [path]);
   const tree = session?.data;
-  useEffect(() => {
-    const toolbar = toolbarRef.current;
-    const area = toolbar?.closest<HTMLElement>(".tree-main");
-    if (!toolbar || !area) return;
-    const measure = () => area.style.setProperty("--tree-toolbar-height", `${toolbar.getBoundingClientRect().height + 12}px`);
-    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
-    observer?.observe(toolbar); measure();
-    return () => observer?.disconnect();
-  }, [tree?.rootId]);
   const expanded = useMemo(() => {
     const open = new Set(ui?.expanded ?? (tree ? [tree.rootId] : []));
     if (tree) open.add(tree.rootId);
@@ -384,7 +374,7 @@ export default function TreeView({ path }: { path: string }) {
         {session.conflict && <p role="alert" className="config-error">Conflitto sul file. {session.error} <button type="button" className="tree-link" onClick={() => setConfirm({ kind: "reload" })}>Ricarica dal Vault</button></p>}
         {!session.conflict && session.error && <p role="alert" className="config-error">{session.error}</p>}
         {report.errors.length > 0 && !session.error && <p role="alert" className="config-error">{report.errors.map(issue => issue.message).join(" ")}</p>}
-        <div className="tree-toolbar" ref={toolbarRef}>
+        <div className="tree-toolbar">
           <label className="tree-search"><Search size={15} aria-hidden="true" /><input ref={searchRef} aria-label="Cerca codice o nome" placeholder="Cerca codice o nome" value={query} onChange={event => setQuery(event.target.value)} /></label>
           <span className="tree-count" aria-live="polite">{query.trim() || categoryIds.length ? `${outline.matchCount} ${outline.matchCount === 1 ? "risultato" : "risultati"}` : `${tree.nodes.length} nodi`}</span>
           <TreeFilterMenu categories={tree.categories} selected={categoryIds} showUnmatched={ui?.showUnmatched === true} onChange={ids => { dismissUnsavedInline(); persist({ categoryIds: ids, categoryId: undefined }); }} onShowUnmatched={show => persist({ showUnmatched: show })} onManage={() => setCategoriesOpen(true)} />

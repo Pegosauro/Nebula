@@ -70,31 +70,35 @@ export function TreeOutline({ tree, rows, selectedId, selectedIds, moveEnabled =
   useEffect(() => { if (!moveEnabled) gesture.current?.(); }, [moveEnabled]);
   useEffect(() => {
     const element = scroller.current;
-    const owner = element?.closest<HTMLElement>(".tree-main");
-    if (!element || !owner) return;
+    if (!element) return;
     const measure = () => {
-      setViewport(owner.clientHeight || 640);
-      setScrollTop(Math.max(0, owner.getBoundingClientRect().top - element.getBoundingClientRect().top));
+      setViewport(element.clientHeight || 640);
+      setScrollTop(element.scrollTop);
     };
-    owner.addEventListener("scroll", measure, { passive: true });
+    element.addEventListener("scroll", measure, { passive: true });
     const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
-    observer?.observe(owner);
     observer?.observe(element);
     measure();
-    return () => { owner.removeEventListener("scroll", measure); observer?.disconnect(); };
+    return () => { element.removeEventListener("scroll", measure); observer?.disconnect(); };
   }, []);
   const range = virtualWindow(rows.length, scrollTop, viewport);
   const visible = rows.slice(range.start, range.end);
   const virtual = rows.length > 1000;
   useEffect(() => {
-    if (selected.current) { selected.current.scrollIntoView?.({ block: "nearest" }); return; }
-    if (!virtual) return;
     const element = scroller.current;
-    const owner = element?.closest<HTMLElement>(".tree-main");
+    if (!element) return;
+    if (selected.current) {
+      const bounds = selected.current.getBoundingClientRect();
+      const top = bounds.top - element.getBoundingClientRect().top - element.clientTop + element.scrollTop;
+      if (top < element.scrollTop) element.scrollTop = top;
+      else if (top + bounds.height > element.scrollTop + element.clientHeight) element.scrollTop = top + bounds.height - element.clientHeight;
+      return;
+    }
+    if (!virtual) return;
     const index = rows.findIndex(row => row.kind === "node" && row.id === selectedId);
-    if (!element || !owner || index < 0) return;
-    const top = element.getBoundingClientRect().top - owner.getBoundingClientRect().top + owner.scrollTop + index * ROW_HEIGHT;
-    if (top < owner.scrollTop || top + ROW_HEIGHT > owner.scrollTop + owner.clientHeight) owner.scrollTop = top;
+    if (index < 0) return;
+    const top = index * ROW_HEIGHT;
+    if (top < element.scrollTop || top + ROW_HEIGHT > element.scrollTop + element.clientHeight) element.scrollTop = top;
   }, [selectedId, renaming?.id, adding?.parentId, virtual, rows]);
   const draftIndex = adding ? draftInsert(rows, adding) : -1;
   const remember = (next: DragState | null) => setDrag(next);

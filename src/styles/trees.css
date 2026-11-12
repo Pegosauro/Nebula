@@ -1,5 +1,5 @@
 .tree-workspace { height: 100%; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, .78fr); background: var(--bg-app); color: var(--text-primary); }
-.tree-main { min-width: 0; min-height: 0; overflow: auto; scroll-padding-top: var(--tree-toolbar-height, 100px); display: flex; flex-direction: column; gap: 10px; padding: 16px 16px 24px; }
+.tree-main { min-width: 0; min-height: 0; flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 10px; padding: 16px 16px 24px; }
 .tree-main > * { flex-shrink: 0; }
 .tree-heading, .tree-toolbar, .tree-heading-actions, .tree-row-actions, .tree-category-head { display: flex; align-items: center; gap: 8px; }
 .tree-heading { flex-wrap: wrap; }
@@ -8,7 +8,7 @@
 .tree-heading p, .tree-kicker { margin: 0; font-size: .82rem; }
 .tree-heading-text { flex: 1; min-width: 180px; }
 .tree-heading-actions { margin-left: auto; display: flex; gap: 8px; }
-.tree-toolbar { flex-wrap: wrap; position: sticky; top: 0; z-index: 25; background: var(--bg-app); padding: 8px 0; border-bottom: 1px solid var(--border); box-shadow: 0 4px 0 var(--bg-app); }
+.tree-toolbar { flex-wrap: wrap; position: relative; z-index: 25; background: var(--bg-app); padding: 8px 0; border-bottom: 1px solid var(--border); }
 .tree-toolbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .tree-history-controls { display: flex; gap: 4px; }
 .tree-history-controls .button { padding: 8px; }
@@ -35,7 +35,7 @@
 .tree-search input:focus, .tree-filter select:focus { outline: none; }
 .tree-search:focus-within, .tree-filter:focus-within { border-color: var(--accent); }
 .tree-count { font-size: .82rem; color: var(--text-secondary); }
-.tree-scroll { min-height: 280px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-panel); padding: 6px 0; }
+.tree-scroll { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-panel); padding: 6px 0; }
 .tree-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .tree-scroll.is-virtual > [role="tree"] > div { height: 32px; }
 .tree-item, .tree-object { display: flex; align-items: center; gap: 6px; min-height: 30px; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; font: inherit; }
@@ -163,7 +163,7 @@
 .tree-item.is-drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
 .tree-item.is-drop-inside { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
 .tree-item.is-drop-no { box-shadow: inset 0 0 0 2px var(--danger); }
-.tree-outline { position: relative; }
+.tree-outline { position: relative; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .tree-drop-hint { position: absolute; z-index: 2; left: 12px; top: 8px; margin: 0; pointer-events: none; font-size: .8rem; color: var(--accent-hover); background: var(--bg-panel); border: 1px solid var(--accent); border-radius: 6px; padding: 3px 8px; }
 .tree-banner { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; padding: 9px 12px; border-radius: 9px; background: color-mix(in srgb, var(--success) 12%, var(--bg-panel)); border: 1px solid color-mix(in srgb, var(--success) 45%, transparent); }
 .tree-banner.is-info { background: var(--bg-elevated); border-color: var(--border-strong); }
