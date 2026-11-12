@@ -251,6 +251,28 @@ describe("vista Strutture", () => {
     expect(useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-0803")!.objects.some(object => object.type === "characteristic" && object.code === "P")).toBe(true);
   });
 
+  it("salva le descrizioni riconosciute in altri nodi e permette di annullare e ripristinare l'inserimento", async () => {
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 40, lastModified: 1 });
+    vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 41, lastModified: 2 });
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => root!.render(<TreeView path={path} />));
+    await clickTreeItem("FL-07");
+    await typeInput("Nuova sigla propria", "HT");
+    expect(host.querySelector<HTMLInputElement>('[aria-label="Nuova descrizione propria"]')!.value).toBe("Altezza tenda");
+    await pressKey("Nuova sigla propria", "Enter");
+    const objects = () => useTreeStore.getState().sessions[path]!.data.nodes.find(node => node.id === "n-07")!.objects;
+    expect(objects()).toEqual([expect.objectContaining({ type: "characteristic", kind: "own", code: "HT", description: "Altezza tenda" })]);
+    await click("Annulla ultima modifica");
+    expect(objects()).toEqual([]);
+    await click("Ripristina modifica");
+    expect(objects()).toEqual([expect.objectContaining({ code: "HT", description: "Altezza tenda" })]);
+    await typeInput("Nuova sigla acquisita", "P");
+    await pressKey("Nuova sigla acquisita", "Enter");
+    expect(objects()).toContainEqual(expect.objectContaining({ kind: "acquired", code: "P", description: "PROFONDITA'" }));
+  });
+
   it("anteprima di Sposta in, blocco del conflitto, annulla e riordino senza rinumerare", async () => {
     vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content: serializeTreeFile(demoTree()), size: 40, lastModified: 1 });
     vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 41, lastModified: 2 });

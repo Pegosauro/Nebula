@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.46.1 — Descrizioni automatiche delle caratteristiche
+
+- Inserendo una sigla già presente nella struttura, la descrizione viene compilata automaticamente sia nelle caratteristiche proprie sia in quelle acquisite, anche quando si modifica una caratteristica esistente.
+- La ricerca ignora maiuscole e spazi esterni. La descrizione resta modificabile; se una sigla ha descrizioni diverse, è possibile sceglierle da un elenco o scriverne una.
+- Cambiando sigla viene rimossa l’eventuale descrizione suggerita non più pertinente; le descrizioni personalizzate si conservano. Cambiando nodo le righe di inserimento tornano vuote.
+
 ## 0.46.0 — Storico completo, ricerca fissa e incolla da Excel
 
 - Annulla e Ripristina per nomi, codici, note, categorie, formattazioni, oggetti, inserimenti, spostamenti, eliminazioni e importazioni. Ctrl+Z, Ctrl+Y e Ctrl+Shift+Z; la digitazione consecutiva viene raggruppata. Lo storico è per struttura, limitato a 100 passi e mantenuto durante la sessione, anche dopo il salvataggio.

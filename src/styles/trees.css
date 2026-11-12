@@ -88,6 +88,8 @@
 .tree-warning { color: #e0a33a; margin: 0; font-size: .85rem; }
 .tree-inline-fields { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 1; min-width: 0; }
 .tree-inline-fields input { flex: 1; min-width: 72px; }
+.tree-inline-fields .tree-description-choices { flex-basis: 100%; min-width: 0; color: var(--text-muted); font-size: .75rem; }
+.tree-inline-fields .tree-description-choices select { width: 100%; min-width: 0; margin-top: 4px; }
 .tree-inline-fields .tree-inline-error, .tree-inline-fields [role="alert"] { flex-basis: 100%; margin: 0; }
 .tree-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .tree-chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 8px; font-size: .78rem; }
