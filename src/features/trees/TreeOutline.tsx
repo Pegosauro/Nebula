@@ -295,6 +295,9 @@ function NodeRow({ tree, row, index, total, selected, moveEnabled, query, renami
           <GripVertical size={14} aria-hidden="true" />
         </span>
       )}
+      <span className="tree-note-slot">
+        {node.note.trim() && <span className="tree-note-dot" role="img" aria-label="Ha una nota" title={node.note.trim()} />}
+      </span>
       <span className="tree-swatch" style={{ background: color ?? "transparent" }} />
       <span className="tree-label">
         {renaming?.field === "code"
@@ -304,7 +307,6 @@ function NodeRow({ tree, row, index, total, selected, moveEnabled, query, renami
           {renaming?.field === "name"
             ? <input ref={inputRef} className="tree-name-input" style={nameStyle} aria-label={`Nome di ${node.code}`} value={renaming.name} onChange={event => onRenameChange({ ...renaming, name: event.target.value })} onClick={event => event.stopPropagation()} onBlur={onBlur} />
             : <span className="tree-name" style={nameStyle} title="Doppio clic per modificare il nome" onMouseDown={event => { if (!renaming) return; event.preventDefault(); event.stopPropagation(); }} onDoubleClick={activate("name")}><Highlight text={node.name} query={query} /></span>}
-          {node.note.trim() && <span className="tree-note-dot" role="img" aria-label="Ha una nota" title="Ha una nota" />}
         </span>
       </span>
       <InlineCodeStatus issues={issues} error={renaming?.field === "code" ? error : undefined} />
@@ -319,7 +321,7 @@ function ObjectRow({ tree, row, onSelect }: { tree: Tree; row: Extract<OutlineRo
   const presentation = objectPresentation(object);
   const Icon = presentation.Icon;
   return (
-    <button type="button" className={`tree-object ${row.dimmed ? "is-dimmed" : ""} ${presentation.className}`} style={{ paddingLeft: 28 + row.depth * 18 }} onClick={() => onSelect(row.parentId, row.id)}>
+    <button type="button" className={`tree-object ${row.dimmed ? "is-dimmed" : ""} ${presentation.className}`} style={{ paddingLeft: 42 + row.depth * 18 }} onClick={() => onSelect(row.parentId, row.id)}>
       <Icon size={14} aria-hidden="true" fill={presentation.filled ? "currentColor" : "none"} />
       <span>{objectLeafText(object)}</span>
       <small>{presentation.label}</small>
@@ -340,6 +342,7 @@ function DraftRow({ tree, draft, error, onChange, onBlur, holdBlur }: { tree: Tr
   return (
     <div role="treeitem" aria-selected="true" aria-level={level} className="tree-item is-selected is-draft is-editing" style={{ paddingLeft: 8 + (level - 1) * 18 }}>
       <span className="tree-disclosure-spacer" />
+      <span className="tree-note-slot" />
       <span className="tree-swatch" />
       <span className="tree-label">
         {draft.field === "code"

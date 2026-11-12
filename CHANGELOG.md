@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.46.2 — Indicatore delle note a sinistra
+
+- Il pallino giallo delle note si trova a sinistra della barra della categoria, in uno spazio fisso che mantiene allineati anche i nodi senza nota e le righe di inserimento.
+- Al passaggio del mouse sul pallino viene mostrato il testo della nota.
+
 ## 0.46.1 — Descrizioni automatiche delle caratteristiche
 
 - Inserendo una sigla già presente nella struttura, la descrizione viene compilata automaticamente sia nelle caratteristiche proprie sia in quelle acquisite, anche quando si modifica una caratteristica esistente.

@@ -63,7 +63,8 @@
 .tree-item.is-editing > .tree-warning { flex: 1 0 calc(100% - 36px); margin-left: 36px; min-width: 0; overflow-wrap: anywhere; }
 .tree-item.is-match .tree-name, .tree-item mark { background: transparent; color: var(--accent-secondary); }
 .tree-item.is-renamed .tree-code { color: var(--success); }
-.tree-note-dot { width: 8px; height: 8px; border-radius: 99px; background: #f5c518; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, .28); }
+.tree-note-slot { width: 8px; flex: none; display: grid; place-items: center; }
+.tree-note-dot { width: 8px; height: 8px; border-radius: 99px; background: #f5c518; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, .28); cursor: help; }
 .tree-object { cursor: pointer; color: var(--text-secondary); }
 .tree-object small, .tree-object-main small { margin-left: auto; font-size: .72rem; color: var(--text-muted); }
 .tree-object.is-table, .tree-obj-icon.is-table { color: #22d3ee; }
