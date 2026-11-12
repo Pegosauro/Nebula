@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.46.3 — Note nel margine esistente
+
+- Il pallino delle note usa il margine vuoto già presente a sinistra dell’albero, in una colonna fissa indipendente dal livello del nodo.
+- Rimossa la colonna aggiuntiva: categorie, codici, nomi e oggetti tornano alla posizione originale. Conservata l’anteprima della nota al passaggio del mouse.
+
 ## 0.46.2 — Indicatore delle note a sinistra
 
 - Il pallino giallo delle note si trova a sinistra della barra della categoria, in uno spazio fisso che mantiene allineati anche i nodi senza nota e le righe di inserimento.

@@ -40,6 +40,7 @@
 .tree-scroll.is-virtual > [role="tree"] > div { height: 32px; }
 .tree-item, .tree-object { display: flex; align-items: center; gap: 6px; min-height: 30px; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; font: inherit; }
 .tree-item .tree-name, .tree-item .tree-name-input { font-size: 13px; }
+.tree-item { position: relative; }
 .tree-item.is-selected { background: var(--bg-selected); }
 .tree-item.is-draft { flex-wrap: wrap; }
 .tree-inline-error { flex: 1 0 calc(100% - 36px); margin-left: 36px; min-width: 0; overflow-wrap: anywhere; }
@@ -63,8 +64,7 @@
 .tree-item.is-editing > .tree-warning { flex: 1 0 calc(100% - 36px); margin-left: 36px; min-width: 0; overflow-wrap: anywhere; }
 .tree-item.is-match .tree-name, .tree-item mark { background: transparent; color: var(--accent-secondary); }
 .tree-item.is-renamed .tree-code { color: var(--success); }
-.tree-note-slot { width: 8px; flex: none; display: grid; place-items: center; }
-.tree-note-dot { width: 8px; height: 8px; border-radius: 99px; background: #f5c518; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, .28); cursor: help; }
+.tree-note-dot { position: absolute; left: 15px; top: 15px; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 99px; background: #f5c518; box-shadow: 0 0 0 1px rgba(0, 0, 0, .28); cursor: help; }
 .tree-object { cursor: pointer; color: var(--text-secondary); }
 .tree-object small, .tree-object-main small { margin-left: auto; font-size: .72rem; color: var(--text-muted); }
 .tree-object.is-table, .tree-obj-icon.is-table { color: #22d3ee; }

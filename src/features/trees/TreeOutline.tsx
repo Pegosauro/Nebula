@@ -280,6 +280,7 @@ function NodeRow({ tree, row, index, total, selected, moveEnabled, query, renami
       onClick={event => onSelect(node.id, event.shiftKey)}
       onContextMenu={event => { event.preventDefault(); onSelect(node.id); onContextMenu(node.id, event.clientX, event.clientY); }}
     >
+      {node.note.trim() && <span className="tree-note-dot" role="img" aria-label="Ha una nota" title={node.note.trim()} />}
       {collapsible ? <button type="button" className="tree-disclosure" aria-label={row.expanded ? `Comprimi ${node.code}` : `Espandi ${node.code}`} onClick={event => { event.stopPropagation(); onToggle(node.id); }}>{row.expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</button> : <span className="tree-disclosure-spacer" />}
       {moveEnabled && node.parentId != null && (
         <span
@@ -295,9 +296,6 @@ function NodeRow({ tree, row, index, total, selected, moveEnabled, query, renami
           <GripVertical size={14} aria-hidden="true" />
         </span>
       )}
-      <span className="tree-note-slot">
-        {node.note.trim() && <span className="tree-note-dot" role="img" aria-label="Ha una nota" title={node.note.trim()} />}
-      </span>
       <span className="tree-swatch" style={{ background: color ?? "transparent" }} />
       <span className="tree-label">
         {renaming?.field === "code"
@@ -321,7 +319,7 @@ function ObjectRow({ tree, row, onSelect }: { tree: Tree; row: Extract<OutlineRo
   const presentation = objectPresentation(object);
   const Icon = presentation.Icon;
   return (
-    <button type="button" className={`tree-object ${row.dimmed ? "is-dimmed" : ""} ${presentation.className}`} style={{ paddingLeft: 42 + row.depth * 18 }} onClick={() => onSelect(row.parentId, row.id)}>
+    <button type="button" className={`tree-object ${row.dimmed ? "is-dimmed" : ""} ${presentation.className}`} style={{ paddingLeft: 28 + row.depth * 18 }} onClick={() => onSelect(row.parentId, row.id)}>
       <Icon size={14} aria-hidden="true" fill={presentation.filled ? "currentColor" : "none"} />
       <span>{objectLeafText(object)}</span>
       <small>{presentation.label}</small>
@@ -342,7 +340,6 @@ function DraftRow({ tree, draft, error, onChange, onBlur, holdBlur }: { tree: Tr
   return (
     <div role="treeitem" aria-selected="true" aria-level={level} className="tree-item is-selected is-draft is-editing" style={{ paddingLeft: 8 + (level - 1) * 18 }}>
       <span className="tree-disclosure-spacer" />
-      <span className="tree-note-slot" />
       <span className="tree-swatch" />
       <span className="tree-label">
         {draft.field === "code"

@@ -88,10 +88,9 @@ describe("vista Strutture", () => {
     expect(rootRow.querySelector('[aria-label="Ha una nota"]')).not.toBeNull();
     const notedName = rootRow.querySelector(".tree-name");
     expect(notedName?.parentElement?.classList.contains("tree-name-line")).toBe(true);
-    const noteSlot = rootRow.querySelector(":scope > .tree-note-slot");
-    const noteDot = noteSlot?.querySelector('[aria-label="Ha una nota"]');
+    const noteDot = rootRow.querySelector(":scope > .tree-note-dot");
     expect(noteDot?.getAttribute("title")).toBe(demoTree().nodes[0].note);
-    expect(noteSlot?.nextElementSibling?.classList.contains("tree-swatch")).toBe(true);
+    expect(rootRow.querySelector(".tree-note-slot")).toBeNull();
     expect(notedName?.parentElement?.querySelector(".tree-note-dot")).toBeNull();
     expect(rootRow.querySelector('[aria-label="Comprimi FL"], [aria-label="Espandi FL"]')).toBeNull();
     expect(rootRow.getAttribute("aria-expanded")).toBe("true");
@@ -102,7 +101,6 @@ describe("vista Strutture", () => {
     expect(button("Elimina").hasAttribute("disabled")).toBe(false);
     expect(branch.querySelector(".tree-dot")).toBeNull();
     expect(treeRow("FL-01").querySelector('[aria-label="Ha una nota"]')).toBeNull();
-    expect(treeRow("FL-01").querySelector(":scope > .tree-note-slot")?.childElementCount).toBe(0);
     expect(treeRow("FL-47").querySelector('[aria-label="Ha una nota"]')).not.toBeNull();
     await click("Espandi FL-07");
     const leaf = [...host.querySelectorAll('[role="treeitem"]')].find(item => item.textContent?.includes("FL-0702"));
@@ -434,11 +432,11 @@ describe("vista Strutture", () => {
     await click("Espandi FL-07");
     await clickTreeItem("FL-0701");
     const noted = treeRow("FL-47");
-    expect(noted.querySelector(".tree-note-slot")?.nextElementSibling?.classList.contains("tree-swatch")).toBe(true);
+    expect(noted.querySelector(":scope > .tree-note-dot")).not.toBeNull();
     expect(noted.querySelector(".tree-note-dot")?.getAttribute("title")).toBe("Avviso mostrato in fase d'ordine.");
     await click("Aggiungi fratello");
     const draft = host!.querySelector<HTMLElement>(".tree-item.is-draft");
-    expect(draft?.querySelector(":scope > .tree-note-slot")?.childElementCount).toBe(0);
+    expect(draft?.querySelector(".tree-note-slot")).toBeNull();
     const name = host!.querySelector<HTMLInputElement>('[aria-label="Nome del nuovo nodo"]');
     expect(draft?.querySelector(".tree-code")?.textContent).toBe("FL-0703");
     expect(name?.value).toBe("Nuovo nodo");
