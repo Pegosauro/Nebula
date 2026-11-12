@@ -36,12 +36,12 @@ describe("regole dell'albero nebula-tree v1", () => {
     expect(setNodesCategory(source, ["n-07"], "missing").ok).toBe(false);
   });
 
-  it("salva e rilegge insieme grassetto, corsivo, sottolineato e barrato", () => {
+  it("salva e rilegge insieme grassetto, corsivo, sottolineato, barrato e colore della categoria", () => {
     const source = demoTree();
-    const changed = updateCategory(source, "c-dim", { textStyle: { bold: true, italic: true, underline: true, strike: true } });
+    const changed = updateCategory(source, "c-dim", { textStyle: { bold: true, italic: true, underline: true, strike: true, categoryColor: true } });
     if (!changed.ok) throw new Error(changed.error);
     const loaded = parseTree(serializeTreeFile(changed.tree));
-    expect(loaded.categories.find(category => category.id === "c-dim")?.textStyle).toEqual({ bold: true, italic: true, underline: true, strike: true });
+    expect(loaded.categories.find(category => category.id === "c-dim")?.textStyle).toEqual({ bold: true, italic: true, underline: true, strike: true, categoryColor: true });
     expect(source.categories.find(category => category.id === "c-dim")?.textStyle).toBeUndefined();
     const cleared = updateCategory(loaded, "c-dim", { textStyle: { bold: false } });
     if (!cleared.ok) throw new Error(cleared.error);

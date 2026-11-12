@@ -253,7 +253,7 @@ function NodeRow({ tree, row, index, total, selected, moveEnabled, query, renami
   if (!node) return null;
   const category = principalCategory(tree, node.id);
   const color = category?.color;
-  const nameStyle = categoryNameStyle(category?.textStyle);
+  const nameStyle = categoryNameStyle(category?.textStyle, color);
   const isRoot = node.id === tree.rootId;
   const collapsible = !isRoot && row.hasChildren;
   const dropClass = drag?.overId === node.id ? drag.blocked ? "is-drop-no" : drag.zone === "inside" ? "is-drop-inside" : drag.zone === "before" ? "is-drop-before" : "is-drop-after" : "";

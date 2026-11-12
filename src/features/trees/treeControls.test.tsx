@@ -91,12 +91,23 @@ it("blocca gli spostamenti fuori modalità e limita la formattazione ai nomi", a
   await press(); expect(data().nodes.find(node => node.id === "n-04")!.order).toBe(original + 1);
   await click(button("Modalità spostamento")); expect(host.querySelector(".tree-grip")).toBeNull();
   await click(button("Gestisci…"));
-  for (const name of ["Grassetto", "Corsivo", "Sottolineato", "Barrato"]) await click(button(`${name} per Dimensioni`));
+  for (const name of ["Grassetto", "Corsivo", "Sottolineato", "Barrato", "Colore testo"]) await click(button(`${name} per Dimensioni`));
   const name = row("n-07")!.querySelector<HTMLElement>(".tree-name")!;
   expect(name.style.fontWeight).toBe("700"); expect(name.style.fontStyle).toBe("italic"); expect(name.style.textDecorationLine).toBe("underline line-through");
   expect(row("n-07")!.querySelector<HTMLElement>(".tree-code")!.style.fontWeight).toBe("");
   expect(row("n-01")!.querySelector<HTMLElement>(".tree-name")!.style.fontWeight).toBe("");
-  expect(data().categories.find(item => item.id === "c-dim")!.textStyle).toEqual({ bold: true, italic: true, underline: true, strike: true });
+  expect(name.style.color).toBe("rgb(34, 211, 238)");
+  expect(row("n-07")!.querySelector<HTMLElement>(".tree-code")!.style.color).toBe("");
+  expect(row("n-01")!.querySelector<HTMLElement>(".tree-name")!.style.color).toBe("");
+  expect(data().categories.find(item => item.id === "c-dim")!.textStyle).toEqual({ bold: true, italic: true, underline: true, strike: true, categoryColor: true });
+  expect(button("Colore testo per Dimensioni")!.getAttribute("aria-pressed")).toBe("true");
+  await click(button("Colore di Dimensioni"));
+  await click(host.querySelector('[aria-label="Tavolozza per Dimensioni"] button[title="Verde"]'));
+  expect(name.style.color).toBe("rgb(76, 175, 106)");
+  await click(button("Colore testo per Dimensioni"));
+  expect(name.style.color).toBe("");
+  expect(name.style.fontWeight).toBe("700");
+  expect(button("Colore testo per Dimensioni")!.getAttribute("aria-pressed")).toBe("false");
 });
 
 it("importa Nome, Categoria e Note con codici automatici e annulla/ripristina l'intero gruppo", async () => {

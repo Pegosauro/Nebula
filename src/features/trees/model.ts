@@ -26,7 +26,7 @@ export const CATEGORY_PALETTE = [
 export type CategoryMode = "inherit" | "own";
 export type CharacteristicKind = "own" | "acquired";
 
-export interface CategoryTextStyle { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean }
+export interface CategoryTextStyle { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; categoryColor?: boolean }
 export interface TreeCategory { id: string; name: string; color: string; order: number; textStyle?: CategoryTextStyle }
 export interface ExternalTableObject { id: string; type: "externalTable"; order: number; tableName: string }
 export interface CharacteristicObject { id: string; type: "characteristic"; order: number; kind: CharacteristicKind; code: string; description: string }
@@ -381,7 +381,7 @@ function readTextStyle(value: unknown): CategoryTextStyle | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const raw = value as Record<string, unknown>;
   const result: CategoryTextStyle = {};
-  for (const key of ["bold", "italic", "underline", "strike"] as const) if (raw[key] === true) result[key] = true;
+  for (const key of ["bold", "italic", "underline", "strike", "categoryColor"] as const) if (raw[key] === true) result[key] = true;
   return Object.keys(result).length ? result : undefined;
 }
 export function inheritFromParent(tree: Tree, id: string): TreeSuccess | TreeFailure {

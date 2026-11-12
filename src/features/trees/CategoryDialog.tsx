@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { Bold, ChevronDown, ChevronUp, Italic, Plus, Strikethrough, Trash2, Underline, X } from "lucide-react";
+import { Baseline, Bold, ChevronDown, ChevronUp, Italic, Plus, Strikethrough, Trash2, Underline, X } from "lucide-react";
 import { CATEGORY_PALETTE, categoryUsage, isPaletteColor, readableOn, type CategoryTextStyle, type Tree, type TreeCategory } from "./model";
 
 interface CategoryDialogProps {
@@ -97,6 +97,7 @@ function CategoryRow({ category, first, last, onRename, onColor, onFormat, onMov
       <input aria-label={`Nome categoria ${category.name}`} defaultValue={category.name} key={category.name} onBlur={event => { if (event.target.value !== category.name) onRename(event.target.value); }} />
       <div className="tree-category-format" role="group" aria-label={`Formato per ${category.name}`}>
         {([{ key: "bold", label: "Grassetto", Icon: Bold }, { key: "italic", label: "Corsivo", Icon: Italic }, { key: "underline", label: "Sottolineato", Icon: Underline }, { key: "strike", label: "Barrato", Icon: Strikethrough }] as const).map(({ key, label, Icon }) => <button key={key} type="button" aria-label={`${label} per ${category.name}`} aria-pressed={category.textStyle?.[key] === true} onClick={() => onFormat({ ...category.textStyle, [key]: !category.textStyle?.[key] })}><Icon size={15} /></button>)}
+        <button type="button" aria-label={`Colore testo per ${category.name}`} title="Usa il colore della categoria per il nome dei nodi" aria-pressed={category.textStyle?.categoryColor === true} onClick={() => onFormat({ ...category.textStyle, categoryColor: !category.textStyle?.categoryColor })}><Baseline size={15} style={{ color: category.color }} /></button>
       </div>
       <button type="button" className="tree-danger-text" aria-label={`Elimina categoria ${category.name}`} onClick={onDelete}><Trash2 size={15} /></button>
       {open && (

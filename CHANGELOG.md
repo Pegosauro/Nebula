@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.46.4 — Colore del nome dalla categoria
+
+- Nelle formattazioni delle categorie, nuovo pulsante «Colore testo» per colorare i nomi dei nodi con il colore della categoria. Si combina con grassetto, corsivo, sottolineato e barrato.
+- Il colore segue automaticamente le modifiche alla categoria; disattivando il pulsante si torna al colore normale del testo. L’opzione viene salvata nella struttura e supporta Annulla e Ripristina.
+
 ## 0.46.3 — Note nel margine esistente
 
 - Il pallino delle note usa il margine vuoto già presente a sinistra dell’albero, in una colonna fissa indipendente dal livello del nodo.
