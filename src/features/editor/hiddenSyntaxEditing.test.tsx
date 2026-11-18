@@ -136,9 +136,9 @@ it("opens the color palette with Backspace and changes only the highlight emoji"
   await key("Backspace");
   expect(view.state.doc.toString()).toBe(content);
   const options = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'));
-  expect(options.map(option => option.textContent)).toEqual(["Verde", "Giallo", "Arancione", "Rosso", "Viola", "Blu"]);
-  expect(options[0]?.getAttribute("aria-checked")).toBe("true");
-  await act(async () => options[4]?.click());
+  expect(options).toHaveLength(35);
+  expect(options.find(option => option.title === "Verde")?.getAttribute("aria-checked")).toBe("true");
+  await act(async () => options.find(option => option.title === "Viola")!.click());
   expect(view.state.doc.toString()).toBe("Prima ==🟣**testo**== dopo");
   expect(host.querySelector('[role="menu"]')).toBeNull();
   await act(async () => api.current!.undo());
@@ -148,9 +148,20 @@ it("opens the palette for a legacy highlight and inserts the selected color", as
   const { view } = await editor("==testo==", false, true);
   await act(async () => view.dispatch({ selection: { anchor: 2 } }));
   await act(async () => host.querySelector<HTMLButtonElement>(".live-highlight-icon")!.click());
-  expect(host.querySelector('[aria-checked="true"]')?.textContent).toBe("Giallo");
-  await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')).find(option => option.textContent === "Blu")?.click());
+  expect(host.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.title).toBe("Giallo");
+  await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')).find(option => option.title === "Blu")?.click());
   expect(view.state.doc.toString()).toBe("==🔵testo==");
+});
+it("stores a custom shade and reopens its selection without showing the color code", async () => {
+  const { view, api } = await editor("==🟢testo==");
+  await act(async () => api.current!.select(4));
+  await key("Backspace");
+  await act(async () => host.querySelector<HTMLButtonElement>('.highlight-color-menu [aria-label="Grigio scuro"]')!.click());
+  expect(view.state.doc.toString()).toBe("=={#374151}testo==");
+  expect(host.querySelector(".cm-content")!.textContent).not.toContain("#374151");
+  await act(async () => api.current!.select("=={#374151}".length));
+  await key("Backspace");
+  expect(host.querySelector('.highlight-color-menu [aria-label="Grigio scuro"]')?.getAttribute("aria-checked")).toBe("true");
 });
 it("handles mobile beforeinput and Unicode without deleting delimiters", async () => {
   const { view } = await editor("**A😀**");

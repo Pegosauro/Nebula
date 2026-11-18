@@ -1,9 +1,10 @@
+import { isPaletteColor, type PaletteColor } from "../../domain/colorPalette";
 import { isPathInside } from "../../domain/path";
 
 export type Urgency = "auto" | "urgent" | "not-urgent";
 export type Quadrant = "do" | "plan" | "quick" | "later";
 export type TaskFilter = "all" | "today" | "overdue" | "important";
-export const groupColors = {
+const legacyGroupColors = {
   slate: { name: "Ardesia", hex: "#78849c" },
   violet: { name: "Viola", hex: "#8b5ed4" },
   blue: { name: "Blu", hex: "#4285d4" },
@@ -14,11 +15,14 @@ export const groupColors = {
   red: { name: "Rosso", hex: "#c45557" },
   pink: { name: "Rosa", hex: "#bd6096" },
 } as const;
-export type GroupColor = keyof typeof groupColors;
+export type GroupColor = keyof typeof legacyGroupColors | PaletteColor;
 export interface TaskGroup { id: string; name: string; color?: GroupColor }
 
 export function taskGroupColor(color?: GroupColor) {
-  return color && Object.hasOwn(groupColors, color) ? groupColors[color].hex : groupColors.slate.hex;
+  if (typeof color === "string" && isPaletteColor(color)) return color;
+  return color && Object.hasOwn(legacyGroupColors, color)
+    ? legacyGroupColors[color as keyof typeof legacyGroupColors].hex
+    : legacyGroupColors.slate.hex;
 }
 export interface Subtask { id: string; title: string; done: boolean }
 export interface TaskComment { id: string; text: string; createdAt: string }

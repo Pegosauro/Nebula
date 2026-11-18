@@ -74,13 +74,15 @@ p {
 }
 
 .button-primary {
-  background: var(--accent);
+  background: var(--accent-fill, var(--accent));
   color: var(--on-accent, #fff);
 }
 
 .button-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--accent-fill-hover, var(--accent-hover));
 }
+
+:root[data-custom-accent] .button-primary { border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); }
 
 .button-secondary {
   border-color: var(--border-strong);

@@ -103,7 +103,8 @@ it("blocca gli spostamenti fuori modalità e limita la formattazione ai nomi", a
   expect(button("Colore testo per Dimensioni")!.getAttribute("aria-pressed")).toBe("true");
   await click(button("Colore di Dimensioni"));
   await click(host.querySelector('[aria-label="Tavolozza per Dimensioni"] button[title="Verde"]'));
-  expect(name.style.color).toBe("rgb(76, 175, 106)");
+  expect(data().categories.find(item => item.id === "c-dim")!.color).toBe("#22c55e");
+  expect(name.style.color).toContain("light-dark(");
   await click(button("Colore testo per Dimensioni"));
   expect(name.style.color).toBe("");
   expect(name.style.fontWeight).toBe("700");

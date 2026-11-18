@@ -383,14 +383,14 @@ describe("regole dell'albero nebula-tree v1", () => {
   });
 
   it("un inherit spostato prende subito le categorie del nuovo padre, un own le tiene", () => {
-    const colored = updateCategory(demoTree(), "c-mot", { color: "#e5534b" });
+    const colored = updateCategory(demoTree(), "c-mot", { color: "#ef4444" });
     expect(colored.ok).toBe(true);
     if (!colored.ok) return;
     const inherited = planMove(colored.tree, "n-0801", "n-12");
     expect(inherited.ok).toBe(true);
     expect(effectiveCategory(inherited.tree!, "n-0801")).toBe("c-mot");
     expect(inherited.catChanged).toEqual(["n-0801"]);
-    expect(principalCategory(inherited.tree!, "n-0801")?.color).toBe("#e5534b");
+    expect(principalCategory(inherited.tree!, "n-0801")?.color).toBe("#ef4444");
     expect(inherited.tree!.nodes.find(node => node.id === "n-0801")!.categoryMode).toBe("inherit");
     expect(inherited.tree!.nodes.find(node => node.id === "n-0801")!.categoryId).toBeNull();
     const own = planMove(colored.tree, "n-0803", "n-12");

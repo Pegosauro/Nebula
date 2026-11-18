@@ -1,3 +1,4 @@
+import { accentInk, textOnColor } from "../../domain/colorPalette";
 import { normalizeEditorMode, type EditorMode } from "../editor/editorMode";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -117,16 +118,15 @@ export function applyAccent(color: string | null): void {
     root.removeProperty("--custom-accent");
     root.removeProperty("--on-accent");
     root.removeProperty("--accent-hover-mix");
+    root.removeProperty("--accent-ink-light");
+    root.removeProperty("--accent-ink-dark");
     return;
   }
-  const [r, g, b] = [1, 3, 5].map(index => {
-    const channel = Number.parseInt(color.slice(index, index + 2), 16) / 255;
-    return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
-  });
-  const luminance = .2126 * r + .7152 * g + .0722 * b;
+  const text = textOnColor(color);
   root.setProperty("--custom-accent", color);
-  const light = luminance > .179;
-  root.setProperty("--on-accent", light ? "#000" : "#fff");
-  root.setProperty("--accent-hover-mix", light ? "#fff" : "#000");
+  root.setProperty("--on-accent", text);
+  root.setProperty("--accent-hover-mix", text === "#000000" ? "#fff" : "#000");
+  root.setProperty("--accent-ink-light", accentInk(color, "#f5f6f8"));
+  root.setProperty("--accent-ink-dark", accentInk(color, "#1d2230"));
   dataset.customAccent = "";
 }

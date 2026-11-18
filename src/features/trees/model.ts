@@ -1,3 +1,5 @@
+import { isPaletteColor, paletteRows, textOnColor } from "../../domain/colorPalette";
+
 /** Albero libero `nebula-tree` v1. Le categorie dei nodi sono indipendenti.
  *  I vecchi nodi `inherit` vengono convertiti in categorie proprie conservando la categoria visibile.
  *  In lettura, `categoryIds` dei file precedenti diventa la prima categoria, oppure null se l'elenco è vuoto.
@@ -10,18 +12,10 @@ export const MAX_NODES = 5000;
 export const DEFAULT_SEPARATOR = "-";
 export const DEFAULT_STEP = 2;
 
-export const CATEGORY_PALETTE = [
-  { name: "Viola", color: "#8b5cf6" },
-  { name: "Ciano", color: "#22d3ee" },
-  { name: "Ambra", color: "#e0a33a" },
-  { name: "Verde acqua", color: "#2aa99a" },
-  { name: "Rosa", color: "#ec6fb0" },
-  { name: "Blu", color: "#5b8def" },
-  { name: "Arancio", color: "#f2784b" },
-  { name: "Verde", color: "#4caf6a" },
-  { name: "Rosso", color: "#e5534b" },
-  { name: "Grigio", color: "#8b93a7" },
-] as const;
+const legacyCategoryColors = new Set(["#22d3ee", "#e0a33a", "#2aa99a", "#ec6fb0", "#5b8def", "#f2784b", "#4caf6a", "#e5534b", "#8b93a7"]);
+// Suggest distinct families first when new categories are created or imported.
+export const categoryColors = [3, 2, 4, 1, 0].flatMap(index => paletteRows.map(row => row.colors[index]!));
+export const defaultCategoryColor = "#8b5cf6";
 
 export type CategoryMode = "inherit" | "own";
 export type CharacteristicKind = "own" | "acquired";
@@ -69,7 +63,6 @@ export class TreeFormatError extends Error {
 export const isTreePath = (path: string) => /\.tree\.json$/i.test(path);
 export const treeTitle = (name: string) => name.replace(/\.tree\.json$/i, "");
 export const uid = () => crypto.randomUUID();
-export const isPaletteColor = (color: string) => CATEGORY_PALETTE.some(entry => entry.color === color);
 /** Codici nodo: senza spazi, senza distinzione di maiuscole. */
 export const normCode = (code: string) => code.replace(/\s+/g, "").toUpperCase();
 /** Sigle: spazi esterni ignorati, senza distinzione di maiuscole. */
@@ -218,12 +211,7 @@ export function principalCategory(tree: Tree, id: string): TreeCategory | undefi
   return categoryId ? tree.categories.find(category => category.id === categoryId) : undefined;
 }
 export function readableOn(color: string): string {
-  const hex = /^#([\da-f]{6})$/i.exec(color);
-  if (!hex) return "#1a1d27";
-  const value = hex[1]!;
-  const channel = (start: number) => Number.parseInt(value.slice(start, start + 2), 16);
-  const luminance = (0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)) / 255;
-  return luminance > 0.62 ? "#1a1d27" : "#ffffff";
+  return /^#[\da-f]{6}$/i.test(color) ? textOnColor(color) : "#20242d";
 }
 
 export interface CodeIssues { errors: string[]; warnings: string[] }
@@ -392,7 +380,7 @@ export function inheritFromParent(tree: Tree, id: string): TreeSuccess | TreeFai
 export function addCategory(tree: Tree, name: string, color?: string): TreeSuccess<{ category: TreeCategory }> | TreeFailure {
   if (color && !isPaletteColor(color)) return { ok: false, error: "Colore fuori tavolozza" };
   const next = clone(tree);
-  const category: TreeCategory = { id: uid(), name: name.trim() || "Nuova categoria", color: color || CATEGORY_PALETTE[0].color, order: next.categories.reduce((max, item) => Math.max(max, item.order), -1) + 1 };
+  const category: TreeCategory = { id: uid(), name: name.trim() || "Nuova categoria", color: color || defaultCategoryColor, order: next.categories.reduce((max, item) => Math.max(max, item.order), -1) + 1 };
   next.categories.push(category);
   return { ok: true, tree: next, category };
 }
@@ -657,7 +645,7 @@ export function inspectTree(tree: Tree): { errors: TreeIssue[]; warnings: TreeIs
   for (const category of tree.categories) {
     if (!category?.id || categoryIds.has(category.id)) issue(errors, `id categoria duplicato ${category?.id ?? ""}`);
     if (category?.id) categoryIds.add(category.id);
-    if (category && !isPaletteColor(category.color)) warnings.push({ message: `Colore di «${category.name}» fuori tavolozza` });
+    if (category && !isPaletteColor(category.color) && !legacyCategoryColors.has(category.color)) warnings.push({ message: `Colore di «${category.name}» fuori tavolozza` });
   }
   const codes = new Map<string, TreeNode>();
   for (const node of tree.nodes) {

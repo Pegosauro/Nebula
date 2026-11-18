@@ -303,28 +303,28 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
       }
     } });
     const text = view.state.sliceDoc(from, to);
-    for (const { from: start, to: end, emojiFrom, textFrom, textTo, color } of findHighlights(text, from)) {
+    for (const { from: start, to: end, prefixFrom, textFrom, textTo, color } of findHighlights(text, from)) {
       if (start < metadataEnd || inCode(start)) continue;
       const owner = { from: start, to: end };
-      addMark(start, end, "live-highlight", { "data-highlight-color": color.name });
+      addMark(start, end, "live-highlight", { "data-highlight-color": color.name, style: `--highlight-color:${color.color}` });
       if (active(start, end)) {
-        addMark(start, emojiFrom, "live-highlight-delimiter");
+        addMark(start, prefixFrom, "live-highlight-delimiter");
         addMark(textTo, end, "live-highlight-delimiter");
       } else {
-        hide(start, emojiFrom, owner);
+        hide(start, prefixFrom, owner);
         hide(textTo, end, owner);
       }
-      const menuOpen = palette?.from === emojiFrom;
-      const cursorInside = cursorLine && selection.from >= emojiFrom && selection.to <= textTo;
+      const menuOpen = palette?.from === prefixFrom;
+      const cursorInside = cursorLine && selection.from >= prefixFrom && selection.to <= textTo;
       if (menuOpen || cursorInside) {
-        const marker: HighlightMarker = { from: emojiFrom, to: textFrom, color };
+        const marker: HighlightMarker = { from: prefixFrom, to: textFrom, color };
         const widget = new HighlightIcon(marker, menuOpen);
-        if (emojiFrom === textFrom) {
-          decorations.push(Decoration.widget({ widget, side: -1, nebulaHighlight: marker }).range(emojiFrom));
+        if (prefixFrom === textFrom) {
+          decorations.push(Decoration.widget({ widget, side: -1, nebulaHighlight: marker }).range(prefixFrom));
         } else {
-          decorations.push(Decoration.replace({ widget, nebulaHighlight: marker, nebulaSyntax: true, nebulaOwner: owner }).range(emojiFrom, textFrom));
+          decorations.push(Decoration.replace({ widget, nebulaHighlight: marker, nebulaSyntax: true, nebulaOwner: owner }).range(prefixFrom, textFrom));
         }
-      } else hide(emojiFrom, textFrom, owner);
+      } else hide(prefixFrom, textFrom, owner);
     }
     for (const link of parseWikilinks(text)) {
       const start = from + link.start, end = from + link.end;

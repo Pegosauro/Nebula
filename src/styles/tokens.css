@@ -12,6 +12,8 @@
   --editor-selection-text: #ffffff;
   --border: #262c39;
   --border-strong: #343c4c;
+  --border-table: #68768b;
+  --custom-accent-ink: var(--accent-ink-dark);
   --text-primary: #e8ebf2;
   --text-secondary: #9ba3b4;
   --text-muted: #929caf;
@@ -54,6 +56,8 @@
   --editor-selection-text: #ffffff;
   --border: #dce0e8;
   --border-strong: #c9cfda;
+  --border-table: #828d9e;
+  --custom-accent-ink: var(--accent-ink-light);
   --text-primary: #20242d;
   --text-secondary: #616a7a;
   --text-muted: #697386;
@@ -70,8 +74,10 @@
 }
 
 :root[data-custom-accent] {
-  --accent: var(--custom-accent);
-  --accent-hover: color-mix(in srgb, var(--accent) 90%, var(--accent-hover-mix));
+  --accent: var(--custom-accent-ink);
+  --accent-fill: var(--custom-accent);
+  --accent-hover: var(--accent);
+  --accent-fill-hover: color-mix(in srgb, var(--accent-fill) 90%, var(--accent-hover-mix));
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --bg-selected: color-mix(in srgb, var(--accent) 15%, var(--bg-panel));
 }

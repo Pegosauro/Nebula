@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Baseline, Bold, ChevronDown, ChevronUp, Italic, Plus, Strikethrough, Trash2, Underline, X } from "lucide-react";
-import { CATEGORY_PALETTE, categoryUsage, isPaletteColor, readableOn, type CategoryTextStyle, type Tree, type TreeCategory } from "./model";
+import { ColorPalette } from "../../components/ui/ColorPalette";
+import { categoryColors, categoryUsage, defaultCategoryColor, readableOn, type CategoryTextStyle, type Tree, type TreeCategory } from "./model";
 
 interface CategoryDialogProps {
   tree: Tree;
@@ -17,7 +18,7 @@ export function CategoryDialog({ tree, onClose, rename, recolor, format, move, r
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [name, setName] = useState("");
-  const [color, setColor] = useState<string>(CATEGORY_PALETTE[0].color);
+  const [color, setColor] = useState<string>(defaultCategoryColor);
   const [pendingDelete, setPendingDelete] = useState<string>();
   const [replacement, setReplacement] = useState("");
   const [error, setError] = useState<string>();
@@ -35,7 +36,7 @@ export function CategoryDialog({ tree, onClose, rename, recolor, format, move, r
     setName("");
     setError(undefined);
     const usedColors = new Set(tree.categories.map(category => category.color));
-    setColor(CATEGORY_PALETTE.find(entry => !usedColors.has(entry.color) && entry.color !== color)?.color ?? CATEGORY_PALETTE[0].color);
+    setColor(categoryColors.find(value => !usedColors.has(value) && value !== color) ?? defaultCategoryColor);
   };
   return (
     <dialog ref={dialogRef} className="editor-dialog tree-dialog is-wide" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); onClose(); }} onClose={onClose}>
@@ -69,17 +70,11 @@ export function CategoryDialog({ tree, onClose, rename, recolor, format, move, r
           )}
           <form className="tree-new-category" onSubmit={event => { event.preventDefault(); create(); }}>
             <label>Nuova categoria<input value={name} onChange={event => setName(event.target.value)} placeholder="Nome" maxLength={80} /></label>
-            <div className="tree-palette" role="listbox" aria-label="Tavolozza">
-              {CATEGORY_PALETTE.map(entry => {
-                const taken = tree.categories.some(category => category.color === entry.color);
-                return <button type="button" key={entry.color} role="option" aria-selected={color === entry.color} title={taken ? `${entry.name}, in uso` : entry.name} style={{ background: entry.color }} onClick={() => setColor(entry.color)}><span className="tree-sr-only">{entry.name}{taken ? ", in uso" : ""}</span></button>;
-              })}
-            </div>
+            <ColorPalette label="Tavolozza" value={color} onChange={setColor} used={new Set(ordered.map(category => category.color))} />
             <span className="tree-chip" style={{ background: color, color: readableOn(color) }}>{name.trim() || "Nuova categoria"}</span>
             <button type="submit" className="button button-primary"><Plus size={15} />Aggiungi</button>
           </form>
           {error && <p role="alert" className="config-error">{error}</p>}
-          {!isPaletteColor(color) && <p role="alert" className="config-error">Colore fuori tavolozza</p>}
         </div>
         <footer><button type="button" className="button button-primary" onClick={onClose}>Chiudi</button></footer>
       </div>
@@ -100,11 +95,10 @@ function CategoryRow({ category, first, last, onRename, onColor, onFormat, onMov
         <button type="button" aria-label={`Colore testo per ${category.name}`} title="Usa il colore della categoria per il nome dei nodi" aria-pressed={category.textStyle?.categoryColor === true} onClick={() => onFormat({ ...category.textStyle, categoryColor: !category.textStyle?.categoryColor })}><Baseline size={15} style={{ color: category.color }} /></button>
       </div>
       <button type="button" className="tree-danger-text" aria-label={`Elimina categoria ${category.name}`} onClick={onDelete}><Trash2 size={15} /></button>
-      {open && (
-        <div className="tree-palette" role="listbox" aria-label={`Tavolozza per ${category.name}`}>
-          {CATEGORY_PALETTE.map(entry => <button type="button" key={entry.color} role="option" aria-selected={category.color === entry.color} title={entry.name} style={{ background: entry.color }} onClick={() => { onColor(entry.color); setOpen(false); }} />)}
-        </div>
-      )}
+      {open && <div className="tree-category-palette"><ColorPalette label={`Tavolozza per ${category.name}`} value={category.color} onChange={color => {
+        onColor(color);
+        setOpen(false);
+      }} /></div>}
     </li>
   );
 }

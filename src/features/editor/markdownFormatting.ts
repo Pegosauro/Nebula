@@ -53,7 +53,7 @@ function highlightEdit(doc: string, from: number, to: number): TextEdit {
     return { from: start, to: end, insert, anchor, head: caret ? anchor : start + insert.length };
   }
   const text = doc.slice(from, to) || "testo";
-  const prefix = `==${defaultHighlightColor.emoji}`;
+  const prefix = `==${defaultHighlightColor.prefix}`;
   return { from, to, insert: `${prefix}${text}==`, anchor: from + prefix.length, head: from + prefix.length + text.length };
 }
 

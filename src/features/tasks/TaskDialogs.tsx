@@ -1,16 +1,17 @@
-import { useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { Check, Folder } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
+import { Folder } from "lucide-react";
 import { EditorDialog } from "../editor/EditorDialog";
-import { groupColors, taskGroupColor, type GroupColor, type TaskGroup } from "./taskModel";
+import { ColorPalette } from "../../components/ui/ColorPalette";
+import { taskGroupColor, type GroupColor, type TaskGroup } from "./taskModel";
 
-const swatches = Object.entries(groupColors) as [GroupColor, (typeof groupColors)[GroupColor]][];
+const defaultGroupColor = "#9ca3af";
 
 export function TaskGroupsDialog({ groups, onCreate, onRename, onClose }: {
   groups: TaskGroup[]; onCreate: (name: string, color: GroupColor) => void;
   onRename: (id: string, name: string, color: GroupColor) => void; onClose: () => void;
 }) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState<GroupColor>("slate");
+  const [color, setColor] = useState<GroupColor>(defaultGroupColor);
   const [editing, setEditing] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const duplicate = groups.some(group => group.id !== editing && group.name.toLocaleLowerCase("it") === name.trim().toLocaleLowerCase("it"));
@@ -18,7 +19,7 @@ export function TaskGroupsDialog({ groups, onCreate, onRename, onClose }: {
   function clear() {
     setName("");
     setEditing("");
-    setColor("slate");
+    setColor(defaultGroupColor);
     input.current?.focus();
   }
 
@@ -31,23 +32,17 @@ export function TaskGroupsDialog({ groups, onCreate, onRename, onClose }: {
   }
 
   return <EditorDialog title="Gruppi task" onClose={onClose}>
-    <form onSubmit={submit}>
+    <form className="task-groups-form" onSubmit={submit}>
       <div className="task-dialog-body">
         {groups.length > 0 && <div className="task-group-options" aria-label="Gruppi esistenti">{groups.map(group => <button key={group.id} type="button" className="task-note-option" aria-pressed={editing === group.id} onClick={() => {
           setEditing(group.id);
           setName(group.name);
-          setColor(group.color && Object.hasOwn(groupColors, group.color) ? group.color : "slate");
+          setColor(group.color ?? "slate");
           input.current?.focus();
         }}><Folder size={16} style={{ color: taskGroupColor(group.color) }} />{group.name}</button>)}</div>}
         <label>{editing ? "Modifica gruppo" : "Nuovo gruppo"}<input ref={input} type="text" autoFocus required maxLength={80} placeholder="Nome del gruppo" value={name} onChange={event => setName(event.target.value)} /></label>
         {duplicate && <p className="task-validation">Esiste già un gruppo con questo nome.</p>}
-        <fieldset className="task-palette">
-          <legend>Colore del gruppo</legend>
-          {swatches.map(([id, swatch]) => <label key={id} className="task-swatch" style={{ "--swatch": swatch.hex } as CSSProperties} title={swatch.name}>
-            <input type="radio" name="task-group-color" aria-label={swatch.name} checked={color === id} onChange={() => setColor(id)} />
-            <span aria-hidden="true">{color === id && <Check size={16} strokeWidth={3} />}</span>
-          </label>)}
-        </fieldset>
+        <ColorPalette label="Colore del gruppo" value={taskGroupColor(color)} onChange={setColor} />
       </div>
       <footer>
         {editing && <button type="button" className="button button-secondary" onClick={clear}>Nuovo gruppo</button>}

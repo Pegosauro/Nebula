@@ -1,3 +1,5 @@
+import { useId, useState } from "react";
+import { ColorPalette } from "../../components/ui/ColorPalette";
 import { useVaultStore } from "../vault/vaultStore";
 import { AppWindow, Download, Info, LayoutPanelLeft, MonitorCog, Moon, Sun } from "lucide-react";
 import { usePwaStore } from "../pwa/pwaStore";
@@ -26,6 +28,8 @@ export function SettingsView() {
   const editorDefaultMode = useSettingsStore(state => state.editorDefaultMode);
   const setEditorDefaultMode = useSettingsStore(state => state.setEditorDefaultMode);
   const theme = useSettingsStore((state) => state.theme);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const paletteId = useId();
   const accentColor = useSettingsStore(state => state.accentColor);
   const setAccentColor = useSettingsStore(state => state.setAccentColor);
   const density = useSettingsStore((state) => state.density);
@@ -69,10 +73,15 @@ export function SettingsView() {
         <div className="setting-row">
           <div><strong>Colore principale</strong><span>Personalizza pulsanti, icone e selezioni.</span></div>
           <div className="setting-accent">
-            <input type="color" aria-label="Colore principale" value={accentColor ?? defaultAccent} onInput={event => setAccentColor(event.currentTarget.value)} />
+            <button type="button" className="button button-secondary" aria-label="Scegli colore principale" aria-expanded={paletteOpen} aria-controls={paletteId} onClick={() => setPaletteOpen(open => !open)}>
+              <span className="setting-accent-sample" style={{ backgroundColor: accentColor ?? defaultAccent }} />Scegli colore
+            </button>
             <span className="setting-value">{accentColor?.toUpperCase() ?? "Viola Nebula"}</span>
             <button className="button button-secondary" type="button" disabled={!accentColor} onClick={() => setAccentColor(null)}>Ripristina</button>
           </div>
+        </div>
+        <div id={paletteId} className="setting-accent-palette" hidden={!paletteOpen}>
+          {paletteOpen && <ColorPalette label="Tavolozza colore principale" value={accentColor} onChange={setAccentColor} />}
         </div>
         <div className="setting-row">
           <div><strong>Densità UI</strong><span>Regola spaziatura e altezza delle righe.</span></div>

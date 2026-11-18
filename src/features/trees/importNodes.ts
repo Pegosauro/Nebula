@@ -1,4 +1,4 @@
-import { CATEGORY_PALETTE, MAX_DEPTH, MAX_NODES, codeStep, conformSuffix, depthOf, joinCode, normCode, uid, type Tree, type TreeCategory } from "./model";
+import { categoryColors, MAX_DEPTH, MAX_NODES, codeStep, conformSuffix, depthOf, joinCode, normCode, uid, type Tree, type TreeCategory } from "./model";
 
 interface ClipboardRow { cells: string[]; row: number }
 export interface ImportRow { row: number; name: string; category: string; note: string; code: string; categoryId: string | null; errors: string[] }
@@ -70,7 +70,7 @@ export function planNodeImport(tree: Tree, parentId: string, text: string, optio
       else if (!options.createCategories) issues.push(`Categoria non trovata: «${category}». Puoi abilitare la creazione delle categorie mancanti.`);
       else {
         const used = new Set(categories.map(item => item.color));
-        const color = CATEGORY_PALETTE.find(item => !used.has(item.color))?.color ?? CATEGORY_PALETTE[categories.length % CATEGORY_PALETTE.length]!.color;
+        const color = categoryColors.find(color => !used.has(color)) ?? categoryColors[categories.length % categoryColors.length]!;
         const created: TreeCategory = { id: uid(), name: category, color, order: categories.reduce((max, item) => Math.max(max, item.order), -1) + 1 };
         categories.push(created); categoryIndex.set(key, [created]); newCategories.push(category); categoryId = created.id;
       }

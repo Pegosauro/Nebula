@@ -8,7 +8,7 @@ import { applyTableLayout } from "./renderTableLayout";
 import type { KnowledgeIndexData } from "../../domain/knowledge";
 import { resolveKnowledgeTarget } from "../../domain/resolveKnowledge";
 import { parseWikilinks } from "./parseKnowledge";
-import { highlightPattern, splitHighlight } from "../../domain/markdownHighlight";
+import { highlightColorNamed, highlightPattern, splitHighlight } from "../../domain/markdownHighlight";
 
 function escapeHtml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -56,8 +56,8 @@ parser.use({
     tokenizer(src) {
       const match = highlightPattern.exec(src);
       if (!match) return;
-      const { text, color, emojiLength } = splitHighlight(match[1]!);
-      return { type: "highlight", raw: match[0], text, color: emojiLength ? color.name : null, tokens: this.lexer.inlineTokens(text) };
+      const { text, color, prefixLength } = splitHighlight(match[1]!);
+      return { type: "highlight", raw: match[0], text, color: prefixLength ? color.name : null, tokens: this.lexer.inlineTokens(text) };
     },
     renderer(token) { return `<mark${token.color ? ` data-highlight-color="${token.color}"` : ""}>${this.parser.parseInline(token.tokens!)}</mark>`; },
   }],
@@ -116,6 +116,10 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
     const tableIndex = Number(key.slice(tablePrefix.length)); table.dataset.nebulaTable = String(tableIndex);
     const layout = tables[tableIndex]?.layout;
     if (layout) applyTableLayout(table, layout);
+  }
+  for (const mark of container.querySelectorAll<HTMLElement>("mark[data-highlight-color]")) {
+    const color = highlightColorNamed(mark.dataset.highlightColor!);
+    if (color) mark.style.setProperty("--highlight-color", color.color);
   }
   // Raw HTML images get the same safe path handling as Markdown images.
   for (const img of container.querySelectorAll("img")) {
