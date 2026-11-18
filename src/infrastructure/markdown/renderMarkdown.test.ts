@@ -19,9 +19,9 @@ describe("renderMarkdownSafe", () => {
 
   it("renders highlight colors without showing the emoji and preserves legacy Markdown", () => {
     const html = renderMarkdownSafe("==🟢**verde**== ==🟡giallo== ==🟠arancione== ==🔴rosso== ==🟣viola== ==🔵blu== =={#374151}personalizzato== ==normale== `==🟢letterale==`");
-    expect(html).toContain('<mark data-highlight-color="green" style="--highlight-color: #22c55e;"><strong>verde</strong></mark>');
+    expect(html).toContain('<mark data-highlight-color="green"><strong>verde</strong></mark>');
     for (const [color, text] of [["yellow", "giallo"], ["orange", "arancione"], ["red", "rosso"], ["purple", "viola"], ["blue", "blu"]]) {
-      expect(html).toMatch(new RegExp(`<mark data-highlight-color="${color}" style="--highlight-color: #[a-f0-9]{6};">${text}</mark>`));
+      expect(html).toContain(`<mark data-highlight-color="${color}">${text}</mark>`);
     }
     expect(html).toContain('<mark data-highlight-color="#374151" style="--highlight-color: #374151;">personalizzato</mark>');
     expect(html).toContain("<mark>normale</mark>");

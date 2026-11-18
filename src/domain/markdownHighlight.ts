@@ -1,40 +1,33 @@
-import { isPaletteColor, paletteColors, type PaletteColor } from "./colorPalette";
+import { paletteColors, type PaletteColor } from "./colorPalette";
 
-const emojiColors: Partial<Record<PaletteColor, { name: string; prefix: string }>> = {
-  "#22c55e": { name: "green", prefix: "🟢" },
-  "#facc15": { name: "yellow", prefix: "🟡" },
-  "#f97316": { name: "orange", prefix: "🟠" },
-  "#ef4444": { name: "red", prefix: "🔴" },
-  "#8b5cf6": { name: "purple", prefix: "🟣" },
-  "#3b82f6": { name: "blue", prefix: "🔵" },
-};
+export interface HighlightColor { name: string; label: string; prefix: string; hex?: PaletteColor }
 
-export const highlightColors = paletteColors.map(({ name, color }) => ({
-  name: emojiColors[color]?.name ?? color,
-  label: name,
-  color,
-  prefix: emojiColors[color]?.prefix ?? `{${color}}`,
-}));
+export const highlightColors: HighlightColor[] = [
+  { name: "green", label: "Verde", prefix: "🟢" },
+  { name: "yellow", label: "Giallo", prefix: "🟡" },
+  { name: "orange", label: "Arancione", prefix: "🟠" },
+  { name: "red", label: "Rosso", prefix: "🔴" },
+  { name: "purple", label: "Viola", prefix: "🟣" },
+  { name: "blue", label: "Blu", prefix: "🔵" },
+];
 
-export type HighlightColor = (typeof highlightColors)[number];
-const highlightsByName = new Map(highlightColors.map(color => [color.name, color]));
-const highlightsByPrefix = new Map(highlightColors.flatMap(color => [[color.prefix, color], [`{${color.color}}`, color]] as const));
-export const defaultHighlightColor = highlightsByName.get("yellow")!;
+export const defaultHighlightColor = highlightColors[1]!;
 export const highlightPattern = /^==([^=\n](?:[^\n]*?[^=\n])?)==/;
 const inlineHighlights = new RegExp(highlightPattern.source.slice(1), "g");
-const legacyPrefix = /^[🟢🟡🟠🔴🟣🔵]/u;
-const palettePrefix = /^\{(#[\da-f]{6})\}/;
 
-export function highlightColorNamed(name: string) {
-  return highlightsByName.get(name);
-}
+// Read shades saved by earlier versions without offering them in the editor.
+const savedShades = new Map(paletteColors.map(({ name, color }): [string, HighlightColor] => [
+  `{${color}}`, { name: color, label: name, prefix: `{${color}}`, hex: color },
+]));
 
 export function splitHighlight(content: string) {
-  const hex = palettePrefix.exec(content);
-  const prefix = hex && isPaletteColor(hex[1]!) ? hex[0] : legacyPrefix.exec(content)?.[0];
-  const color = prefix && content.length > prefix.length ? highlightsByPrefix.get(prefix) : undefined;
-  const prefixLength = color ? prefix!.length : 0;
-  return { color: color ?? defaultHighlightColor, prefixLength, text: content.slice(prefixLength) };
+  const hexPrefix = /^\{(#[\da-f]{6})\}/.exec(content)?.[0];
+  const color = hexPrefix
+    ? savedShades.get(hexPrefix)
+    : highlightColors.find(option => content.startsWith(option.prefix));
+  const selected = color && content.length > color.prefix.length ? color : undefined;
+  const prefixLength = selected?.prefix.length ?? 0;
+  return { color: selected ?? defaultHighlightColor, prefixLength, text: content.slice(prefixLength) };
 }
 
 export function* findHighlights(text: string, offset = 0) {

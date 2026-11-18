@@ -8,7 +8,8 @@ import { applyTableLayout } from "./renderTableLayout";
 import type { KnowledgeIndexData } from "../../domain/knowledge";
 import { resolveKnowledgeTarget } from "../../domain/resolveKnowledge";
 import { parseWikilinks } from "./parseKnowledge";
-import { highlightColorNamed, highlightPattern, splitHighlight } from "../../domain/markdownHighlight";
+import { isPaletteColor } from "../../domain/colorPalette";
+import { highlightPattern, splitHighlight } from "../../domain/markdownHighlight";
 
 function escapeHtml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -118,8 +119,8 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
     if (layout) applyTableLayout(table, layout);
   }
   for (const mark of container.querySelectorAll<HTMLElement>("mark[data-highlight-color]")) {
-    const color = highlightColorNamed(mark.dataset.highlightColor!);
-    if (color) mark.style.setProperty("--highlight-color", color.color);
+    const color = mark.dataset.highlightColor!;
+    if (isPaletteColor(color)) mark.style.setProperty("--highlight-color", color);
   }
   // Raw HTML images get the same safe path handling as Markdown images.
   for (const img of container.querySelectorAll("img")) {

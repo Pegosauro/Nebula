@@ -1,5 +1,11 @@
+[data-highlight-color="green"] { --highlight-color: light-dark(#9ce456, #78cb50); --highlight-outline: light-dark(#21823f, #abdb8c); }
+[data-highlight-color="yellow"] { --highlight-color: #edbb36; --highlight-outline: light-dark(#a16b12, #f0ca70); }
+[data-highlight-color="orange"] { --highlight-color: #fa913c; --highlight-outline: light-dark(#b45116, #ffb77f); }
+[data-highlight-color="red"] { --highlight-color: #f46c73; --highlight-outline: light-dark(#b9363d, #ffa0a6); }
+[data-highlight-color="purple"] { --highlight-color: #c390f3; --highlight-outline: light-dark(#8948a8, #ddb3f7); }
+[data-highlight-color="blue"] { --highlight-color: #64a7f5; --highlight-outline: light-dark(#2868b7, #97c7ff); }
 .live-highlight, mark[data-highlight-color], .markdown-preview mark, .note-preview-content mark {
-  background: color-mix(in srgb, var(--highlight-color, #facc15) 30%, transparent);
+  background: color-mix(in srgb, var(--highlight-color, #edbb36) 30%, transparent);
   color: inherit;
   border-radius: 3px;
 }

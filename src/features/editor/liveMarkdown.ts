@@ -306,7 +306,7 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
     for (const { from: start, to: end, prefixFrom, textFrom, textTo, color } of findHighlights(text, from)) {
       if (start < metadataEnd || inCode(start)) continue;
       const owner = { from: start, to: end };
-      addMark(start, end, "live-highlight", { "data-highlight-color": color.name, style: `--highlight-color:${color.color}` });
+      addMark(start, end, "live-highlight", { "data-highlight-color": color.name, ...(color.hex ? { style: `--highlight-color:${color.hex}` } : {}) });
       if (active(start, end)) {
         addMark(start, prefixFrom, "live-highlight-delimiter");
         addMark(textTo, end, "live-highlight-delimiter");
