@@ -6,6 +6,7 @@ export type ToolbarMenuItem = {
   id: string;
   label: string;
   icon: ReactNode;
+  example?: () => string;
   run: () => void;
 };
 
@@ -83,7 +84,9 @@ export function ToolbarMenu({ label, icon, items, selected, primary }: {
       {items.map(item => <button key={item.id} type="button" role={selected === undefined ? "menuitem" : "menuitemradio"}
         aria-checked={selected === undefined ? undefined : selected === item.id} tabIndex={-1}
         onClick={() => { setOpen(false); item.run(); }}>
-        {item.icon}<span>{item.label}</span>{selected === item.id && <Check className="editor-toolbar-menu-check" size={15} aria-hidden="true" />}
+        {item.icon}<span>{item.label}</span>
+        {item.example && <span className="editor-toolbar-menu-example" aria-hidden="true">{item.example()}</span>}
+        {selected === item.id && <Check className="editor-toolbar-menu-check" size={15} aria-hidden="true" />}
       </button>)}
     </div>, document.body)}
   </div>;

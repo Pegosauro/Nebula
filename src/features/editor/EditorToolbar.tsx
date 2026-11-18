@@ -5,6 +5,7 @@ import { useSettingsStore } from "../settings/settingsStore";
 import { insertCommands, type InsertCommand } from "./insertCommands";
 import { headingBars, headingDigits } from "./headingIcon";
 import { ToolbarMenu } from "./ToolbarMenu";
+import { CalendarTool } from "./CalendarTool";
 
 const formats: Array<{ action: FormatAction; label: string; icon: typeof Bold; shortcut?: string }> = [
   { action: "bold", label: "Grassetto", icon: Bold, shortcut: "Ctrl/⌘ B" },
@@ -64,6 +65,7 @@ export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, 
       <button type="button" title="Inserisci o modifica tabella" aria-label="Tabella" onClick={() => onPanel("table")}><Table2 size={17} /></button>
       <button type="button" className="editor-toolbar-direct" title="Inserisci separatore" aria-label="Separatore" onClick={() => onCommand(divider)}><Minus size={19} aria-hidden="true" /></button>
       <button type="button" className="editor-toolbar-direct" title="Inserisci immagine" aria-label="Immagine" onClick={() => onPanel("image")}><Image size={18} aria-hidden="true" /></button>
+      <CalendarTool api={api} />
       <button type="button" className="insert-trigger" onClick={() => onPanel("insert")} title="Inserisci elemento (Ctrl/⌘ Shift P)"><Plus size={17} /><span>Inserisci</span></button>
       <div className="editor-tools-group editor-tools-tail">
         <button type="button" aria-label="Trova e sostituisci" title="Trova e sostituisci (Ctrl/⌘ F)" onClick={() => onPanel("search")}><Search size={17} /></button>

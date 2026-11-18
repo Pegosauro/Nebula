@@ -15,9 +15,9 @@
 .editor-toolbar-menu-group {
   display: inline-flex;
   flex: none;
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border: 1px solid var(--border);
   border-radius: 7px;
-  background: var(--accent-soft);
+  background: var(--bg-panel);
 }
 .editor-toolbar .editor-toolbar-menu-primary,
 .editor-toolbar .editor-toolbar-menu-trigger {
@@ -31,10 +31,15 @@
 .editor-toolbar-menu-arrow {
   width: 24px;
   height: 23px;
-  border-inline-start: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-inline-start: 1px solid var(--border);
 }
-.editor-toolbar .editor-toolbar-direct, .editor-toolbar .editor-toolbar-menu-trigger[aria-expanded="true"] {
-  background: var(--accent-soft);
+.editor-toolbar .editor-toolbar-direct {
+  background: var(--bg-panel);
+  color: var(--accent-hover);
+}
+.editor-toolbar button:is(.editor-toolbar-menu-primary, .editor-toolbar-menu-trigger, .editor-toolbar-direct):hover:not(:disabled),
+.editor-toolbar .editor-toolbar-menu-trigger[aria-expanded="true"] {
+  background: var(--bg-hover);
   color: var(--accent-hover);
 }
 .editor-toolbar-menu {
@@ -72,6 +77,14 @@
 .editor-toolbar-menu button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .editor-toolbar-menu button[aria-checked="true"] > svg { color: var(--accent-hover); }
 .editor-toolbar-menu-check { margin-inline-start: auto; }
+.editor-toolbar-menu-example {
+  margin-inline-start: auto;
+  padding-inline-start: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
 .editor-toolbar .insert-trigger { background: var(--accent-soft); color: var(--accent-hover); }
 .editor-v2 .codemirror-host .cm-editor { font-size: 16px; }
 .editor-v2 .codemirror-host .cm-content { width: min(820px, calc(100% - 48px)); padding-top: 30px; }

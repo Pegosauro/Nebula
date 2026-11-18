@@ -72,6 +72,36 @@ it("applies and remembers H1–H4 and runs the grouped and direct toolbar comman
   expect(host!.querySelector("dialog")?.textContent).toContain("Inserisci immagine");
 });
 
+it("inserts the four local calendar formats and keeps the main button on the numeric date", async () => {
+  vi.setSystemTime(new Date(2026, 0, 2, 3, 4));
+  const path = "Calendario.md", content = "Date: ";
+  vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content, size: content.length, lastModified: 1 });
+  vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: content.length, lastModified: 2 });
+  useWorkspaceStore.setState({ tabs: [{ id: "cal", kind: "document", title: "Calendario", path, extension: ".md" }], activeTabId: "cal" });
+  mount(); await act(async () => root!.render(<MarkdownEditorView />));
+  const view = EditorView.findFromDOM(host!.querySelector<HTMLElement>(".cm-editor")!)!;
+  const primary = host!.querySelector<HTMLButtonElement>('[aria-label="Inserisci data (GG/MM/AAAA)"]')!;
+  const toggle = host!.querySelector<HTMLButtonElement>('[aria-label="Formati di data e ora"]')!;
+  const values = ["02/01/2026", "02/01/2026 03:04", "02 gennaio 2026", "03:04"];
+  await act(async () => view.dispatch({ selection: { anchor: content.length } }));
+  await act(async () => primary.click());
+  expect(view.state.doc.toString()).toBe(content + values[0]);
+  for (const [index, value] of values.entries()) {
+    await act(async () => view.dispatch({ changes: { from: view.state.doc.length, insert: "\n" }, selection: { anchor: view.state.doc.length + 1 } }));
+    await act(async () => toggle.click());
+    const menu = [...document.querySelectorAll<HTMLButtonElement>('[role="menu"][aria-label="Formati di data e ora"] button')];
+    expect(menu.map(item => item.querySelector("span")?.textContent)).toEqual(["GG/MM/AAAA", "GG/MM/AAAA HH:mm", "GG MMMM AAAA", "HH:mm"]);
+    expect(menu.map(item => item.querySelector(".editor-toolbar-menu-example")?.textContent)).toEqual(values);
+    await act(async () => menu[index]!.click());
+    expect(view.state.doc.toString()).toContain("\n" + value);
+  }
+  await act(async () => {
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "\n" }, selection: { anchor: view.state.doc.length + 1 } });
+    primary.click();
+  });
+  expect(view.state.doc.toString()).toBe([content + values[0], ...values, values[0]].join("\n"));
+});
+
 it("updates and persists page appearance in both writing and locked reading without editing the file", async () => {
   const content = "# Nota\n\nTesto";
   vi.spyOn(vaultService, "readText").mockResolvedValue({ path: "Nota.md", content, size: content.length, lastModified: 1 });
