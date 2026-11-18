@@ -439,10 +439,6 @@
 .codemirror-host .cm-activeLineGutter { background: var(--accent-soft); }
 .codemirror-host .cm-selectionBackground { background: var(--editor-selection-inactive) !important; }
 .codemirror-host .cm-focused .cm-selectionBackground { background: var(--editor-selection-layer) !important; }
-.codemirror-host .cm-editor .cm-content::selection,
-.codemirror-host .cm-editor .cm-content *::selection { background: var(--editor-selection-inactive) !important; color: var(--editor-selection-inactive-text) !important; }
-.codemirror-host .cm-editor.cm-focused .cm-content::selection,
-.codemirror-host .cm-editor.cm-focused .cm-content *::selection { background: var(--editor-selection) !important; color: var(--editor-selection-text) !important; }
 .codemirror-host .cm-cursor { border-left-color: var(--accent-secondary); }
 .codemirror-host .cm-placeholder { color: var(--text-muted); font-style: normal; }
 
