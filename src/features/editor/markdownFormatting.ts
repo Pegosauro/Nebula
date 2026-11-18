@@ -4,7 +4,7 @@ import { defaultHighlightColor, findHighlights } from "../../domain/markdownHigh
 
 const wrappers: Partial<Record<FormatAction, string>> = { bold: "**", italic: "*", strike: "~~", inlineCode: "`" };
 
-export function formatEdit(doc: string, from: number, to: number, action: FormatAction): TextEdit {
+export function formatEdit(doc: string, from: number, to: number, action: FormatAction, toggle = true): TextEdit {
   if (action === "italic") return italicEdit(doc, from, to);
   if (action === "highlight") return highlightEdit(doc, from, to);
   let marker = wrappers[action];
@@ -29,7 +29,7 @@ export function formatEdit(doc: string, from: number, to: number, action: Format
   const lines = doc.slice(start, end).split("\n");
   const prefix = action.startsWith("h") ? `${"#".repeat(Number(action[1]))} ` : action === "bullet" ? "- " : action === "ordered" ? "1. " : action === "task" ? "- [ ] " : action === "quote" ? "> " : "";
   const pattern = action === "ordered" ? /^\d+[.)]\s+/ : action === "task" ? /^[-*+] \[[ xX]\]\s+/ : action === "bullet" ? /^[-*+]\s+(?!\[[ xX]\])/ : action === "quote" ? /^>\s?/ : /^(#{1,6})\s+/;
-  const toggleOff = action !== "paragraph" && lines.every(line => pattern.test(line.trimStart()) && (action[0] !== "h" || line.trimStart().startsWith(prefix)));
+  const toggleOff = toggle && action !== "paragraph" && lines.every(line => pattern.test(line.trimStart()) && (action[0] !== "h" || line.trimStart().startsWith(prefix)));
   const insert = lines.map((line, index) => {
     const indent = line.match(/^\s*/)?.[0] ?? "";
     const body = line.slice(indent.length).replace(/^(?:#{1,6}\s+|[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|>\s?)/, "");

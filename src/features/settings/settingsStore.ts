@@ -23,6 +23,8 @@ interface SettingsState {
   schemaVersion: 1;
   editorDefaultMode: EditorMode;
   setEditorDefaultMode: (mode: EditorMode) => void;
+  editorHeadingLevel: number;
+  setEditorHeadingLevel: (level: number) => void;
   theme: ThemeChoice;
   density: UiDensity;
   showSidebarByDefault: boolean;
@@ -49,6 +51,8 @@ export const useSettingsStore = create<SettingsState>()(
       schemaVersion: 1,
       editorDefaultMode: "edit",
       setEditorDefaultMode: (editorDefaultMode) => set({ editorDefaultMode }),
+      editorHeadingLevel: 1,
+      setEditorHeadingLevel: (level) => set({ editorHeadingLevel: bounded(level, 1, 1, 4) }),
       theme: "system",
       density: "comfortable",
       showSidebarByDefault: true,
@@ -62,7 +66,7 @@ export const useSettingsStore = create<SettingsState>()(
       name: "nebula.settings.v1",
       merge: (persisted, current) => {
         const stored = persisted as Partial<SettingsState> | undefined;
-        return { ...current, ...stored, showMarkdownAtCursor: stored?.showMarkdownAtCursor !== false, navigationExpanded: stored?.navigationExpanded === true, showNotePropertiesByDefault: stored?.showNotePropertiesByDefault === true, editorDefaultMode: normalizeEditorMode(stored?.editorDefaultMode), editorFontSize: bounded(stored?.editorFontSize, 17, 14, 24), editorPageWidth: bounded(stored?.editorPageWidth, 780, 560, 1200), editorFullWidth: stored?.editorFullWidth === true };
+        return { ...current, ...stored, showMarkdownAtCursor: stored?.showMarkdownAtCursor !== false, navigationExpanded: stored?.navigationExpanded === true, showNotePropertiesByDefault: stored?.showNotePropertiesByDefault === true, editorDefaultMode: normalizeEditorMode(stored?.editorDefaultMode), editorHeadingLevel: bounded(stored?.editorHeadingLevel, 1, 1, 4), editorFontSize: bounded(stored?.editorFontSize, 17, 14, 24), editorPageWidth: bounded(stored?.editorPageWidth, 780, 560, 1200), editorFullWidth: stored?.editorFullWidth === true };
       },
       partialize: (state) => ({
         schemaVersion: state.schemaVersion,
@@ -71,6 +75,7 @@ export const useSettingsStore = create<SettingsState>()(
         showNotePropertiesByDefault: state.showNotePropertiesByDefault,
         editorFontSize: state.editorFontSize, editorPageWidth: state.editorPageWidth, editorFullWidth: state.editorFullWidth,
         editorDefaultMode: state.editorDefaultMode,
+        editorHeadingLevel: state.editorHeadingLevel,
         theme: state.theme,
         density: state.density,
         showSidebarByDefault: state.showSidebarByDefault,

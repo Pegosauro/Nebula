@@ -12,7 +12,66 @@
 .editor-toolbar button:disabled, .table-tools button:disabled, .editor-search button:disabled { opacity: .35; cursor: default; }
 .editor-tools-group { display: flex; flex: none; align-items: center; gap: 2px; padding-right: 6px; border-right: 1px solid var(--border); }
 .editor-tools-tail { margin-left: auto; padding-right: 0; border: 0; }
-.editor-toolbar select { flex: none; max-width: 105px; height: 32px; border: 1px solid var(--border); border-radius: 6px; padding: 0 6px; background: var(--bg-panel); color: var(--text-primary); font-size: 13px; }
+.editor-toolbar-menu-group {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-radius: 7px;
+  background: var(--accent-soft);
+}
+.editor-toolbar .editor-toolbar-menu-primary,
+.editor-toolbar .editor-toolbar-menu-trigger {
+  padding: 0;
+  gap: 0;
+  min-width: 0;
+  color: var(--accent-hover);
+}
+.editor-toolbar .editor-toolbar-menu-primary, .editor-toolbar-menu-symbol { width: 34px; }
+.editor-toolbar-menu-symbol, .editor-toolbar-menu-arrow { display: grid; place-items: center; }
+.editor-toolbar-menu-arrow {
+  width: 24px;
+  height: 23px;
+  border-inline-start: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+}
+.editor-toolbar .editor-toolbar-direct, .editor-toolbar .editor-toolbar-menu-trigger[aria-expanded="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+.editor-toolbar-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: min(180px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-float);
+}
+.editor-toolbar-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  cursor: pointer;
+}
+.editor-toolbar-menu button > svg { flex: none; color: var(--text-secondary); }
+.editor-toolbar-menu button[aria-checked="true"], .editor-toolbar-menu button:hover, .editor-toolbar-menu button:focus-visible { background: var(--accent-soft); }
+.editor-toolbar-menu button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.editor-toolbar-menu button[aria-checked="true"] > svg { color: var(--accent-hover); }
+.editor-toolbar-menu-check { margin-inline-start: auto; }
 .editor-toolbar .insert-trigger { background: var(--accent-soft); color: var(--accent-hover); }
 .editor-v2 .codemirror-host .cm-editor { font-size: 16px; }
 .editor-v2 .codemirror-host .cm-content { width: min(820px, calc(100% - 48px)); padding-top: 30px; }

@@ -23,15 +23,54 @@ beforeAll(() => {
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 100, 20);
   Element.prototype.scrollIntoView = () => {};
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  HTMLDialogElement.prototype.close = function () { this.open = false; };
 });
 afterEach(async () => {
   if (root) await act(async () => root!.unmount()); host?.remove(); root = undefined; host = undefined;
   useDocumentStore.getState().reset(); useWorkspaceStore.getState().resetDocuments(); clearEditorMemories();
-  useSettingsStore.setState({ editorFontSize: 17, editorPageWidth: 780, editorFullWidth: false, showMarkdownAtCursor: true });
+  useSettingsStore.setState({ editorFontSize: 17, editorPageWidth: 780, editorFullWidth: false, editorHeadingLevel: 1, showMarkdownAtCursor: true });
   useKnowledgeStore.setState({ documents: {}, suggestions: [] }); vi.restoreAllMocks(); vi.useRealTimers();
 });
 function mount() { host = document.createElement("div"); document.body.append(host); root = createRoot(host); }
 function pointer(element: Element, type: string, options: MouseEventInit = {}) { element.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: 30, clientY: 30, ...options })); }
+
+it("applies and remembers H1–H4 and runs the grouped and direct toolbar commands", async () => {
+  const path = "Toolbar.md", content = "Titolo\n\nParagrafo";
+  vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content, size: content.length, lastModified: 1 });
+  vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: 20, lastModified: 2 });
+  useWorkspaceStore.setState({ tabs: [{ id: "bar", kind: "document", title: "Toolbar", path, extension: ".md" }], activeTabId: "bar" });
+  mount(); await act(async () => root!.render(<MarkdownEditorView />));
+  const button = (label: string) => host!.querySelector<HTMLButtonElement>(`.editor-toolbar button[aria-label="${label}"]`)!;
+  const open = async (label: string) => { await act(async () => button(label).click()); };
+  const menuItems = () => Array.from(document.querySelectorAll<HTMLButtonElement>(".editor-toolbar-menu button"));
+  const editing = () => useDocumentStore.getState().sessions[path]!.content;
+
+  expect(button("Applica titolo H1")).toBeTruthy();
+  await open("Scegli il livello del titolo");
+  expect(menuItems().map(item => item.textContent)).toEqual(["Titolo H1", "Titolo H2", "Titolo H3", "Titolo H4"]);
+  await act(async () => menuItems()[2]!.click());
+  expect(editing()).toBe("### Titolo\n\nParagrafo");
+  expect(JSON.parse(localStorage.getItem("nebula.settings.v1")!).state.editorHeadingLevel).toBe(3);
+  expect(button("Applica titolo H3")).toBeTruthy();
+  await open("Applica titolo H3");
+  expect(editing()).toBe("### Titolo\n\nParagrafo");
+
+  const view = EditorView.findFromDOM(host!.querySelector<HTMLElement>(".cm-editor")!)!;
+  await act(async () => view.dispatch({ selection: { anchor: view.state.doc.length } }));
+  await open("Applica titolo H3");
+  expect(editing()).toContain("### Paragrafo");
+  await act(async () => view.dispatch({ selection: { anchor: view.state.doc.length } }));
+
+  await open("Elenchi, citazioni e avvisi");
+  expect(menuItems().map(item => item.textContent)).toEqual(["Elenco puntato", "Elenco numerato", "Checklist", "Citazione", "Suggerimento", "Avviso"]);
+  await act(async () => menuItems()[5]!.click());
+  expect(editing()).toContain("\n\n> [!WARNING]\n> Presta attenzione a questo punto\n\n");
+  await open("Separatore");
+  expect(editing()).toContain("\n\n---\n\n");
+  await open("Immagine");
+  expect(host!.querySelector("dialog")?.textContent).toContain("Inserisci immagine");
+});
 
 it("updates and persists page appearance in both writing and locked reading without editing the file", async () => {
   const content = "# Nota\n\nTesto";

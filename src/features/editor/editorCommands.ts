@@ -9,7 +9,7 @@ import { findHighlights } from "../../domain/markdownHighlight";
 export type EditorPanel = "insert" | "link" | "image" | "table" | "help" | "search";
 export interface EditorUiState { from: number; to: number; line: number; column: number; selected: string; canUndo: boolean; canRedo: boolean; active: string[]; x: number; y: number }
 export interface EditorApi {
-  format(action: FormatAction): void;
+  format(action: FormatAction, toggle?: boolean): void;
   insert(text: string, block?: boolean): void;
   replace(from: number, to: number, text: string): void;
   replaceAll(changes: Array<{ from: number; to: number; insert: string }>): void;
@@ -26,7 +26,7 @@ export function applyTextEdit(view: EditorView, edit: TextEdit) {
 }
 export function createEditorApi(view: EditorView): EditorApi {
   return {
-    format: action => {
+    format: (action, toggle) => {
       if (view.state.readOnly) return;
       const { from, to } = view.state.selection.main;
       const names: Partial<Record<FormatAction, string>> = { bold: "StrongEmphasis", italic: "Emphasis", strike: "Strikethrough", inlineCode: "InlineCode" };
@@ -39,7 +39,9 @@ export function createEditorApi(view: EditorView): EditorApi {
           applyTextEdit(view, { ...edit, anchor: position, head: position }); return;
         }
       }
-      applyTextEdit(view, formatEdit(view.state.doc.toString(), from, to, action));
+      const edit = formatEdit(view.state.doc.toString(), from, to, action, toggle);
+      if (toggle === false && view.state.sliceDoc(edit.from, edit.to) === edit.insert) { view.focus(); return; }
+      applyTextEdit(view, edit);
     },
     insert: (text, block = false) => {
       if (view.state.readOnly) return;
