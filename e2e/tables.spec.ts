@@ -91,6 +91,8 @@ test("keeps external table controls out of the document layout", async ({ page }
   const gridAfter = (await table.boundingBox())!;
   expect(rulerBefore.y + rulerBefore.height).toBeLessThanOrEqual(gridAfter.y + 1);
   expect(bottomControl.y).toBeGreaterThanOrEqual(gridAfter.y + gridAfter.height - 1);
+  expect(bottomControl.x).toBeCloseTo(gridAfter.x, 0);
+  expect(bottomControl.width).toBeCloseTo(gridAfter.width, 0);
   expect(gridAfter).toEqual(gridBefore);
   expect((await paragraph.boundingBox())!.y).toEqual(paragraphBefore.y);
 });
