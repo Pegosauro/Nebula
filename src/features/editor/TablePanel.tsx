@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, AlignLeft, AlignCenter, AlignRight, Merge, Split, MousePointer2 } from "lucide-react";
+import { Plus, Trash2, AlignLeft, AlignCenter, AlignRight, Merge, Split, MousePointer2, PanelTop } from "lucide-react";
 import { EditorDialog } from "./EditorDialog";
 import { initialTableRows, parseTsv, serializeTable, type MarkdownTable } from "./markdownTools";
 import { cellSpan, cellText, changeTableStructure, columnWidth, containsCell, DEFAULT_COLUMN_WIDTH, MAX_COLUMN_WIDTH, mergeTableLayout, MIN_COLUMN_WIDTH, selectionBounds, type TableCell, type TableLayout } from "../../infrastructure/markdown/tableLayout";
@@ -19,6 +19,7 @@ export function TablePanel({ table, onSave, onClose }: { table?: MarkdownTable; 
   const resize = useRef<{ column: number; x: number; width: number } | undefined>(undefined);
   const grid = useRef<HTMLTableElement>(null);
   const active = selection.last, columns = data.rows[0]!.length;
+  const firstVisibleRow = data.layout.headerHidden ? 1 : 0;
   const widths = data.layout.widths ?? Array.from({ length: columns }, () => DEFAULT_COLUMN_WIDTH);
   const bounds = selectionBounds(data.layout, selection.first, selection.last);
   const merged = mergeTableLayout(data.layout, bounds);
@@ -36,6 +37,15 @@ export function TablePanel({ table, onSave, onClose }: { table?: MarkdownTable; 
     const numeric = Number(widthDraft);
     const value = widthDraft.trim() && Number.isFinite(numeric) ? columnWidth(numeric) : widths[active.column]!;
     setWidth(active.column, value); setWidthDraft(String(value));
+  };
+  const toggleHeader = () => {
+    const headerHidden = !data.layout.headerHidden;
+    const rows = headerHidden && data.rows.length === 1 ? [...data.rows, Array<string>(columns).fill("")] : data.rows;
+    setData({ ...data, rows, layout: { ...data.layout, headerHidden } });
+    if (headerHidden && bounds.top === 0) {
+      const cell = { row: Math.max(1, active.row), column: active.column };
+      setSelection({ first: cell, last: cell });
+    }
   };
   const update = (r: number, c: number, value: string) => setData(old => {
     const span = cellSpan(old.layout, r, c);
@@ -57,6 +67,7 @@ export function TablePanel({ table, onSave, onClose }: { table?: MarkdownTable; 
   return <EditorDialog title={table ? "Modifica tabella" : "Inserisci tabella"} onClose={onClose} wide>
     <p className="editor-panel-hint">Seleziona le celle con i piccoli pulsanti nell’angolo. Shift+clic estende l’intervallo; “Selezione multipla” funziona anche senza tastiera. Trascina i separatori sopra le colonne per regolare la larghezza.</p>
     <div className="table-tools" role="toolbar" aria-label="Struttura tabella">
+      <button type="button" onClick={toggleHeader}><PanelTop size={15} />{data.layout.headerHidden ? "Mostra intestazione" : "Nascondi intestazione"}</button>
       <button type="button" onClick={() => structure("row", false)}><Plus size={15} />Riga sotto</button>
       <button type="button" onClick={() => structure("column", false)}><Plus size={15} />Colonna a destra</button>
       <button type="button" disabled={active.row === 0 || data.rows.length <= 2} onClick={() => structure("row", true)}><Trash2 size={15} />Rimuovi riga</button>
@@ -80,13 +91,13 @@ export function TablePanel({ table, onSave, onClose }: { table?: MarkdownTable; 
       }} onPointerMove={e => { const drag = resize.current; if (drag?.column === c) setWidth(c, drag.width + e.clientX - drag.x); }} onPointerUp={() => { resize.current = undefined; }} onPointerCancel={() => { resize.current = undefined; }} onLostPointerCapture={() => { resize.current = undefined; }} onKeyDown={e => {
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); setWidth(c, width + (e.key === "ArrowRight" ? 10 : -10)); }
       }} /></div>)}</div>
-      <table ref={grid} className="table-editor-grid" style={{ width: widths.reduce((sum, value) => sum + value, 0), tableLayout: "fixed" }}><colgroup>{widths.map((width, c) => <col key={c} style={{ width }} />)}</colgroup><tbody>{data.rows.map((row, r) => <tr key={r}>{row.map((_, c) => {
+      <table ref={grid} className="table-editor-grid" style={{ width: widths.reduce((sum, value) => sum + value, 0), tableLayout: "fixed" }}><colgroup>{widths.map((width, c) => <col key={c} style={{ width }} />)}</colgroup><tbody>{data.rows.map((row, r) => r < firstVisibleRow ? null : <tr key={r}>{row.map((_, c) => {
         const span = cellSpan(data.layout, r, c); if (span.row !== r || span.column !== c) return null;
         const label = `${r === 0 ? "Intestazione" : `Riga ${r}`} colonna ${c + 1}`;
         return <td key={c} rowSpan={span.rows} colSpan={span.columns} className={`${r === 0 ? "is-header" : ""} ${containsCell(bounds, r, c) ? "is-selected" : ""} ${active.row === r && active.column === c ? "is-active" : ""}`}>
           <button type="button" className="table-cell-select" aria-label={`Seleziona ${label.toLowerCase()}`} aria-pressed={containsCell(bounds, r, c)} title="Seleziona cella · Shift+clic per un intervallo" onClick={e => select({ row: r, column: c }, e.shiftKey)} onKeyDown={e => {
             const delta: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
-            if (e.shiftKey && delta[e.key]) { e.preventDefault(); const [y, x] = delta[e.key]!; select({ row: Math.max(0, Math.min(data.rows.length - 1, active.row + y)), column: Math.max(0, Math.min(columns - 1, active.column + x)) }, true); }
+            if (e.shiftKey && delta[e.key]) { e.preventDefault(); const [y, x] = delta[e.key]!; select({ row: Math.max(firstVisibleRow, Math.min(data.rows.length - 1, active.row + y)), column: Math.max(0, Math.min(columns - 1, active.column + x)) }, true); }
           }}><MousePointer2 size={12} /></button>
           <input aria-label={label} value={cellText(data.rows, span)} onPointerDown={e => { if (e.shiftKey || rangeMode) { e.preventDefault(); select({ row: r, column: c }, true); } }} onFocus={() => select({ row: r, column: c })} onChange={e => update(r, c, e.target.value)} onPaste={e => {
             const text = e.clipboardData.getData("text/plain"); if (!/[\t\n]/.test(text)) return; e.preventDefault();

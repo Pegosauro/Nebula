@@ -3,7 +3,7 @@ export interface CellSpan extends TableCell { rows: number; columns: number }
 export type HorizontalAlignment = "left" | "center" | "right";
 export type VerticalAlignment = "top" | "middle" | "bottom";
 export interface CellFormat extends TableCell { horizontal?: HorizontalAlignment; vertical?: VerticalAlignment }
-export interface TableLayout { spans: CellSpan[]; widths?: number[]; cells?: CellFormat[] }
+export interface TableLayout { spans: CellSpan[]; widths?: number[]; cells?: CellFormat[]; headerHidden?: boolean }
 export interface CellBounds { top: number; bottom: number; left: number; right: number }
 export const MIN_COLUMN_WIDTH = 80, MAX_COLUMN_WIDTH = 1200, DEFAULT_COLUMN_WIDTH = 160;
 export const columnWidth = (value: number) => Math.round(Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, value)));
@@ -12,8 +12,10 @@ export const columnWidth = (value: number) => Math.round(Math.max(MIN_COLUMN_WID
  * overlapping metadata is ignored, never used to hide a cell's contents. */
 export function validateTableLayout(value: unknown, rowCount: number, columnCount: number): TableLayout | undefined {
   if (!value || typeof value !== "object") return;
-  const input = value as { version?: unknown; widths?: unknown; spans?: unknown; cells?: unknown };
+  const input = value as { version?: unknown; widths?: unknown; spans?: unknown; cells?: unknown; headerHidden?: unknown };
   if (input.version !== undefined && input.version !== 1) return;
+  if (input.headerHidden !== undefined && typeof input.headerHidden !== "boolean") return;
+  if (input.headerHidden && rowCount < 2) return;
   if (!Array.isArray(input.spans) || input.spans.length > rowCount * columnCount) return;
   let widths: number[] | undefined;
   if (input.widths !== undefined) {
@@ -43,7 +45,7 @@ export function validateTableLayout(value: unknown, rowCount: number, columnCoun
       formatted.add(key);
     }
   }
-  return { spans, ...(widths ? { widths } : {}), ...(cells.length ? { cells } : {}) };
+  return { spans, ...(widths ? { widths } : {}), ...(cells.length ? { cells } : {}), ...(input.headerHidden ? { headerHidden: true } : {}) };
 }
 export function tableMetadataAt(source: string, end: number, rows: number, columns: number) {
   const match = /^\r?\n<!-- nebula-table:(\{[^\r\n]*\}) -->/.exec(source.slice(end));
@@ -55,7 +57,7 @@ export function tableMetadataAt(source: string, end: number, rows: number, colum
 }
 export function serializeTableLayout(layout: TableLayout | undefined, rows: number, columns: number) {
   const valid = validateTableLayout(layout, rows, columns);
-  return valid && (valid.spans.length || valid.widths || valid.cells?.length) ? `\n<!-- nebula-table:${JSON.stringify({ version: 1, ...valid })} -->` : "";
+  return valid && (valid.spans.length || valid.widths || valid.cells?.length || valid.headerHidden) ? `\n<!-- nebula-table:${JSON.stringify({ version: 1, ...valid })} -->` : "";
 }
 export function cellSpan(layout: TableLayout | undefined, row: number, column: number): CellSpan {
   return layout?.spans.find(s => row >= s.row && row < s.row + s.rows && column >= s.column && column < s.column + s.columns) ?? { row, column, rows: 1, columns: 1 };
@@ -114,5 +116,5 @@ export function changeTableStructure(layout: TableLayout, axis: "row" | "column"
   const widths = layout.widths ? [...layout.widths] : undefined;
   if (widths && axis === "column") widths.splice(index, remove ? 1 : 0, ...(remove ? [] : [DEFAULT_COLUMN_WIDTH]));
   const cells = layout.cells?.flatMap(cell => remove && cell[axis] === index ? [] : [{ ...cell, [axis]: cell[axis] + (cell[axis] >= index ? remove ? -1 : 1 : 0) }]);
-  return { spans, ...(widths ? { widths } : {}), ...(cells?.length ? { cells } : {}) };
+  return { spans, ...(widths ? { widths } : {}), ...(cells?.length ? { cells } : {}), ...(layout.headerHidden ? { headerHidden: true } : {}) };
 }

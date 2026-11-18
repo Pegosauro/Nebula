@@ -24,6 +24,7 @@ export function applyTableLayout(table: HTMLTableElement, layout: TableLayout) {
     table.prepend(group); table.style.tableLayout = "fixed"; table.style.width = `${layout.widths.reduce((sum, width) => sum + width, 0)}px`;
     table.classList.add("has-column-widths");
   }
+  if (layout.headerHidden && table.tHead) table.tHead.hidden = true;
   const scroll = document.createElement("div"); scroll.className = "nebula-table-scroll";
   table.replaceWith(scroll); scroll.append(table);
 }

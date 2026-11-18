@@ -367,7 +367,7 @@
   position: absolute;
   top: calc(4px + var(--table-ruler));
   left: 0;
-  height: calc(100% - var(--table-ruler) - var(--table-add-height) - 8px);
+  height: calc(100% - var(--table-ruler) - var(--table-add-height) - var(--table-scrollbar-height, 0px) - 8px);
 }
 .inline-table table { width: 100%; }
 .inline-table table:not(.has-column-widths) { table-layout: fixed; }
@@ -385,7 +385,7 @@
 .inline-table-row-handle { position: absolute; left: 2px; width: calc(var(--table-gutter) - 6px); touch-action: none; }
 .inline-table-corner { position: absolute; left: 2px; bottom: 100%; width: calc(var(--table-gutter) - 6px); height: var(--table-ruler); }
 .inline-table-add-column { position: absolute; right: 2px; top: 0; bottom: 0; width: calc(var(--table-gutter) - 6px); }
-.inline-table-add-row { position: absolute; top: 100%; inset-inline-start: var(--table-gutter); width: calc(100% - 2 * var(--table-gutter)); height: var(--table-add-height); }
+.inline-table-add-row { position: absolute; top: calc(100% + var(--table-scrollbar-height, 0px)); inset-inline-start: var(--table-gutter); width: calc(100% - 2 * var(--table-gutter)); height: var(--table-add-height); }
 .inline-table-resizer { position: absolute; right: -6px; top: 0; width: 12px; height: var(--table-ruler); cursor: col-resize; touch-action: none; z-index: 1; opacity: 0; }
 .inline-table:is(:hover,.is-active,:focus-within) .inline-table-controls :is(button,.inline-table-resizer) { opacity: 1; pointer-events: auto; }
 .inline-table-controls button:is(:hover,[aria-pressed="true"]) { background: var(--accent-soft); color: var(--accent); }

@@ -15,7 +15,7 @@ p,li { orphans: 3; widows: 3; } img { max-width: 100%; height: auto; max-height:
 pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f2f3f5; padding: 10pt; border: 1px solid #ddd; }
 code { font-family: ui-monospace, monospace; font-size: .9em; } blockquote { margin: 12pt 0; border-left: 3px solid #8b5cf6; padding: 6pt 12pt; background: #f6f4fb; }
 a { color: #49398d; text-decoration: underline; } table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 9pt; margin: 12pt 0; }
-th,td { padding: 6pt; border: 1px solid #bbb; vertical-align: top; overflow-wrap: anywhere; } th { background: #f0f1f4; } thead { display: table-header-group; } tr { break-inside: avoid; }
+th,td { padding: 6pt; border: 1px solid #bbb; vertical-align: top; overflow-wrap: anywhere; } th { background: #f0f1f4; } thead:not([hidden]) { display: table-header-group; } tr { break-inside: avoid; }
 input[type=checkbox] { accent-color: #5d478f; } .image-error { color: #a32e2e; } video,audio { display: none; }
 body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 ${highlightStyles}

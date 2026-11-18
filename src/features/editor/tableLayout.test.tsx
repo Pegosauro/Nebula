@@ -58,6 +58,18 @@ describe("table layouts persisted in Markdown", () => {
     expect(markdownTables(invalid)[0]!.layout).toBeUndefined();
     expect(renderMarkdownSafe(invalid)).toContain("Cinque");
   });
+  it("keeps a hidden header in Markdown and hides it only for that table when rendering", () => {
+    const hidden = serializeTable(rows, ["left", null, null], { ...layout, headerHidden: true });
+    const plain = serializeTable(rows);
+    const source = hidden + "\n\n" + plain;
+    expect(markdownTables(source).map(table => table.rows)).toEqual([rows, rows]);
+    expect(markdownTables(source)[0]!.layout).toEqual({ ...layout, headerHidden: true });
+    expect(changeTableStructure({ ...layout, headerHidden: true }, "column", 1, false).headerHidden).toBe(true);
+    const element = document.createElement("div"); element.innerHTML = renderMarkdownSafe(source);
+    expect([...element.querySelectorAll("thead")].map(header => header.hidden)).toEqual([true, false]);
+    expect(element.querySelector("thead")!.textContent).toBe("ABC");
+    expect(element.querySelector("tbody td")!.getAttribute("rowspan")).toBe("2");
+  });
   it("joins a rectangle without losing original values and transforms merges on structural edits", () => {
     const merged = mergeTableLayout({ spans: [] }, { top: 1, bottom: 2, left: 0, right: 1 })!;
     expect(cellText(rows, cellSpan(merged, 2, 1))).toBe("Uno<br>*Due*<br>Quattro<br>Cinque");
@@ -115,6 +127,31 @@ describe("table editor interactions", () => {
     expect(markdownTables(content())[1]!.rows).toEqual([["X", "Y"], ["A", "B"]]);
     await act(async () => api.current!.undo()); expect(markdownTables(content())[0]!.rows).toEqual(rows);
     await act(async () => api.current!.redo()); expect(markdownTables(content())[0]!.rows[1]![0]).toContain("Nuovo");
+  });
+  it("toggles the header inline, skips it during selection, and preserves the toggle through history", async () => {
+    const { content, api } = await live(); await pick(0, 0);
+    await act(async () => inlineButton("Nascondi intestazione").click());
+    expect(host!.querySelector<HTMLTableSectionElement>(".inline-table thead")!.hidden).toBe(true);
+    expect(document.activeElement).toBe(inlineCell(1, 0));
+    await key(inlineCell(1, 0), "ArrowUp");
+    expect(document.activeElement).toBe(inlineCell(1, 0));
+    expect(host!.querySelectorAll(".inline-table [data-select-row]")).toHaveLength(4);
+    expect(markdownTables(content())[0]!.rows).toEqual(rows);
+    await act(async () => api.current!.undo());
+    expect(host!.querySelector<HTMLTableSectionElement>(".inline-table thead")!.hidden).toBe(false);
+    await act(async () => api.current!.redo());
+    expect(markdownTables(content())[0]!.layout?.headerHidden).toBe(true);
+    await act(async () => inlineButton("Mostra intestazione").click());
+    expect(host!.querySelector<HTMLTableSectionElement>(".inline-table thead")!.hidden).toBe(false);
+    expect(markdownTables(content())[0]!.layout).toBeUndefined();
+  });
+  it("keeps an editable row and the original header when a header-only table is hidden", async () => {
+    const { content } = await live(serializeTable([["Titolo"]]));
+    await pick(0, 0);
+    await act(async () => inlineButton("Nascondi intestazione").click());
+    await act(async () => inlineButton("Elimina 1 riga").click());
+    expect(markdownTables(content())[0]).toMatchObject({ rows: [["Titolo"], [""]], layout: { headerHidden: true } });
+    expect(document.activeElement).toBe(inlineCell(1, 0));
   });
   it("joins and splits inline without losing values, and Escape restores a merged edit", async () => {
     const { content } = await live();

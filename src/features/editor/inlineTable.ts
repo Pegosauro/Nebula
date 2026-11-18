@@ -12,6 +12,8 @@ interface Options {
   measure: () => void;
   dispose: () => void;
 }
+const headerIcon = "M3 4h18v16H3zM3 10h18M12 10v10";
+const hiddenHeaderIcon = "M3 10h18v10H3zM12 10v10M3 4h3M10 4h4M18 4h3";
 const alignmentIcons: Record<string, string> = {
   left: "M4 5h16M4 10h10M4 15h16M4 20h10", center: "M4 5h16M7 10h10M4 15h16M7 20h10", right: "M4 5h16M10 10h10M4 15h16M10 20h10",
   top: "M4 4h16M8 8h8M8 12h8M8 16h8", middle: "M4 12h3M17 12h3M9 7h6M9 12h6M9 17h6", bottom: "M4 20h16M8 8h8M8 12h8M8 16h8",
@@ -35,6 +37,7 @@ export class InlineTable {
   private toolbar = document.createElement("div");
   private body = document.createElement("div");
   private status = document.createElement("span");
+  private headerButton: HTMLButtonElement;
   private buttons = new Map<string, HTMLButtonElement>();
   private tableElement!: HTMLTableElement;
   private frame!: HTMLDivElement;
@@ -54,6 +57,7 @@ export class InlineTable {
     this.toolbar.setAttribute("role", "toolbar"); this.toolbar.setAttribute("aria-label", "Strumenti tabella");
     this.status.className = "inline-table-status"; this.status.setAttribute("role", "status");
     this.toolbar.append(this.status);
+    this.headerButton = this.tool("header", "Nascondi intestazione", icon(headerIcon), () => this.toggleHeader());
     for (const [axis, label, values] of [
       ["horizontal", "Allineamento orizzontale", [["left", "Allinea a sinistra"], ["center", "Allinea al centro"], ["right", "Allinea a destra"]]],
       ["vertical", "Allineamento verticale", [["top", "Allinea in alto"], ["middle", "Allinea a metà altezza"], ["bottom", "Allinea in basso"]]],
@@ -82,9 +86,11 @@ export class InlineTable {
     host.addEventListener("focusout", () => queueMicrotask(() => { if (!host.contains(document.activeElement) && !this.drag) { this.selected = false; this.paint(); } }), { signal });
     host.addEventListener("keydown", e => this.keydown(e), { signal });
     host.addEventListener("paste", e => { if (this.editing || (e.target as HTMLElement).closest("input,select,button")) return; const text = e.clipboardData?.getData("text/plain") ?? ""; if (!text) return; e.preventDefault(); e.stopPropagation(); this.selected = true; if (text.includes("\t")) this.paste(text); else this.startEdit(text); }, { signal });
+    this.clampSelection();
     this.render();
   }
   get layout(): TableLayout { return this.table.layout ?? { spans: [] }; }
+  private get firstVisibleRow() { return this.layout.headerHidden ? 1 : 0; }
   get columns() { return this.table.rows[0]!.length; }
   get bounds() { return selectionBounds(this.layout, this.first, this.active); }
   private intersects(s: { row: number; column: number; rows: number; columns: number }) { const b = this.bounds; return s.row <= b.bottom && s.row + s.rows > b.top && s.column <= b.right && s.column + s.columns > b.left; }
@@ -100,8 +106,16 @@ export class InlineTable {
     this.buttons.set(id, button); parent.append(button); return button;
   }
   private clampSelection() {
-    const clamp = (cell: TableCell) => ({ row: Math.max(0, Math.min(this.table.rows.length - 1, cell.row)), column: Math.max(0, Math.min(this.columns - 1, cell.column)) });
+    const clamp = (cell: TableCell) => ({ row: Math.max(this.firstVisibleRow, Math.min(this.table.rows.length - 1, cell.row)), column: Math.max(0, Math.min(this.columns - 1, cell.column)) });
     this.first = clamp(this.first); this.active = clamp(this.active);
+    if (this.kind === "row") this.axisAnchor = Math.max(this.firstVisibleRow, this.axisAnchor);
+  }
+  private toggleHeader() {
+    const headerHidden = !this.layout.headerHidden;
+    const rows = headerHidden && this.table.rows.length === 1
+      ? [...this.table.rows, Array<string>(this.columns).fill("")]
+      : this.table.rows;
+    this.write({ ...this.table, rows, layout: { ...this.layout, headerHidden } });
   }
   private cellElement(cell = this.active) { const s = cellSpan(this.layout, cell.row, cell.column); return this.body.querySelector<HTMLTableCellElement>(`[data-row="${s.row}"][data-column="${s.column}"]`); }
   private focusCell() { this.cellElement()?.focus({ preventScroll: true }); }
@@ -113,11 +127,11 @@ export class InlineTable {
   private selectAxis(axis: Axis, index: number, extend = false) {
     this.finishEdit(); if (!extend || this.kind !== axis) this.axisAnchor = index;
     this.kind = axis;
-    this.first = axis === "row" ? { row: this.axisAnchor, column: 0 } : { row: 0, column: this.axisAnchor };
+    this.first = axis === "row" ? { row: this.axisAnchor, column: 0 } : { row: this.firstVisibleRow, column: this.axisAnchor };
     this.active = axis === "row" ? { row: index, column: this.columns - 1 } : { row: this.table.rows.length - 1, column: index };
     this.selected = true; this.paint(); this.focusCell();
   }
-  private selectAll() { this.finishEdit(); this.kind = "all"; this.first = { row: 0, column: 0 }; this.active = { row: this.table.rows.length - 1, column: this.columns - 1 }; this.selected = true; this.paint(); this.focusCell(); }
+  private selectAll() { this.finishEdit(); this.kind = "all"; this.first = { row: this.firstVisibleRow, column: 0 }; this.active = { row: this.table.rows.length - 1, column: this.columns - 1 }; this.selected = true; this.paint(); this.focusCell(); }
   private dragSelection(e: PointerEvent) {
     if (!this.drag || this.drag.pointerId !== e.pointerId) return;
     const target = e.target instanceof Element ? e.target : undefined;
@@ -133,7 +147,7 @@ export class InlineTable {
     this.host.classList.toggle("is-active", this.selected); this.host.classList.toggle("is-editing", !!this.editing);
     if (activated) this.scheduleGeometry();
     const bounds = this.bounds, rowCount = bounds.bottom - bounds.top + 1, columnCount = bounds.right - bounds.left + 1, count = rowCount * columnCount;
-    this.status.textContent = this.selected ? this.kind === "row" ? `${rowCount} ${rowCount === 1 ? "riga" : "righe"}` : this.kind === "column" ? `${columnCount} ${columnCount === 1 ? "colonna" : "colonne"}` : count > 1 ? `${count} celle` : `R${this.active.row + 1} · C${this.active.column + 1}` : "Doppio clic per scrivere";
+    this.status.textContent = this.selected ? this.kind === "row" ? `${rowCount} ${rowCount === 1 ? "riga" : "righe"}` : this.kind === "column" ? `${columnCount} ${columnCount === 1 ? "colonna" : "colonne"}` : count > 1 ? `${count} celle` : `R${this.active.row + 1 - this.firstVisibleRow} · C${this.active.column + 1}` : "Doppio clic per scrivere";
     const formats = new Map((this.layout.cells ?? []).map(cell => [`${cell.row}:${cell.column}`, cell]));
     const horizontal = new Set<string>(), vertical = new Set<string>(), activeElement = this.cellElement();
     for (const cell of this.cells) {
@@ -143,9 +157,12 @@ export class InlineTable {
       cell.setAttribute("aria-selected", String(selected)); cell.tabIndex = active ? 0 : -1;
       if (selected) { const format = formats.get(`${r}:${c}`); horizontal.add(format?.horizontal ?? this.table.align[c] ?? "left"); vertical.add(format?.vertical ?? "top"); }
     }
-    this.rowHandles.forEach((handle, row) => handle.setAttribute("aria-pressed", String(this.selected && bounds.left === 0 && bounds.right === this.columns - 1 && row >= bounds.top && row <= bounds.bottom)));
-    this.columnHandles.forEach((handle, column) => handle.setAttribute("aria-pressed", String(this.selected && bounds.top === 0 && bounds.bottom === this.table.rows.length - 1 && column >= bounds.left && column <= bounds.right)));
-    this.buttons.get("all")?.setAttribute("aria-pressed", String(this.selected && count === this.table.rows.length * this.columns));
+    this.rowHandles.forEach((handle, index) => {
+      const row = index + this.firstVisibleRow;
+      handle.setAttribute("aria-pressed", String(this.selected && bounds.left === 0 && bounds.right === this.columns - 1 && row >= bounds.top && row <= bounds.bottom));
+    });
+    this.columnHandles.forEach((handle, column) => handle.setAttribute("aria-pressed", String(this.selected && bounds.top === this.firstVisibleRow && bounds.bottom === this.table.rows.length - 1 && column >= bounds.left && column <= bounds.right)));
+    this.buttons.get("all")?.setAttribute("aria-pressed", String(this.selected && count === (this.table.rows.length - this.firstVisibleRow) * this.columns));
     for (const [axis, values] of [["horizontal", horizontal], ["vertical", vertical]] as const) for (const value of axis === "horizontal" ? ["left", "center", "right"] : ["top", "middle", "bottom"]) this.buttons.get(`${axis}-${value}`)!.setAttribute("aria-pressed", String(values.size === 1 && values.has(value)));
     const span = cellSpan(this.layout, this.active.row, this.active.column);
     this.buttons.get("merge")!.disabled = !mergeTableLayout(this.layout, bounds) || span.rows * span.columns === count;
@@ -161,9 +178,14 @@ export class InlineTable {
     // The editor preserves whitespace, so a trailing HTML newline would add a line beneath the grid.
     this.body.innerHTML = renderMarkdownSafe(this.raw, navigationKnowledge()).trim();
     this.tableElement = this.body.querySelector("table")!;
+    const headerLabel = this.layout.headerHidden ? "Mostra intestazione" : "Nascondi intestazione";
+    this.headerButton.title = headerLabel;
+    this.headerButton.setAttribute("aria-label", headerLabel);
+    this.headerButton.replaceChildren(icon(this.layout.headerHidden ? hiddenHeaderIcon : headerIcon));
     this.tableElement.setAttribute("aria-label", "Tabella della nota"); this.tableElement.setAttribute("role", "grid"); this.tableElement.setAttribute("aria-multiselectable", "true");
     this.cells = [];
     Array.from(this.tableElement.rows).forEach((row, r) => {
+      if (r < this.firstVisibleRow) return;
       let column = 0;
       for (const cell of Array.from(row.cells)) {
         while (cellSpan(this.layout, r, column).row !== r || cellSpan(this.layout, r, column).column !== column) column++;
@@ -229,19 +251,19 @@ export class InlineTable {
       track.append(handle); ruler.append(track);
     });
     const gutter = document.createElement("div"); gutter.className = "inline-table-row-gutter"; controls.append(gutter);
-    this.rowHandles = this.table.rows.map((_, row) => { const handle = this.axisHandle("row", row); gutter.append(handle); return handle; });
+    this.rowHandles = this.table.rows.slice(this.firstVisibleRow).map((_, index) => { const handle = this.axisHandle("row", index + this.firstVisibleRow); gutter.append(handle); return handle; });
     this.tool("add-column", "Aggiungi colonna a destra", "+", () => this.append("column"), controls).classList.add("inline-table-add", "inline-table-add-column");
     this.tool("add-row", "Aggiungi riga sotto", "+", () => this.append("row"), controls).classList.add("inline-table-add", "inline-table-add-row");
     this.options.decorate(this.body); this.paint(); this.scheduleGeometry(); this.options.measure();
-    if (typeof ResizeObserver !== "undefined") { this.observer = new ResizeObserver(() => this.scheduleGeometry()); this.observer.observe(this.tableElement); }
+    if (typeof ResizeObserver !== "undefined") { this.observer = new ResizeObserver(() => this.scheduleGeometry()); this.observer.observe(this.tableElement); this.observer.observe(scroll); }
   }
   private axisHandle(axis: Axis, index: number) {
     const handle = document.createElement("button"); handle.type = "button"; handle.className = `inline-table-${axis}-handle`;
     handle.dataset[axis === "row" ? "selectRow" : "selectColumn"] = String(index); handle.textContent = axis === "row" ? "⋮" : "⋯";
-    handle.title = `Seleziona ${axis === "row" ? "riga" : "colonna"} ${index + 1}`; handle.setAttribute("aria-label", handle.title);
+    handle.title = `Seleziona ${axis === "row" ? "riga" : "colonna"} ${index + 1 - (axis === "row" ? this.firstVisibleRow : 0)}`; handle.setAttribute("aria-label", handle.title);
     handle.addEventListener("pointerdown", e => { if (e.button !== 0) return; e.preventDefault(); this.selectAxis(axis, index, e.shiftKey); this.drag = { kind: axis, pointerId: e.pointerId }; });
     handle.addEventListener("click", e => { if (e.detail === 0) this.selectAxis(axis, index, e.shiftKey); });
-    handle.addEventListener("keydown", e => { if (!e.shiftKey || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return; e.preventDefault(); const delta = ["ArrowUp", "ArrowLeft"].includes(e.key) ? -1 : 1; this.selectAxis(axis, Math.max(0, Math.min((axis === "row" ? this.table.rows.length : this.columns) - 1, this.active[axis] + delta)), true); });
+    handle.addEventListener("keydown", e => { if (!e.shiftKey || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return; e.preventDefault(); const delta = ["ArrowUp", "ArrowLeft"].includes(e.key) ? -1 : 1; this.selectAxis(axis, Math.max(axis === "row" ? this.firstVisibleRow : 0, Math.min((axis === "row" ? this.table.rows.length : this.columns) - 1, this.active[axis] + delta)), true); });
     return handle;
   }
   private sizeFrame(widths?: number[]) {
@@ -255,7 +277,10 @@ export class InlineTable {
     cancelAnimationFrame(this.geometryFrame);
     this.geometryFrame = requestAnimationFrame(() => {
       const frame = this.frame.getBoundingClientRect();
-      const rects = Array.from(this.tableElement.rows, row => row.getBoundingClientRect());
+      const scroll = this.scroll!;
+      const scrollbarHeight = scroll.offsetHeight - scroll.clientHeight;
+      this.body.style.setProperty("--table-scrollbar-height", `${scrollbarHeight}px`);
+      const rects = Array.from(this.tableElement.rows).slice(this.firstVisibleRow).map(row => row.getBoundingClientRect());
       const scroller = this.host.closest(".cm-scroller")?.getBoundingClientRect();
       if (scroller) {
         const toolbarHeight = this.toolbar.offsetHeight;
@@ -305,7 +330,7 @@ export class InlineTable {
     const span = cellSpan(this.layout, this.active.row, this.active.column); this.active = this.first = { row: span.row, column: span.column }; this.kind = "cells"; this.selected = true;
     const cell = this.cellElement(); if (!cell) return;
     const original = cellText(this.table.rows, span), input = document.createElement("textarea"); input.className = "inline-table-input"; input.rows = 1;
-    input.setAttribute("aria-label", `${this.active.row === 0 ? "Intestazione" : `Riga ${this.active.row + 1}`} colonna ${this.active.column + 1}`);
+    input.setAttribute("aria-label", `${this.active.row === 0 ? "Intestazione" : `Riga ${this.active.row + 1 - this.firstVisibleRow}`} colonna ${this.active.column + 1}`);
     input.value = replacement ?? original.replace(/<br\s*\/?\s*>/gi, "\n"); input.style.textAlign = cell.style.textAlign || this.table.align[this.active.column] || "left";
     this.editing = { input, originalRows: this.table.rows.map(row => [...row]), cell: { ...this.active }, firstChange: true }; cell.replaceChildren(input);
     const size = () => { input.style.height = "auto"; input.style.height = `${Math.max(40, input.scrollHeight)}px`; this.options.measure(); };
@@ -330,6 +355,7 @@ export class InlineTable {
     const b = this.bounds, start = axis === "row" ? b.top : b.left, end = axis === "row" ? b.bottom : b.right;
     if (end - start + 1 === (axis === "row" ? this.table.rows.length : this.columns)) { this.options.change(this.table, "", "full"); return; }
     const rows = axis === "row" ? this.table.rows.filter((_, r) => r < start || r > end) : this.table.rows.map(row => row.filter((_, c) => c < start || c > end));
+    if (axis === "row" && this.layout.headerHidden && rows.length === 1) rows.push(Array<string>(this.columns).fill(""));
     const align = axis === "column" ? this.table.align.filter((_, c) => c < start || c > end) : this.table.align;
     let layout = this.layout; for (let index = end; index >= start; index--) layout = changeTableStructure(layout, axis, index, true);
     this.active = this.first = { row: Math.min(b.top, rows.length - 1), column: Math.min(b.left, rows[0]!.length - 1) }; this.kind = "cells";
@@ -359,8 +385,8 @@ export class InlineTable {
     const delta: Record<string, [number, number]> = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] };
     if (delta[e.key]) {
       e.preventDefault(); e.stopPropagation(); const [y, x] = delta[e.key]!, span = cellSpan(this.layout, this.active.row, this.active.column);
-      if (e.shiftKey && (this.kind === "row" && y || this.kind === "column" && x)) this.selectAxis(this.kind as Axis, Math.max(0, Math.min((this.kind === "row" ? this.table.rows.length : this.columns) - 1, this.active[this.kind as Axis] + (y || x))), true);
-      else this.select({ row: Math.max(0, Math.min(this.table.rows.length - 1, span.row + (y > 0 ? span.rows : y))), column: Math.max(0, Math.min(this.columns - 1, span.column + (x > 0 ? span.columns : x))) }, e.shiftKey);
+      if (e.shiftKey && (this.kind === "row" && y || this.kind === "column" && x)) this.selectAxis(this.kind as Axis, Math.max(this.kind === "row" ? this.firstVisibleRow : 0, Math.min((this.kind === "row" ? this.table.rows.length : this.columns) - 1, this.active[this.kind as Axis] + (y || x))), true);
+      else this.select({ row: Math.max(this.firstVisibleRow, Math.min(this.table.rows.length - 1, span.row + (y > 0 ? span.rows : y))), column: Math.max(0, Math.min(this.columns - 1, span.column + (x > 0 ? span.columns : x))) }, e.shiftKey);
       return;
     }
     if (e.key === "Enter" || e.key === "F2") { e.preventDefault(); e.stopPropagation(); this.startEdit(); }
