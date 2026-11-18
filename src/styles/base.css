@@ -75,7 +75,7 @@ p {
 
 .button-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
 .button-primary:hover:not(:disabled) {

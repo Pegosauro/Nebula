@@ -1,7 +1,7 @@
 import { useVaultStore } from "../vault/vaultStore";
 import { AppWindow, Download, Info, LayoutPanelLeft, MonitorCog, Moon, Sun } from "lucide-react";
 import { usePwaStore } from "../pwa/pwaStore";
-import { useSettingsStore, type ThemeChoice, type UiDensity } from "./settingsStore";
+import { defaultAccent, useSettingsStore, type ThemeChoice, type UiDensity } from "./settingsStore";
 
 const themes: Array<{ id: ThemeChoice; label: string; icon: typeof Sun }> = [
   { id: "system", label: "Sistema", icon: MonitorCog },
@@ -26,6 +26,8 @@ export function SettingsView() {
   const editorDefaultMode = useSettingsStore(state => state.editorDefaultMode);
   const setEditorDefaultMode = useSettingsStore(state => state.setEditorDefaultMode);
   const theme = useSettingsStore((state) => state.theme);
+  const accentColor = useSettingsStore(state => state.accentColor);
+  const setAccentColor = useSettingsStore(state => state.setAccentColor);
   const density = useSettingsStore((state) => state.density);
   const setTheme = useSettingsStore((state) => state.setTheme);
   const setDensity = useSettingsStore((state) => state.setDensity);
@@ -62,6 +64,14 @@ export function SettingsView() {
                 <Icon size={15} /> {label}
               </button>
             ))}
+          </div>
+        </div>
+        <div className="setting-row">
+          <div><strong>Colore principale</strong><span>Personalizza pulsanti, icone e selezioni.</span></div>
+          <div className="setting-accent">
+            <input type="color" aria-label="Colore principale" value={accentColor ?? defaultAccent} onInput={event => setAccentColor(event.currentTarget.value)} />
+            <span className="setting-value">{accentColor?.toUpperCase() ?? "Viola Nebula"}</span>
+            <button className="button button-secondary" type="button" disabled={!accentColor} onClick={() => setAccentColor(null)}>Ripristina</button>
           </div>
         </div>
         <div className="setting-row">

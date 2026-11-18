@@ -622,3 +622,6 @@
 .home-create { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
 .home-create > span { color: var(--text-muted); font-size: 12px; }
 @media (max-width: 1100px) { .editor-template > span { display: none; } }
+
+.setting-accent { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.setting-accent input[type="color"] { width: 42px; height: 34px; padding: 3px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--bg-panel); cursor: pointer; }

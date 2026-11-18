@@ -69,6 +69,13 @@
   --scrim: rgba(49, 55, 70, 0.3);
 }
 
+:root[data-custom-accent] {
+  --accent: var(--custom-accent);
+  --accent-hover: color-mix(in srgb, var(--accent) 90%, var(--accent-hover-mix));
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --bg-selected: color-mix(in srgb, var(--accent) 15%, var(--bg-panel));
+}
+
 :root[data-density="compact"] {
   --row-height: 29px;
   --settings-row-height: 54px;

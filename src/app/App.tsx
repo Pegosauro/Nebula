@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { PwaLifecycle } from "../features/pwa/PwaLifecycle";
-import { applyDensity, applyTheme, useSettingsStore } from "../features/settings/settingsStore";
+import { applyAccent, applyDensity, applyTheme, useSettingsStore } from "../features/settings/settingsStore";
 import { AppShell } from "../features/shell/AppShell";
 import { useVaultStore } from "../features/vault/vaultStore";
 import { AppErrorBoundary } from "./AppErrorBoundary";
@@ -9,6 +9,7 @@ import { DocumentLifecycle } from "../features/editor/DocumentLifecycle";
 export function App() {
   const initializeVault = useVaultStore((state) => state.initialize);
   const theme = useSettingsStore((state) => state.theme);
+  const accentColor = useSettingsStore(state => state.accentColor);
   const density = useSettingsStore((state) => state.density);
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export function App() {
     return () => media.removeEventListener("change", syncSystemTheme);
   }, [theme]);
 
+  useEffect(() => applyAccent(accentColor), [accentColor]);
   useEffect(() => applyDensity(density), [density]);
 
   return (

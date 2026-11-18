@@ -10,10 +10,10 @@ type BoardState = {
 };
 type TaskFile = ReturnType<typeof vaultService.taskFile>;
 
-export function createTaskSession(file: TaskFile) {
+export function createTaskSession(file: TaskFile, collapsed: string[] = []) {
   const store = createStore<BoardState>(() => ({ status: "loading" }));
-  const layout = createStore<{ view: "list" | "matrix"; group: string; filter: TaskFilter; selectedId?: string }>(() => ({
-    view: "list", group: "", filter: "all",
+  const layout = createStore<{ view: "list" | "matrix"; group: string; filter: TaskFilter; selectedId?: string; collapsed: string[] }>(() => ({
+    view: "list", group: "", filter: "all", collapsed,
   }));
   let saved: string | null = null;
   let reading: Promise<void> | undefined;
@@ -68,7 +68,17 @@ const sessions = new Map<string, ReturnType<typeof createTaskSession>>();
 export function taskSession(vaultId: string) {
   let session = sessions.get(vaultId);
   if (!session) {
-    session = createTaskSession(vaultService.taskFile(vaultId));
+    const key = `nebula.tasks.collapsed.${vaultId}`;
+    let collapsed: string[] = [];
+    try {
+      const value: unknown = JSON.parse(localStorage.getItem(key) ?? "[]");
+      if (Array.isArray(value)) collapsed = value.filter((id): id is string => typeof id === "string");
+    } catch { /* Preferences are optional. */ }
+    session = createTaskSession(vaultService.taskFile(vaultId), collapsed);
+    session.layout.subscribe((state, previous) => {
+      if (state.collapsed === previous.collapsed) return;
+      try { localStorage.setItem(key, JSON.stringify(state.collapsed)); } catch { /* Keep the state for this session. */ }
+    });
     sessions.set(vaultId, session);
     void session.load();
   }

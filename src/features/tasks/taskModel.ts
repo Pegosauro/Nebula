@@ -3,7 +3,23 @@ import { isPathInside } from "../../domain/path";
 export type Urgency = "auto" | "urgent" | "not-urgent";
 export type Quadrant = "do" | "plan" | "quick" | "later";
 export type TaskFilter = "all" | "today" | "overdue" | "important";
-export interface TaskGroup { id: string; name: string }
+export const groupColors = {
+  slate: { name: "Ardesia", hex: "#78849c" },
+  violet: { name: "Viola", hex: "#8b5ed4" },
+  blue: { name: "Blu", hex: "#4285d4" },
+  teal: { name: "Turchese", hex: "#248c86" },
+  green: { name: "Verde", hex: "#579450" },
+  yellow: { name: "Giallo", hex: "#bd8d21" },
+  orange: { name: "Arancione", hex: "#ce723e" },
+  red: { name: "Rosso", hex: "#c45557" },
+  pink: { name: "Rosa", hex: "#bd6096" },
+} as const;
+export type GroupColor = keyof typeof groupColors;
+export interface TaskGroup { id: string; name: string; color?: GroupColor }
+
+export function taskGroupColor(color?: GroupColor) {
+  return color && Object.hasOwn(groupColors, color) ? groupColors[color].hex : groupColors.slate.hex;
+}
 export interface Subtask { id: string; title: string; done: boolean }
 export interface TaskComment { id: string; text: string; createdAt: string }
 export interface Task {

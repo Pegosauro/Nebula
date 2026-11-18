@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { CalendarDays, Check, GripVertical, Link2, ListChecks, MessageSquare, MoreHorizontal, Pin } from "lucide-react";
 import { taskQuadrant, type Quadrant, type Task } from "./taskModel";
 
@@ -8,10 +8,12 @@ export const quadrantLabels: Record<Quadrant, string> = {
 
 const shortDay = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short" });
 
-export function TaskCard({ task, group, today, tomorrow, matrix, selected, onOpen, onToggle, onMove, onDrag, onDrop, onEndDrag }: {
-  task: Task; group?: string; today: string; tomorrow: string; matrix: boolean; selected: boolean;
-  onOpen: () => void; onToggle: () => void; onMove: (target: Quadrant) => void; onDrag: (x: number, y: number) => void; onDrop: (x: number, y: number) => void; onEndDrag: () => void;
+export function TaskCard({ task, group, color, today, tomorrow, matrix, selected, dragging, landed, onOpen, onToggle, onMove, onDrag, onDrop, onEndDrag, onLanded }: {
+  task: Task; group?: string; color?: string; today: string; tomorrow: string; matrix: boolean; selected: boolean; dragging: boolean; landed: boolean;
+  onOpen: () => void; onToggle: () => void; onMove: (target: Quadrant) => void; onDrag: (start: { x: number; y: number }, point: { x: number; y: number }, card: HTMLElement) => void;
+  onDrop: (point: { x: number; y: number }) => void; onEndDrag: () => void; onLanded: () => void;
 }) {
+  const card = useRef<HTMLElement>(null);
   const menu = useRef<HTMLDetailsElement>(null);
   const summary = useRef<HTMLElement>(null);
   const dragStart = useRef<{ x: number; y: number }>(null);
@@ -27,22 +29,24 @@ export function TaskCard({ task, group, today, tomorrow, matrix, selected, onOpe
 
   const completed = task.subtasks.filter(item => item.done).length;
   const dueLabel = task.due === today ? "Oggi" : task.due === tomorrow ? "Domani" : task.due && shortDay.format(new Date(`${task.due}T12:00`));
-  return <article className={`task-card${selected ? " is-selected" : ""}${task.done ? " is-done" : ""}`}>
+  return <article ref={card} className={`task-card${selected ? " is-selected" : ""}${task.done ? " is-done" : ""}${dragging ? " is-dragging" : ""}${landed ? " is-landed" : ""}`} onAnimationEnd={event => {
+    if (event.target === event.currentTarget && landed) onLanded();
+  }} style={color ? { "--task-group-color": color } as CSSProperties : undefined}>
     {matrix && <span className="task-grip" aria-hidden="true" title="Trascina per spostare" onPointerDown={event => {
       if (!event.isPrimary || event.button !== 0) return;
       event.preventDefault();
       dragStart.current = { x: event.clientX, y: event.clientY };
       event.currentTarget.setPointerCapture(event.pointerId);
     }} onPointerMove={event => {
-      if (moved(event.clientX, event.clientY)) onDrag(event.clientX, event.clientY);
+      if (card.current && dragStart.current && moved(event.clientX, event.clientY)) onDrag(dragStart.current, { x: event.clientX, y: event.clientY }, card.current);
     }} onPointerUp={event => {
-      if (moved(event.clientX, event.clientY)) onDrop(event.clientX, event.clientY);
+      if (moved(event.clientX, event.clientY)) onDrop({ x: event.clientX, y: event.clientY });
     }} onLostPointerCapture={() => {
       dragStart.current = null;
       onEndDrag();
     }}><GripVertical size={15} /></span>}
     <button className="task-check" type="button" role="checkbox" aria-checked={task.done} aria-label={`Completata: ${task.title}`} onClick={onToggle}>
-      {task.done && <Check size={12} strokeWidth={2.7} />}
+      {task.done && <Check size={16} strokeWidth={2.7} />}
     </button>
     <div className="task-card-content">
       <button id={`task-title-${task.id}`} className="task-card-title" aria-expanded={selected} type="button" onClick={onOpen}>{task.title}</button>
@@ -56,7 +60,7 @@ export function TaskCard({ task, group, today, tomorrow, matrix, selected, onOpe
     <div className="task-card-end">
       {task.pinned && <Pin className="task-pin-icon" size={15} aria-label="Importante" />}
       {dueLabel && <time className={`task-date-tag${!task.done && task.due! < today ? " is-overdue" : !task.done && task.due === today ? " is-today" : ""}`} dateTime={task.due!} title={task.due!.split("-").reverse().join("/")}><CalendarDays size={12} />{dueLabel}</time>}
-      {matrix && <details ref={menu} className="task-move-menu" onKeyDown={event => {
+      {matrix && <details name="task-move" ref={menu} className="task-move-menu" onKeyDown={event => {
         if (event.key === "Escape") {
           event.stopPropagation();
           event.preventDefault();

@@ -4,7 +4,7 @@ import type { VaultEntry } from "../../domain/vault";
 import { withoutMarkdownExtension } from "../../domain/path";
 import { EditorDialog } from "../editor/EditorDialog";
 import { quadrantLabels } from "./TaskCard";
-import { taskQuadrant, type Task, type TaskGroup, type Urgency } from "./taskModel";
+import { taskQuadrant, type Task, type TaskComment, type TaskGroup, type Urgency } from "./taskModel";
 
 const commentTime = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" });
 
@@ -16,6 +16,7 @@ export function TaskDetail({ task, groups, notes, tomorrow, onClose, onChange, o
   const [title, setTitle] = useState(task.title);
   const [subtask, setSubtask] = useState("");
   const [comment, setComment] = useState("");
+  const [removedComment, setRemovedComment] = useState<{ item: TaskComment; index: number }>();
   const [noteQuery, setNoteQuery] = useState("");
   const [pickingNote, setPickingNote] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -103,7 +104,27 @@ export function TaskDetail({ task, groups, notes, tomorrow, onClose, onChange, o
       </section>
       <section className="task-detail-section">
         <h3><MessageSquare size={17} />Commenti</h3>
-        {task.comments.map(item => <article className="task-comment" key={item.id}><time dateTime={item.createdAt}>{commentTime.format(new Date(item.createdAt))}</time><p>{item.text}</p></article>)}
+        {task.comments.map((item, index) => <article className="task-comment" key={item.id}>
+          <header>
+            <time dateTime={item.createdAt}>{commentTime.format(new Date(item.createdAt))}</time>
+            <button type="button" className="task-icon task-comment-delete" aria-label={`Elimina commento ${index + 1}`} title="Elimina commento" onClick={() => {
+              setRemovedComment({ item, index });
+              onChange(current => ({ ...current, comments: current.comments.filter(entry => entry.id !== item.id) }));
+            }}><Trash2 size={15} /></button>
+          </header>
+          <p>{item.text}</p>
+        </article>)}
+        {removedComment && <div className="task-comment-undo">
+          <span role="status">Commento eliminato</span>
+          <button type="button" className="task-text-button" onClick={() => {
+            onChange(current => {
+              const comments = [...current.comments];
+              comments.splice(removedComment.index, 0, removedComment.item);
+              return { ...current, comments };
+            });
+            setRemovedComment(undefined);
+          }}>Annulla eliminazione</button>
+        </div>}
         <form className="task-comment-form" onSubmit={addComment}>
           <textarea aria-label="Commento veloce" placeholder="Scrivi un commento…" rows={2} maxLength={4000} value={comment} onChange={event => setComment(event.target.value)} />
           <button type="submit" className="button button-secondary" disabled={!comment.trim()}>Invia</button>

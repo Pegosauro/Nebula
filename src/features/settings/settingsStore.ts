@@ -5,6 +5,12 @@ import { persist } from "zustand/middleware";
 export type ThemeChoice = "system" | "light" | "dark";
 export type UiDensity = "comfortable" | "compact";
 
+export const defaultAccent = "#7657d6";
+
+function normalizeAccent(value: unknown): string | null {
+  return typeof value === "string" && /^#[\da-f]{6}$/i.test(value) ? value.toLowerCase() : null;
+}
+
 const bounded = (value: unknown, fallback: number, min: number, max: number) => typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value))) : fallback;
 
 interface SettingsState {
@@ -26,6 +32,8 @@ interface SettingsState {
   editorHeadingLevel: number;
   setEditorHeadingLevel: (level: number) => void;
   theme: ThemeChoice;
+  accentColor: string | null;
+  setAccentColor: (value: string | null) => void;
   density: UiDensity;
   showSidebarByDefault: boolean;
   showContextPanelByDefault: boolean;
@@ -54,6 +62,8 @@ export const useSettingsStore = create<SettingsState>()(
       editorHeadingLevel: 1,
       setEditorHeadingLevel: (level) => set({ editorHeadingLevel: bounded(level, 1, 1, 4) }),
       theme: "system",
+      accentColor: null,
+      setAccentColor: value => set({ accentColor: normalizeAccent(value) }),
       density: "comfortable",
       showSidebarByDefault: true,
       showContextPanelByDefault: true,
@@ -66,7 +76,7 @@ export const useSettingsStore = create<SettingsState>()(
       name: "nebula.settings.v1",
       merge: (persisted, current) => {
         const stored = persisted as Partial<SettingsState> | undefined;
-        return { ...current, ...stored, showMarkdownAtCursor: stored?.showMarkdownAtCursor !== false, navigationExpanded: stored?.navigationExpanded === true, showNotePropertiesByDefault: stored?.showNotePropertiesByDefault === true, editorDefaultMode: normalizeEditorMode(stored?.editorDefaultMode), editorHeadingLevel: bounded(stored?.editorHeadingLevel, 1, 1, 4), editorFontSize: bounded(stored?.editorFontSize, 17, 14, 24), editorPageWidth: bounded(stored?.editorPageWidth, 780, 560, 1200), editorFullWidth: stored?.editorFullWidth === true };
+        return { ...current, ...stored, accentColor: normalizeAccent(stored?.accentColor), showMarkdownAtCursor: stored?.showMarkdownAtCursor !== false, navigationExpanded: stored?.navigationExpanded === true, showNotePropertiesByDefault: stored?.showNotePropertiesByDefault === true, editorDefaultMode: normalizeEditorMode(stored?.editorDefaultMode), editorHeadingLevel: bounded(stored?.editorHeadingLevel, 1, 1, 4), editorFontSize: bounded(stored?.editorFontSize, 17, 14, 24), editorPageWidth: bounded(stored?.editorPageWidth, 780, 560, 1200), editorFullWidth: stored?.editorFullWidth === true };
       },
       partialize: (state) => ({
         schemaVersion: state.schemaVersion,
@@ -77,6 +87,7 @@ export const useSettingsStore = create<SettingsState>()(
         editorDefaultMode: state.editorDefaultMode,
         editorHeadingLevel: state.editorHeadingLevel,
         theme: state.theme,
+        accentColor: state.accentColor,
         density: state.density,
         showSidebarByDefault: state.showSidebarByDefault,
         showContextPanelByDefault: state.showContextPanelByDefault,
@@ -97,4 +108,25 @@ export function applyTheme(theme: ThemeChoice): void {
 
 export function applyDensity(density: UiDensity): void {
   document.documentElement.dataset.density = density;
+}
+
+export function applyAccent(color: string | null): void {
+  const { style: root, dataset } = document.documentElement;
+  if (!color) {
+    delete dataset.customAccent;
+    root.removeProperty("--custom-accent");
+    root.removeProperty("--on-accent");
+    root.removeProperty("--accent-hover-mix");
+    return;
+  }
+  const [r, g, b] = [1, 3, 5].map(index => {
+    const channel = Number.parseInt(color.slice(index, index + 2), 16) / 255;
+    return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+  });
+  const luminance = .2126 * r + .7152 * g + .0722 * b;
+  root.setProperty("--custom-accent", color);
+  const light = luminance > .179;
+  root.setProperty("--on-accent", light ? "#000" : "#fff");
+  root.setProperty("--accent-hover-mix", light ? "#fff" : "#000");
+  dataset.customAccent = "";
 }
