@@ -50,6 +50,7 @@ export class HighlightIcon extends WidgetType {
 function colorTooltip(marker: HighlightMarker): Tooltip {
   return {
     pos: marker.from,
+    above: true,
     create(view) {
       const dom = document.createElement("div");
       dom.className = "highlight-color-menu color-palette";
