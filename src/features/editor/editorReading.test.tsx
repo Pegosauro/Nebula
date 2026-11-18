@@ -90,8 +90,8 @@ it("inserts the four local calendar formats and keeps the main button on the num
     await act(async () => view.dispatch({ changes: { from: view.state.doc.length, insert: "\n" }, selection: { anchor: view.state.doc.length + 1 } }));
     await act(async () => toggle.click());
     const menu = [...document.querySelectorAll<HTMLButtonElement>('[role="menu"][aria-label="Formati di data e ora"] button')];
-    expect(menu.map(item => item.querySelector("span")?.textContent)).toEqual(["GG/MM/AAAA", "GG/MM/AAAA HH:mm", "GG MMMM AAAA", "HH:mm"]);
-    expect(menu.map(item => item.querySelector(".editor-toolbar-menu-example")?.textContent)).toEqual(values);
+    expect(menu.map(item => item.textContent)).toEqual(values);
+    if (index === 3) vi.setSystemTime(new Date(2026, 0, 2, 3, 5));
     await act(async () => menu[index]!.click());
     expect(view.state.doc.toString()).toContain("\n" + value);
   }

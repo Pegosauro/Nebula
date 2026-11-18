@@ -18,21 +18,20 @@ function CalendarIcon({ size = 19 }: { size?: number }) {
 }
 
 const formats = [
-  { label: "GG/MM/AAAA", Icon: CalendarIcon, format: numericDate },
-  { label: "GG/MM/AAAA HH:mm", Icon: CalendarClock, format: (date: Date) => `${numericDate(date)} ${localTime(date)}` },
-  { label: "GG MMMM AAAA", Icon: AlignLeft, format: (date: Date) => `${pad(date.getDate())} ${monthName.format(date)} ${year(date)}` },
-  { label: "HH:mm", Icon: Clock, format: localTime },
+  { id: "date", Icon: CalendarIcon, format: numericDate },
+  { id: "date-time", Icon: CalendarClock, format: (date: Date) => `${numericDate(date)} ${localTime(date)}` },
+  { id: "long-date", Icon: AlignLeft, format: (date: Date) => `${pad(date.getDate())} ${monthName.format(date)} ${year(date)}` },
+  { id: "time", Icon: Clock, format: localTime },
 ];
 
 export function CalendarTool({ api }: { api: EditorApi | null }) {
-  const insert = (format: (date: Date) => string) => api?.insert(format(new Date()));
   return <ToolbarMenu label="Formati di data e ora" icon={<CalendarIcon />}
-    primary={{ label: "Inserisci data (GG/MM/AAAA)", run: () => insert(numericDate) }}
-    items={formats.map(({ label, Icon, format }) => ({
-      id: label,
-      label,
-      icon: <Icon size={18} aria-hidden="true" />,
-      example: () => format(new Date()),
-      run: () => insert(format),
-    }))} />;
+    primary={{ label: "Inserisci data (GG/MM/AAAA)", run: () => api?.insert(numericDate(new Date())) }}
+    items={() => {
+      const now = new Date();
+      return formats.map(({ id, Icon, format }) => {
+        const value = format(now);
+        return { id, label: value, icon: <Icon size={18} aria-hidden="true" />, run: () => api?.insert(value) };
+      });
+    }} />;
 }

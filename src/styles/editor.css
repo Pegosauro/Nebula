@@ -10,6 +10,9 @@
 .editor-toolbar button:hover:not(:disabled), .selection-format-bar button:hover, .editor-search button:hover:not(:disabled), .table-tools button:hover:not(:disabled) { background: var(--accent-soft); color: var(--text-primary); }
 .editor-toolbar button[aria-pressed="true"], .selection-format-bar button[aria-pressed="true"], .table-tools button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); }
 .editor-toolbar button:disabled, .table-tools button:disabled, .editor-search button:disabled { opacity: .35; cursor: default; }
+:is(.editor-toolbar, .selection-format-bar, .editor-toolbar-menu) button svg {
+  color: light-dark(#000, var(--text-primary));
+}
 .editor-tools-group { display: flex; flex: none; align-items: center; gap: 2px; padding-right: 6px; border-right: 1px solid var(--border); }
 .editor-tools-tail { margin-left: auto; padding-right: 0; border: 0; }
 .editor-toolbar-menu-group {
@@ -72,19 +75,10 @@
   text-align: start;
   cursor: pointer;
 }
-.editor-toolbar-menu button > svg { flex: none; color: var(--text-secondary); }
+.editor-toolbar-menu button > svg { flex: none; }
 .editor-toolbar-menu button[aria-checked="true"], .editor-toolbar-menu button:hover, .editor-toolbar-menu button:focus-visible { background: var(--accent-soft); }
 .editor-toolbar-menu button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
-.editor-toolbar-menu button[aria-checked="true"] > svg { color: var(--accent-hover); }
 .editor-toolbar-menu-check { margin-inline-start: auto; }
-.editor-toolbar-menu-example {
-  margin-inline-start: auto;
-  padding-inline-start: 6px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  text-align: end;
-}
 .editor-toolbar .insert-trigger { background: var(--accent-soft); color: var(--accent-hover); }
 .editor-v2 .codemirror-host .cm-editor { font-size: 16px; }
 .editor-v2 .codemirror-host .cm-content { width: min(820px, calc(100% - 48px)); padding-top: 30px; }
