@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Folder, Link2, Pin, Plus } from "lucide-react";
 import { EditorDialog } from "../editor/EditorDialog";
 import { withoutMarkdownExtension } from "../../domain/path";
@@ -9,6 +9,11 @@ export function NewTaskDialog({ groups, initialGroup, title, path, onClose, onCr
   onClose: () => void; onCreate: (title: string, groupId: string | null, due: string | null, pinned: boolean) => void;
 }) {
   const [name, setName] = useState(title ?? "");
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    input.current?.focus();
+    input.current?.select();
+  }, []);
   const [group, setGroup] = useState(initialGroup);
   const [due, setDue] = useState("");
   const [pinned, setPinned] = useState(false);
@@ -19,7 +24,7 @@ export function NewTaskDialog({ groups, initialGroup, title, path, onClose, onCr
       if (name.trim()) onCreate(name.trim(), group || null, due || null, pinned);
     }}>
       <div className="task-dialog-body">
-        <label>Titolo<input type="text" autoFocus required maxLength={180} placeholder="Cosa devi fare?" value={name} onChange={event => setName(event.target.value)} /></label>
+        <label>Titolo<input ref={input} type="text" required maxLength={180} placeholder="Cosa devi fare?" value={name} onChange={event => setName(event.target.value)} /></label>
         <div className="task-dialog-fields">
           <label>Gruppo<select value={group} onChange={event => setGroup(event.target.value)}><option value="">Senza gruppo</option>{groups.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label>Scadenza<input type="date" value={due} onChange={event => setDue(event.target.value)} /></label>

@@ -160,7 +160,8 @@
 .task-card.is-selected { border-color: var(--accent); }
 .task-card:hover { background: color-mix(in srgb, var(--bg-panel) 70%, var(--bg-hover)); }
 .task-card:has(details[open]) { z-index: 2; }
-.task-grip { color: var(--text-muted); display: grid; place-items: center; cursor: grab; padding: 6px 0; margin-inline-end: -4px; }
+.task-grip { color: var(--text-muted); display: grid; place-items: center; cursor: grab; touch-action: none; user-select: none; padding: 6px 0; margin-inline-end: -4px; }
+.task-grip svg { pointer-events: none; }
 .task-grip:active { cursor: grabbing; }
 .task-check {
   flex: none; display: grid; place-items: center;

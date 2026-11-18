@@ -8,12 +8,15 @@ export const quadrantLabels: Record<Quadrant, string> = {
 
 const shortDay = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short" });
 
-export function TaskCard({ task, group, today, tomorrow, matrix, selected, onOpen, onToggle, onMove, onDrag, onEndDrag }: {
+export function TaskCard({ task, group, today, tomorrow, matrix, selected, onOpen, onToggle, onMove, onDrag, onDrop, onEndDrag }: {
   task: Task; group?: string; today: string; tomorrow: string; matrix: boolean; selected: boolean;
-  onOpen: () => void; onToggle: () => void; onMove: (target: Quadrant) => void; onDrag: () => void; onEndDrag: () => void;
+  onOpen: () => void; onToggle: () => void; onMove: (target: Quadrant) => void; onDrag: (x: number, y: number) => void; onDrop: (x: number, y: number) => void; onEndDrag: () => void;
 }) {
   const menu = useRef<HTMLDetailsElement>(null);
   const summary = useRef<HTMLElement>(null);
+  const dragStart = useRef<{ x: number; y: number }>(null);
+  const moved = (x: number, y: number) => dragStart.current
+    && Math.hypot(x - dragStart.current.x, y - dragStart.current.y) >= 6;
   useEffect(() => {
     const close = (event: PointerEvent) => {
       if (menu.current?.open && event.target instanceof Node && !menu.current.contains(event.target)) menu.current.open = false;
@@ -25,11 +28,19 @@ export function TaskCard({ task, group, today, tomorrow, matrix, selected, onOpe
   const completed = task.subtasks.filter(item => item.done).length;
   const dueLabel = task.due === today ? "Oggi" : task.due === tomorrow ? "Domani" : task.due && shortDay.format(new Date(`${task.due}T12:00`));
   return <article className={`task-card${selected ? " is-selected" : ""}${task.done ? " is-done" : ""}`}>
-    {matrix && <span className="task-grip" draggable onDragStart={event => {
-      event.dataTransfer.setData("application/x-nebula-task", task.id);
-      event.dataTransfer.effectAllowed = "move";
-      onDrag();
-    }} onDragEnd={onEndDrag} title="Trascina per spostare"><GripVertical size={15} /></span>}
+    {matrix && <span className="task-grip" aria-hidden="true" title="Trascina per spostare" onPointerDown={event => {
+      if (!event.isPrimary || event.button !== 0) return;
+      event.preventDefault();
+      dragStart.current = { x: event.clientX, y: event.clientY };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }} onPointerMove={event => {
+      if (moved(event.clientX, event.clientY)) onDrag(event.clientX, event.clientY);
+    }} onPointerUp={event => {
+      if (moved(event.clientX, event.clientY)) onDrop(event.clientX, event.clientY);
+    }} onLostPointerCapture={() => {
+      dragStart.current = null;
+      onEndDrag();
+    }}><GripVertical size={15} /></span>}
     <button className="task-check" type="button" role="checkbox" aria-checked={task.done} aria-label={`Completata: ${task.title}`} onClick={onToggle}>
       {task.done && <Check size={12} strokeWidth={2.7} />}
     </button>

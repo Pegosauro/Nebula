@@ -18,6 +18,11 @@ const quadrants = [
   { id: "do", icon: Zap }, { id: "plan", icon: CalendarDays }, { id: "quick", icon: Clock3 }, { id: "later", icon: Inbox },
 ] as const;
 
+function quadrantAt(x: number, y: number): Quadrant | undefined {
+  const quadrant = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-task-quadrant]")?.dataset.taskQuadrant;
+  return quadrants.find(({ id }) => id === quadrant)?.id;
+}
+
 function collectNotes(entries: VaultEntry[], notes = new Map<string, VaultEntry>()) {
   for (const entry of entries) {
     if (entry.extension === ".md") notes.set(entry.path, entry);
@@ -97,7 +102,13 @@ export default function TaskView({ vaultId }: { vaultId: string }) {
       onMove={target => {
         shift(task.id, target);
         requestAnimationFrame(() => document.getElementById(`task-title-${task.id}`)?.focus());
-      }} onDrag={() => setDragged(task.id)} onEndDrag={stopDrag} />;
+      }} onDrag={(x, y) => {
+        setDragged(task.id);
+        setDropTarget(quadrantAt(x, y));
+      }} onDrop={(x, y) => {
+        const target = quadrantAt(x, y);
+        if (target && target !== taskQuadrant(task, tomorrow)) shift(task.id, target);
+      }} onEndDrag={stopDrag} />;
   }
 
   return <section className="tasks-workspace" aria-label="Task">
@@ -145,19 +156,7 @@ export default function TaskView({ vaultId }: { vaultId: string }) {
             <div className="task-axis task-axis-important">Importante</div><div className="task-axis task-axis-other">Poco importante</div>
             {quadrants.map(({ id, icon: Icon }) => {
               const cards = scopedActive.filter(task => taskQuadrant(task, tomorrow) === id).sort(orderTasks);
-              return <section key={id} aria-label={quadrantLabels[id]} className={`task-quadrant task-quadrant-${id}${dragged ? " accepts-task" : ""}${dropTarget === id ? " is-drop-target" : ""}`} onDragOver={event => {
-                if (dragged && event.dataTransfer.types.includes("application/x-nebula-task")) {
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = "move";
-                  if (dropTarget !== id) setDropTarget(id);
-                }
-              }} onDragLeave={event => {
-                if (dropTarget === id && !(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) setDropTarget(undefined);
-              }} onDrop={event => {
-                if (!dragged || event.dataTransfer.getData("application/x-nebula-task") !== dragged) return;
-                event.preventDefault();
-                shift(dragged, id);
-              }}>
+              return <section key={id} aria-label={quadrantLabels[id]} data-task-quadrant={id} className={`task-quadrant task-quadrant-${id}${dragged ? " accepts-task" : ""}${dropTarget === id ? " is-drop-target" : ""}`}>
                 <header><span className="task-quadrant-icon"><Icon size={18} /></span><h3>{quadrantLabels[id]}</h3><span className="task-quadrant-count">{cards.length}</span></header>
                 <div className="task-quadrant-cards">{cards.length ? cards.map(task => renderCard(task)) : <p className="task-quadrant-empty">{dragged ? "Rilascia qui" : "Nessuna task"}</p>}</div>
               </section>;
