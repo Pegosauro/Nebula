@@ -157,7 +157,9 @@ export class InlineTable {
   }
   private render() {
     const scrollLeft = this.scroll?.scrollLeft ?? 0;
-    this.observer?.disconnect(); this.body.innerHTML = renderMarkdownSafe(this.raw, navigationKnowledge());
+    this.observer?.disconnect();
+    // The editor preserves whitespace, so a trailing HTML newline would add a line beneath the grid.
+    this.body.innerHTML = renderMarkdownSafe(this.raw, navigationKnowledge()).trim();
     this.tableElement = this.body.querySelector("table")!;
     this.tableElement.setAttribute("aria-label", "Tabella della nota"); this.tableElement.setAttribute("role", "grid"); this.tableElement.setAttribute("aria-multiselectable", "true");
     this.cells = [];
