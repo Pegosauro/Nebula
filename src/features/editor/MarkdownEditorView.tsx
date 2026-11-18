@@ -1,9 +1,10 @@
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { useQuickNoteUiStore } from "../notes/quickNoteUiStore";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { AlertTriangle, Check, Files, FileText, LoaderCircle, RefreshCw, Save, TriangleAlert, Undo2, Code2, Pencil, X, LockKeyhole, LockKeyholeOpen, Maximize2, Minimize2, SlidersHorizontal, NotebookPen, Download } from "lucide-react";
+import { AlertTriangle, Check, Files, FileText, LoaderCircle, RefreshCw, Save, TriangleAlert, Undo2, Code2, Pencil, X, LockKeyhole, LockKeyholeOpen, Maximize2, Minimize2, SlidersHorizontal, NotebookPen, Download, ListTodo } from "lucide-react";
 import { dirname, withoutMarkdownExtension } from "../../domain/path";
 import { useWorkspaceStore } from "../workspace/workspaceStore";
+import { useTaskNavigation } from "../tasks/taskNavigation";
 import { useDocumentStore } from "./documentStore";
 import { useKnowledgeStore } from "../knowledge/knowledgeStore";
 import { useKnowledgeNavigationStore } from "../knowledge/knowledgeNavigationStore";
@@ -92,6 +93,13 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
     if (!current?.loaded || current.operationLocked || current.status === "conflict" || current.content !== expectedContent) return;
     store.updateContent(path, toggleMarkdownTask(current.content, from, checked));
   }, [path]);
+  const createLinkedTask = () => {
+    const vaultId = vaultService.currentVaultId();
+    if (!vaultId) return;
+    const selected = api.current?.getSelection().text.trim().replace(/\s+/g, " ");
+    useTaskNavigation.getState().setDraft({ vaultId, path, title: (selected || title).slice(0, 180) });
+    useWorkspaceStore.getState().setActivity("tasks");
+  };
   const openTable = useCallback((table: MarkdownTable) => { if (!locked) { setEditingTable(table); setPanel("table"); } }, [locked]);
   const openPanel = (next: EditorPanel) => {
     if (locked) return;
@@ -140,6 +148,7 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
       <div className="editor-header-actions"><div className="editor-mode" role="group" aria-label="Modalità documento">{([{ id: "edit", label: "Scrivi", icon: Pencil }, { id: "source", label: "Sorgente", icon: Code2 }] as const).map(({ id, label, icon: Icon }) => <button type="button" key={id} disabled={locked} aria-pressed={(locked ? "edit" : mode) === id} className={(locked ? "edit" : mode) === id ? "is-active" : ""} onClick={() => setMode(id)}><Icon size={15} />{label}</button>)}</div>
         {focus && <button className="button button-secondary" type="button" aria-label="Nota veloce" title="Nota veloce" onClick={() => useQuickNoteUiStore.getState().show()}><NotebookPen size={18} /></button>}
         <EditorAppearance />
+        <button className="button button-secondary" type="button" aria-label="Crea task collegata" title="Crea task collegata" onClick={createLinkedTask}><ListTodo size={17} /></button>
         <button className="button button-secondary editor-pdf" type="button" disabled={exportingPdf} aria-label="Esporta pagina in PDF" title="Esporta la pagina in PDF tramite la stampa del dispositivo" onClick={()=>void exportPdf()}>{exportingPdf ? <LoaderCircle size={17} className="spin"/> : <Download size={17}/>}<span>PDF</span></button>
         <button className="button button-secondary editor-properties-toggle" type="button" aria-expanded={propertiesVisible} aria-controls="note-properties" onClick={() => toggleProperties()}><SlidersHorizontal size={17} /><span>Proprietà</span></button>
         <button className="button button-secondary editor-template" type="button" disabled={busy} aria-label="Salva come modello" title="Salva questa nota come modello personale" onClick={() => setSavingTemplate(true)}><Files size={17} /><span>Modello</span></button>

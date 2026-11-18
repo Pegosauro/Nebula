@@ -3,17 +3,17 @@ import { isConfiguratorPath } from "../configurator/model";
 import { isTreePath } from "../trees/model";
 
 export interface PanelLayout { sidebarOpen: boolean; contextPanelOpen: boolean }
-export type PanelArea = "home" | "notes" | "configurator" | "library" | "search" | "recent" | "settings" | "structures" | "tree";
+export type PanelArea = "home" | "notes" | "configurator" | "library" | "search" | "recent" | "settings" | "structures" | "tree" | "tasks";
 export type PanelLayouts = Partial<Record<PanelArea, PanelLayout>>;
 export function panelArea(activity: ActivitySection, tab?: WorkspaceTab): PanelArea {
-  if (activity === "settings" || activity === "search" || activity === "recent") return activity;
+  if (activity === "settings" || activity === "search" || activity === "recent" || activity === "tasks") return activity;
   if (tab?.path && isTreePath(tab.path)) return "tree";
   if (tab?.path && isConfiguratorPath(tab.path)) return "configurator";
   if (activity === "structures") return "structures";
   if (activity === "configurators") return "library";
   return tab?.kind === "document" ? "notes" : "home";
 }
-const areas: PanelArea[] = ["home", "notes", "configurator", "library", "search", "recent", "settings", "structures", "tree"];
+const areas: PanelArea[] = ["home", "notes", "configurator", "library", "search", "recent", "settings", "structures", "tree", "tasks"];
 export function readPanelLayouts(): PanelLayouts {
   try {
     const stored = JSON.parse(localStorage.getItem("nebula.panel-layouts.v1") ?? "{}");

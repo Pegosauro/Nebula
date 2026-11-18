@@ -5,6 +5,7 @@ import {
   Files,
   GitBranch,
   ListTree,
+  ListTodo,
   Search,
   Settings,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const primaryItems: Array<{
   { id: "search", label: "Cerca", icon: Search },
   { id: "structures", label: "Strutture", icon: ListTree },
   { id: "configurators", label: "Configuratori", icon: GitBranch },
+  { id: "tasks", label: "Task", icon: ListTodo },
   { id: "recent", label: "Recenti", icon: Clock3 },
 ];
 
@@ -31,6 +33,7 @@ export function ActivityRail() {
   const setExpanded = useSettingsStore(state => state.setNavigationExpanded);
 
   const choose = (section: ActivitySection) => {
+    if (section === "tasks") { setActivity(section); return; }
     if (section === activity && section !== "settings") useWorkspaceStore.getState().toggleSidebar();
     else {
       setActivity(section);

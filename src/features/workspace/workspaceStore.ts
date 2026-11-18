@@ -8,7 +8,7 @@ import { useSearchStore } from "../search/searchStore";
 import { useDocumentStore } from "../editor/documentStore";
 import { loadMarkdownEditor } from "../editor/loadEditor";
 
-export type ActivitySection = "files" | "structures" | "configurators" | "search" | "recent" | "settings";
+export type ActivitySection = "files" | "structures" | "configurators" | "search" | "recent" | "settings" | "tasks";
 
 export interface WorkspaceTab {
   id: string;
@@ -167,7 +167,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   activateTab: activeTabId => set(state => {
     const tab = state.tabs.find(item => item.id === activeTabId);
     let activity = state.activity;
-    if (activity === "settings" || (activity === "configurators" && tab?.extension === ".md")) activity = "files";
+    if (activity === "settings" || activity === "tasks" || (activity === "configurators" && tab?.extension === ".md")) activity = "files";
     else if (activity === "configurators" && tab?.path && isTreePath(tab.path)) activity = "structures";
     else if (activity === "structures" && tab?.path && !isTreePath(tab.path)) activity = "files";
     return movePanels(state, { activeTabId, activity });

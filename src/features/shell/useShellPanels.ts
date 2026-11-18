@@ -8,7 +8,7 @@ export function useShellPanels() {
   const tab = useWorkspaceStore(state => state.tabs.find(tab => tab.id === state.activeTabId));
   const sidebarOpen = useWorkspaceStore(state => state.sidebarOpen);
   const contextOpen = useWorkspaceStore(state => state.contextPanelOpen);
-  const canShowSidebar = activity !== "settings" && (ready || activity === "recent");
+  const canShowSidebar = activity !== "settings" && activity !== "tasks" && (ready || activity === "recent");
   const treeDocument = !!tab?.path && isTreePath(tab.path);
   const documentVisible = !treeDocument && (activity === "files" || activity === "search" || activity === "configurators" && !!tab?.path && isConfiguratorPath(tab.path));
   const canShowContext = ready && (documentVisible && tab?.kind === "document");

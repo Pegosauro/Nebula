@@ -1,3 +1,4 @@
+import { updateLinkedTaskPaths } from "../tasks/taskSession";
 import { useConfiguratorStore } from "../configurator/configuratorStore";
 import { useTreeStore } from "../trees/treeStore";
 import { create } from "zustand";
@@ -305,6 +306,8 @@ export const useVaultStore = create<VaultState>((set, get) => {
         useDocumentStore.getState().remapPaths(entry.path, result.path, result.snapshot);
         syncKnowledgeAfterMutation(result.snapshot, () => useKnowledgeStore.getState().remapPaths(entry.path, result.path));
         useWorkspaceStore.getState().remapEntryPaths(entry.path, result.path, result.snapshot);
+        const vaultId = service.currentVaultId();
+        if (vaultId && (entry.type === "directory" || entry.extension === ".md")) void updateLinkedTaskPaths(vaultId, entry.path, result.path);
         return result.path;
       } catch (error) {
         return failMutation(error);
@@ -323,6 +326,8 @@ export const useVaultStore = create<VaultState>((set, get) => {
         useDocumentStore.getState().remapPaths(entry.path, result.path, result.snapshot);
         syncKnowledgeAfterMutation(result.snapshot, () => useKnowledgeStore.getState().remapPaths(entry.path, result.path));
         useWorkspaceStore.getState().remapEntryPaths(entry.path, result.path, result.snapshot);
+        const vaultId = service.currentVaultId();
+        if (vaultId && (entry.type === "directory" || entry.extension === ".md")) void updateLinkedTaskPaths(vaultId, entry.path, result.path);
         return result.path;
       } catch (error) {
         return failMutation(error);

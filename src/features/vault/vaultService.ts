@@ -1,3 +1,4 @@
+import { openTaskFile } from "../tasks/taskFile";
 import { readVaultImage, saveVaultImage } from "../../infrastructure/filesystem/vaultImages";
 import type { RecentVault, VaultEntry, VaultPermission, VaultScanProgress, VaultSnapshot } from "../../domain/vault";
 import { BrowserVaultAdapter } from "../../infrastructure/filesystem/browserVaultAdapter";
@@ -181,6 +182,11 @@ export class VaultService {
 
   saveImage(sourcePath: string, file: File): Promise<string> {
     return saveVaultImage(this.requireHandle(), sourcePath, file);
+  }
+
+  taskFile(vaultId: string) {
+    if (vaultId !== this.activeVaultId) throw new Error("Il Vault delle task non è collegato.");
+    return openTaskFile(this.requireHandle(), vaultId);
   }
 
   currentVaultId(): string | undefined {

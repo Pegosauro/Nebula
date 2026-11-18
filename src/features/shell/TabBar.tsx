@@ -21,6 +21,7 @@ function TabDirtyState({ path }: { path: string }) {
 
 export function TabBar() {
   const tabs = useWorkspaceStore((state) => state.tabs);
+  const activity = useWorkspaceStore(state => state.activity);
   const activeTabId = useWorkspaceStore((state) => state.activeTabId);
   const activateTab = useWorkspaceStore((state) => state.activateTab);
   const closeTab = useWorkspaceStore((state) => state.closeTab);
@@ -32,7 +33,7 @@ export function TabBar() {
     <div className="tab-bar" role="tablist" aria-label="Documenti aperti">
       <div className="tab-scroll">
         {tabs.map((tab) => {
-          const active = activeTabId === tab.id;
+          const active = activity !== "tasks" && activeTabId === tab.id;
           return (
             <div className={`document-tab ${active ? "is-active" : ""}`} key={tab.id}>
               <button
