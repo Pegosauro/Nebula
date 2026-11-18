@@ -17,6 +17,16 @@ describe("renderMarkdownSafe", () => {
     expect(html).not.toContain("javascript:");
   });
 
+  it("renders highlight colors without showing the emoji and preserves legacy Markdown", () => {
+    const html = renderMarkdownSafe("==🟢**verde**== ==🟡giallo== ==🟠arancione== ==🔴rosso== ==🟣viola== ==🔵blu== ==normale== `==🟢letterale==`");
+    expect(html).toContain('<mark data-highlight-color="green"><strong>verde</strong></mark>');
+    for (const [color, text] of [["yellow", "giallo"], ["orange", "arancione"], ["red", "rosso"], ["purple", "viola"], ["blue", "blu"]]) {
+      expect(html).toContain(`<mark data-highlight-color="${color}">${text}</mark>`);
+    }
+    expect(html).toContain("<mark>normale</mark>");
+    expect(html).toContain("<code>==🟢letterale==</code>");
+  });
+
   it("renders resolved, unresolved and ambiguous wikilinks as safe controls", () => {
     const knowledge = resolveKnowledgeIndex([
       parseKnowledgeDocument("Home.md", "[[Nota]] [[Mancante]]"),

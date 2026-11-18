@@ -7,7 +7,7 @@ export const insertCommands: InsertCommand[] = [
   { id: "bold", label: "Grassetto", group: "Formato", keywords: "bold", format: "bold", syntax: "**grassetto**", shortcut: "Ctrl/⌘ B" },
   { id: "italic", label: "Corsivo", group: "Formato", keywords: "italic", format: "italic", syntax: "*corsivo*", shortcut: "Ctrl/⌘ I" },
   { id: "strike", label: "Barrato", group: "Formato", keywords: "eliminato", format: "strike", syntax: "~~barrato~~", shortcut: "Ctrl/⌘ Shift X" },
-  { id: "highlight", label: "Evidenziatore", group: "Formato", keywords: "evidenzia colore", format: "highlight", syntax: "==evidenziato==", shortcut: "Ctrl/⌘ Shift H" },
+  { id: "highlight", label: "Evidenziatore", group: "Formato", keywords: "evidenzia colore", format: "highlight", syntax: "==🟡evidenziato==", shortcut: "Ctrl/⌘ Shift H" },
   { id: "inlineCode", label: "Codice in linea", group: "Formato", keywords: "monospace", format: "inlineCode", syntax: "`codice`", shortcut: "Ctrl/⌘ Shift C" },
   { id: "bullet", label: "Elenco puntato", group: "Elenchi", keywords: "lista punti", format: "bullet", syntax: "- Elemento" },
   { id: "ordered", label: "Elenco numerato", group: "Elenchi", keywords: "lista numeri", format: "ordered", syntax: "1. Elemento" },

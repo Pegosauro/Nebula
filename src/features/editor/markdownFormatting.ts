@@ -1,10 +1,12 @@
 import { markdownLanguage } from "@codemirror/lang-markdown";
 import type { FormatAction, TextEdit } from "./markdownTools";
+import { defaultHighlightColor, findHighlights } from "../../domain/markdownHighlight";
 
-const wrappers: Partial<Record<FormatAction, string>> = { bold: "**", italic: "*", strike: "~~", highlight: "==", inlineCode: "`" };
+const wrappers: Partial<Record<FormatAction, string>> = { bold: "**", italic: "*", strike: "~~", inlineCode: "`" };
 
 export function formatEdit(doc: string, from: number, to: number, action: FormatAction): TextEdit {
   if (action === "italic") return italicEdit(doc, from, to);
+  if (action === "highlight") return highlightEdit(doc, from, to);
   let marker = wrappers[action];
   const selected = doc.slice(from, to);
   if (marker) {
@@ -34,6 +36,25 @@ export function formatEdit(doc: string, from: number, to: number, action: Format
     return indent + (toggleOff || action === "paragraph" ? "" : action === "ordered" ? `${index + 1}. ` : prefix) + body;
   }).join("\n");
   return { from: start, to: end, insert, anchor: start, head: start + insert.length };
+}
+
+function highlightEdit(doc: string, from: number, to: number): TextEdit {
+  const lineFrom = from === 0 ? 0 : doc.lastIndexOf("\n", from - 1) + 1;
+  const nextLine = doc.indexOf("\n", from);
+  const lineTo = nextLine < 0 ? doc.length : nextLine;
+  for (const highlight of findHighlights(doc.slice(lineFrom, lineTo), lineFrom)) {
+    const { from: start, to: end, textFrom, textTo } = highlight;
+    const whole = from === start && to === end;
+    const body = from === textFrom && to === textTo;
+    const caret = from === to && from >= textFrom && from <= textTo;
+    if (!whole && !body && !caret) continue;
+    const insert = doc.slice(textFrom, textTo);
+    const anchor = caret ? start + from - textFrom : start;
+    return { from: start, to: end, insert, anchor, head: caret ? anchor : start + insert.length };
+  }
+  const text = doc.slice(from, to) || "testo";
+  const prefix = `==${defaultHighlightColor.emoji}`;
+  return { from, to, insert: `${prefix}${text}==`, anchor: from + prefix.length, head: from + prefix.length + text.length };
 }
 
 function italicEdit(doc: string, from: number, to: number): TextEdit {

@@ -4,6 +4,7 @@ import { redo, undo, redoDepth, undoDepth, isolateHistory } from "@codemirror/co
 import { EditorSelection } from "@codemirror/state";
 import type { FormatAction, TextEdit } from "./markdownTools";
 import { formatEdit } from "./markdownFormatting";
+import { findHighlights } from "../../domain/markdownHighlight";
 
 export type EditorPanel = "insert" | "link" | "image" | "table" | "help" | "search";
 export interface EditorUiState { from: number; to: number; line: number; column: number; selected: string; canUndo: boolean; canRedo: boolean; active: string[]; x: number; y: number }
@@ -67,9 +68,14 @@ export function editorUiState(view: EditorView): EditorUiState {
     if (styles[node.name]) active.push(styles[node.name]!);
     if (node.name === "Emphasis" && from >= node.from && to <= node.to && (from !== to || (from > node.from && from < node.to))) active.push("italic");
   }
-  const pairs = { bold: "**", strike: "~~", highlight: "==", inlineCode: "`" };
+  const pairs = { bold: "**", strike: "~~", inlineCode: "`" };
   for (const [name, marker] of Object.entries(pairs)) {
     if ((selected.length >= 2 * marker.length && selected.startsWith(marker) && selected.endsWith(marker)) || (from >= marker.length && view.state.sliceDoc(from - marker.length, from) === marker && view.state.sliceDoc(to, to + marker.length) === marker)) active.push(name);
+  }
+  for (const highlight of findHighlights(line.text, line.from)) {
+    if ((from >= highlight.textFrom && to <= highlight.textTo) || (from === highlight.from && to === highlight.to)) {
+      active.push("highlight"); break;
+    }
   }
   const heading = /^(#{1,6})\s/.exec(line.text); if (heading) active.push(`h${heading[1]!.length}`);
   if (/^\s*[-*+] \[[ xX]\]/.test(line.text)) active.push("task");

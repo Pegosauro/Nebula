@@ -5,6 +5,7 @@
 @import "./responsive.css";
 
 @import "./editor.css";
+@import "./highlight-colors.css";
 
 @import "./configurator.css";
 @import "./trees.css";

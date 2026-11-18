@@ -2,6 +2,7 @@ import { renderMarkdownSafe } from "../../infrastructure/markdown/renderMarkdown
 import { resolveImagePath } from "../../infrastructure/filesystem/vaultImages";
 import { vaultService } from "../vault/vaultService";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
+import highlightStyles from "../../styles/highlight-colors.css?inline";
 
 export const pdfStyles = `
 @page { size: A4; margin: 18mm 16mm; }
@@ -16,6 +17,7 @@ a { color: #49398d; text-decoration: underline; } table { border-collapse: colla
 th,td { padding: 6pt; border: 1px solid #bbb; vertical-align: top; overflow-wrap: anywhere; } th { background: #f0f1f4; } thead { display: table-header-group; } tr { break-inside: avoid; }
 input[type=checkbox] { accent-color: #5d478f; } .image-error { color: #a32e2e; } video,audio { display: none; }
 body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+${highlightStyles}
 `;
 
 export function pagePdfContent(content: string, title: string): HTMLElement {

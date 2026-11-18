@@ -99,6 +99,32 @@ it("selects the icon on click and removes it through mobile beforeinput", async 
   expect(view.state.doc.toString()).toBe("Titolo");
   expect(host.querySelector(".live-heading")).toBeNull();
 });
+it("opens the color palette with Backspace and changes only the highlight emoji", async () => {
+  const content = "Prima ==🟢**testo**== dopo";
+  const { view, api } = await editor(content);
+  expect(host.querySelector(".live-highlight-icon")).toBeNull();
+  expect(host.querySelector(".cm-content")?.textContent).toBe("Prima testo dopo");
+  await act(async () => view.dispatch({ selection: { anchor: "Prima ==🟢".length } }));
+  expect(host.querySelector(".live-highlight-icon")?.getAttribute("aria-expanded")).toBe("false");
+  await key("Backspace");
+  expect(view.state.doc.toString()).toBe(content);
+  const options = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'));
+  expect(options.map(option => option.textContent)).toEqual(["Verde", "Giallo", "Arancione", "Rosso", "Viola", "Blu"]);
+  expect(options[0]?.getAttribute("aria-checked")).toBe("true");
+  await act(async () => options[4]?.click());
+  expect(view.state.doc.toString()).toBe("Prima ==🟣**testo**== dopo");
+  expect(host.querySelector('[role="menu"]')).toBeNull();
+  await act(async () => api.current!.undo());
+  expect(view.state.doc.toString()).toBe(content);
+});
+it("opens the palette for a legacy highlight and inserts the selected color", async () => {
+  const { view } = await editor("==testo==", false, true);
+  await act(async () => view.dispatch({ selection: { anchor: 2 } }));
+  await act(async () => host.querySelector<HTMLButtonElement>(".live-highlight-icon")!.click());
+  expect(host.querySelector('[aria-checked="true"]')?.textContent).toBe("Giallo");
+  await act(async () => Array.from(host.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')).find(option => option.textContent === "Blu")?.click());
+  expect(view.state.doc.toString()).toBe("==🔵testo==");
+});
 it("handles mobile beforeinput and Unicode without deleting delimiters", async () => {
   const { view } = await editor("**A😀**");
   await act(async () => host.querySelector(".cm-content")!.dispatchEvent(new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: true })));

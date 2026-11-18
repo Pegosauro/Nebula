@@ -7,6 +7,7 @@ import { applyTableLayout } from "./renderTableLayout";
 import type { KnowledgeIndexData } from "../../domain/knowledge";
 import { resolveKnowledgeTarget } from "../../domain/resolveKnowledge";
 import { parseWikilinks } from "./parseKnowledge";
+import { highlightPattern, splitHighlight } from "../../domain/markdownHighlight";
 
 function escapeHtml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -29,10 +30,12 @@ parser.use({
     name: "highlight", level: "inline",
     start: src => src.indexOf("=="),
     tokenizer(src) {
-      const match = /^==([^=\n](?:[^\n]*?[^=\n])?)==/.exec(src);
-      if (match) return { type: "highlight", raw: match[0], text: match[1], tokens: this.lexer.inlineTokens(match[1]!) };
+      const match = highlightPattern.exec(src);
+      if (!match) return;
+      const { text, color, emojiLength } = splitHighlight(match[1]!);
+      return { type: "highlight", raw: match[0], text, color: emojiLength ? color.name : null, tokens: this.lexer.inlineTokens(text) };
     },
-    renderer(token) { return `<mark>${this.parser.parseInline(token.tokens!)}</mark>`; },
+    renderer(token) { return `<mark${token.color ? ` data-highlight-color="${token.color}"` : ""}>${this.parser.parseInline(token.tokens!)}</mark>`; },
   }],
   renderer: {
     table(token) {

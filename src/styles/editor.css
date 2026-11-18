@@ -26,7 +26,63 @@
   font-synthesis: style;
 }
 .live-strike { text-decoration: line-through; }
-.live-highlight, .markdown-preview mark { background: color-mix(in srgb, #edbb36 30%, transparent); color: inherit; border-radius: 3px; }
+.live-highlight-delimiter { opacity: .55; }
+.live-highlight-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  vertical-align: middle;
+  color: var(--highlight-outline, currentColor);
+  background: transparent;
+  cursor: pointer;
+}
+.live-highlight-icon svg { width: 19px; height: 19px; }
+.live-highlight-icon:hover, .live-highlight-icon:focus-visible {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+.cm-tooltip.highlight-color-menu {
+  z-index: 20;
+  min-width: 164px;
+  max-width: calc(100vw - 24px);
+  padding: 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-float);
+  color: var(--text-primary);
+}
+.highlight-color-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  text-align: start;
+  cursor: pointer;
+}
+.highlight-color-menu button[aria-checked="true"] { background: var(--bg-hover); }
+.highlight-color-menu button[aria-checked="true"]::after { content: "✓"; margin-inline-start: auto; }
+.highlight-color-menu button:hover, .highlight-color-menu button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.highlight-color-swatch {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 1.5px solid var(--highlight-outline);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--highlight-color) 23%, transparent);
+}
 .live-code, .live-code-block { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; background: var(--bg-panel); border-radius: 3px; }
 .live-code { padding: 1px 2px; }
 .live-quote { color: var(--text-secondary); }

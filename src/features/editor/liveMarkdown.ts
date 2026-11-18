@@ -14,6 +14,8 @@ import { renderedLinkHref } from "./noteLinkTarget";
 import { parseWikilinks } from "../../infrastructure/markdown/parseKnowledge";
 import { undo, redo, isolateHistory } from "@codemirror/commands";
 import { InlineTable } from "./inlineTable";
+import { findHighlights } from "../../domain/markdownHighlight";
+import { HighlightIcon, highlightPalette, openHighlightPalette, type HighlightMarker } from "./highlightPalette";
 
 const inlineTables = new WeakMap<HTMLElement, InlineTable>();
 
@@ -167,6 +169,7 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
   const active = (from: number, to: number) => revealsSyntax(view.state, from, to);
   const selection = view.state.selection.main;
   const cursorLine = view.hasFocus && !view.state.readOnly ? view.state.doc.lineAt(selection.head) : null;
+  const palette = view.state.field(highlightPalette);
   const hide = (from: number, to: number, owner?: { from: number; to: number }) => { if (to > from) decorations.push(Decoration.replace({ nebulaSyntax: true, nebulaOwner: owner && { from: owner.from, to: owner.to } }).range(from, to)); };
   const addMark = (from: number, to: number, className: string, attributes?: Record<string, string>) => { if (to > from) decorations.push(Decoration.mark({ class: className, attributes }).range(from, to)); };
   const tree = syntaxTree(view.state);
@@ -269,11 +272,28 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
       }
     } });
     const text = view.state.sliceDoc(from, to);
-    for (const match of text.matchAll(/==([^=\n]+)==/g)) {
-      const start = from + match.index!, end = start + match[0].length;
+    for (const { from: start, to: end, emojiFrom, textFrom, textTo, color } of findHighlights(text, from)) {
       if (start < metadataEnd || inCode(start)) continue;
-      addMark(start, end, "live-highlight");
-      if (!active(start, end)) { hide(start, start + 2, { from: start, to: end }); hide(end - 2, end, { from: start, to: end }); }
+      const owner = { from: start, to: end };
+      addMark(start, end, "live-highlight", { "data-highlight-color": color.name });
+      if (active(start, end)) {
+        addMark(start, emojiFrom, "live-highlight-delimiter");
+        addMark(textTo, end, "live-highlight-delimiter");
+      } else {
+        hide(start, emojiFrom, owner);
+        hide(textTo, end, owner);
+      }
+      const menuOpen = palette?.from === emojiFrom;
+      const cursorInside = cursorLine && selection.from >= emojiFrom && selection.to <= textTo;
+      if (menuOpen || cursorInside) {
+        const marker: HighlightMarker = { from: emojiFrom, to: textFrom, color };
+        const widget = new HighlightIcon(marker, menuOpen);
+        if (emojiFrom === textFrom) {
+          decorations.push(Decoration.widget({ widget, side: -1, nebulaHighlight: marker }).range(emojiFrom));
+        } else {
+          decorations.push(Decoration.replace({ widget, nebulaHighlight: marker, nebulaSyntax: true, nebulaOwner: owner }).range(emojiFrom, textFrom));
+        }
+      } else hide(emojiFrom, textFrom, owner);
     }
     for (const link of parseWikilinks(text)) {
       const start = from + link.start, end = from + link.end;
@@ -317,14 +337,25 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
       this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
     }
     update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+      if (update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
         this.decorations = build(update.view, sourcePath, update.state.field(tableField).analysis);
         this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
       }
     }
   }, { decorations: value => value.decorations, provide: plugin => EditorView.atomicRanges.of(view => view.plugin(plugin)?.syntax ?? Decoration.none) });
-  const erase = (forward: boolean, word = false) => (view: EditorView) => deleteAroundHiddenSyntax(view, view.plugin(inline)?.syntax ?? Decoration.none, forward, word);
-  return [tableField, inline, Prec.high(keymap.of([
+  const erase = (forward: boolean, word = false) => (view: EditorView) => {
+    const plugin = view.plugin(inline);
+    if (!forward && !word && !view.state.readOnly && !view.composing && view.state.selection.ranges.length === 1) {
+      const { empty, head } = view.state.selection.main;
+      let marker: HighlightMarker | undefined;
+      if (empty) plugin?.decorations.between(head, head, (_from, to, decoration) => {
+        if (to === head && decoration.spec.nebulaHighlight) marker = decoration.spec.nebulaHighlight as HighlightMarker;
+      });
+      if (marker) { openHighlightPalette(view, marker); return true; }
+    }
+    return deleteAroundHiddenSyntax(view, plugin?.syntax ?? Decoration.none, forward, word);
+  };
+  return [tableField, highlightPalette, inline, Prec.high(keymap.of([
     { key: "Backspace", run: erase(false), shift: erase(false) },
     { key: "Delete", run: erase(true) },
     { key: "Mod-Backspace", mac: "Alt-Backspace", run: erase(false, true) },
