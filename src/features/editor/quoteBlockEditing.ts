@@ -1,5 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import type { EditorState } from "@codemirror/state";
 import { calloutTag, quoteKind, type QuoteBlockKind } from "../../infrastructure/markdown/quoteBlocks";
 import type { TextEdit } from "./markdownTools";
 
@@ -61,30 +61,6 @@ export function wrapQuotedLines(state: EditorState, from: number, to: number, ki
   const anchor = first.from + before.length + prefix.length + body.length;
   return { from: first.from, to: last.to, insert, anchor, head: anchor };
 }
-
-export const separateTextBelowQuote = EditorState.transactionFilter.of(transaction => {
-  const state = transaction.startState;
-  if (!transaction.docChanged || state.readOnly || !transaction.isUserEvent("input")) return transaction;
-
-  const boundaries = new Set<number>();
-  transaction.changes.iterChanges((from, to, newFrom, _newTo, inserted) => {
-    const line = state.doc.lineAt(from);
-    if (!inserted.length || line.number === 1 || to > line.to || line.text.trim()) return;
-    const previous = state.doc.line(line.number - 1);
-    if (!previous.text.trim() || !quoteBlockAt(state, previous.to, previous.to)) return;
-
-    const doc = transaction.newDoc;
-    const next = doc.lineAt(newFrom);
-    if (next.number === 1 || !next.text.trim() || quotePrefix.test(next.text)) return;
-    if (doc.line(next.number - 1).text.trim()) boundaries.add(next.from);
-  });
-  if (!boundaries.size) return transaction;
-
-  // An unmarked line can continue a quote in Markdown. Save the separator
-  // with the input so both renderers agree and undo restores the prior state.
-  const changes = Array.from(boundaries, from => ({ from, insert: "\n" }));
-  return [transaction, { changes, sequential: true }];
-});
 
 export function exitQuotedBlock(state: EditorState): TextEdit | undefined {
   if (state.readOnly || state.selection.ranges.length !== 1) return;

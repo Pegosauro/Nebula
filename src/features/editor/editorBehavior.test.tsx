@@ -306,6 +306,38 @@ describe("unified writing surface", () => {
     await act(async () => view.dispatch({ changes: { from: content.length, to: view.state.doc.length, insert: "Continua" }, userEvent: "input.type" }));
     expect(view.state.doc.toString()).toBe(content + "Continua");
   });
+  it.each([
+    ["\n", "Nuovo paragrafo", "input.type"],
+    ["", "\nNuovo paragrafo", "input.paste"],
+  ])("keeps text on the next line outside an inline table", async (suffix, insert, userEvent) => {
+    const rows = [["A", "B"], ["1", "2"]];
+    const table = serializeTable(rows);
+    const content = table + suffix;
+    const { api, view } = await editor(content);
+
+    await act(async () => view.dispatch({
+      changes: { from: content.length, insert },
+      selection: { anchor: content.length + insert.length },
+      userEvent,
+    }));
+    const expected = table + "\n\nNuovo paragrafo";
+    expect(view.state.doc.toString()).toBe(expected);
+    expect(view.state.selection.main.head).toBe(expected.length);
+    expect(host!.querySelectorAll(".live-table tbody tr")).toHaveLength(1);
+    const preview = document.createElement("div");
+    preview.innerHTML = renderMarkdownSafe(expected);
+    expect(preview.querySelector(":scope > p")?.textContent).toBe("Nuovo paragrafo");
+    await act(async () => api.current!.undo());
+    expect(view.state.doc.toString()).toBe(content);
+    await act(async () => api.current!.redo());
+    expect(view.state.doc.toString()).toBe(expected);
+
+    const addRow = host!.querySelector<HTMLButtonElement>('.live-table button[aria-label="Aggiungi riga sotto"]')!;
+    await act(async () => addRow.click());
+    const updated = view.state.doc.toString();
+    expect(markdownTables(updated)[0]?.rows).toEqual([...rows, ["", ""]]);
+    expect(updated).toContain("\n\nNuovo paragrafo");
+  });
   it("keeps a visual table during selection with direct controls and no advanced popup", async () => {
     const content = "Dati\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\nFine";
     const onTable = vi.fn(); const { api, text, view } = await editor(content, onTable);

@@ -5,7 +5,7 @@ import { vaultService } from "../vault/vaultService";
 import { resolveImagePath } from "../../infrastructure/filesystem/vaultImages";
 import { syntaxTree } from "@codemirror/language";
 import { Decoration, EditorView, keymap, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
-import { Facet, Prec, StateField, type EditorState, type Range } from "@codemirror/state";
+import { EditorState, Facet, Prec, StateField, type Range } from "@codemirror/state";
 import { resolveKnowledgeTarget } from "../../domain/resolveKnowledge";
 import { useKnowledgeStore } from "../knowledge/knowledgeStore";
 import { headingEntries, type MarkdownTable } from "./markdownTools";
@@ -18,7 +18,7 @@ import { headingBars, headingDigits } from "./headingIcon";
 import { findHighlights } from "../../domain/markdownHighlight";
 import { calloutTag, quoteKind, type QuoteBlockKind } from "../../infrastructure/markdown/quoteBlocks";
 import { applyTextEdit } from "./editorCommands";
-import { exitQuotedBlock, separateTextBelowQuote } from "./quoteBlockEditing";
+import { exitQuotedBlock, quoteBlockAt } from "./quoteBlockEditing";
 import { QuoteBlockIcon, quoteBlockMenu } from "./quoteBlockMenu";
 import { HighlightIcon, highlightPalette, openHighlightPalette, type HighlightMarker } from "./highlightPalette";
 
@@ -390,6 +390,40 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     },
     provide: field => [EditorView.decorations.from(field, value => value.decorations), EditorView.atomicRanges.of(view => view.state.field(field).decorations)],
   });
+  const separateTextBelowBlocks = EditorState.transactionFilter.of(transaction => {
+    const state = transaction.startState;
+    if (!transaction.docChanged || state.readOnly || !transaction.isUserEvent("input") || transaction.isUserEvent("input.table")) return transaction;
+
+    const boundaries = new Set<number>();
+    const { tables } = state.field(tableField).analysis;
+    const endsWithTable = (position: number) => tables.some(({ table }) => table.to === position && !table.layout);
+    transaction.changes.iterChanges((from, to, newFrom, _newTo, inserted) => {
+      if (!inserted.length) return;
+      const line = state.doc.lineAt(from);
+      const doc = transaction.newDoc;
+      // A paste can create the line after a table and fill it in one edit.
+      if (from === to && from === line.to && inserted.lines > 1 && !inserted.line(1).text && endsWithTable(from)) {
+        const next = doc.lineAt(newFrom + 1);
+        if (next.text.trim()) boundaries.add(next.from);
+        return;
+      }
+      if (line.number === 1 || to > line.to || line.text.trim()) return;
+      const previous = state.doc.line(line.number - 1);
+      if (!previous.text.trim()) return;
+      const next = doc.lineAt(newFrom);
+      if (next.number === 1 || !next.text.trim() || !doc.line(next.number - 1).text.trim()) return;
+
+      if (endsWithTable(previous.to) || (!next.text.trimStart().startsWith(">") && quoteBlockAt(state, previous.to, previous.to))) {
+        boundaries.add(next.from);
+      }
+    });
+    if (!boundaries.size) return transaction;
+
+    // Markdown can absorb an adjacent paragraph into either block. Keep the
+    // separator in the same undoable edit as the new text.
+    const changes = Array.from(boundaries, from => ({ from, insert: "\n" }));
+    return [transaction, { changes, sequential: true }];
+  });
   const inline = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
     syntax: DecorationSet;
@@ -417,7 +451,7 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     }
     return deleteAroundHiddenSyntax(view, plugin?.syntax ?? Decoration.none, forward, word);
   };
-  return [tableField, highlightPalette, quoteBlockMenu, separateTextBelowQuote, inline, Prec.high(keymap.of([
+  return [tableField, highlightPalette, quoteBlockMenu, separateTextBelowBlocks, inline, Prec.high(keymap.of([
     { key: "Enter", run(view) {
       if (view.composing) return false;
       const edit = exitQuotedBlock(view.state);
