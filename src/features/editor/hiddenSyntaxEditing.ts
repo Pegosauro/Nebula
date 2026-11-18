@@ -1,7 +1,9 @@
 import { EditorSelection, findClusterBreak, type ChangeSpec } from "@codemirror/state";
 import { type DecorationSet, type EditorView } from "@codemirror/view";
+import { isolateHistory } from "@codemirror/commands";
 
 type Span = { from: number; to: number };
+type HeadingMarker = Span & { closing?: Span };
 const merge = (spans: Span[]) => {
   const result: Span[] = [];
   for (const span of spans.sort((a, b) => a.from - b.from)) {
@@ -16,18 +18,32 @@ const merge = (spans: Span[]) => {
 export function deleteAroundHiddenSyntax(view: EditorView, syntax: DecorationSet, forward: boolean, word = false): boolean {
   if (view.state.readOnly || view.composing || !syntax.size) return false;
   const hidden: Span[] = [], owners: Span[] = [];
+  let heading: HeadingMarker | undefined;
   for (const cursor = syntax.iter(); cursor.value; cursor.next()) {
+    const marker = cursor.value.spec.nebulaHeading as { closing?: Span } | undefined;
+    if (marker) {
+      heading = { from: cursor.from, to: cursor.to, closing: marker.closing };
+      continue;
+    }
     hidden.push({ from: cursor.from, to: cursor.to });
     const owner = cursor.value.spec.nebulaOwner as Span | undefined;
     if (owner) owners.push(owner);
   }
   const masks = merge(hidden);
-  let touched = false;
+  let touched = false, removedHeading = false;
   const transaction = view.state.changeByRange(range => {
     // A deliberate selection of the entire source still clears the document.
     if (range.from === 0 && range.to === view.state.doc.length && !range.empty) return { changes: { from: 0, to: range.to }, range: EditorSelection.cursor(0) };
     let from = range.from, to = range.to, at = range.head;
-    if (range.empty) {
+    const marker = heading && (range.empty
+      ? (forward ? heading.from <= at && at < heading.to : heading.from < at && at <= heading.to)
+      : range.from < heading.to && range.to > heading.from) ? heading : undefined;
+    if (marker) {
+      touched = removedHeading = true;
+      from = Math.min(from, marker.from);
+      to = Math.max(to, marker.to);
+      at = from;
+    } else if (range.empty) {
       for (;;) {
         const span = masks.find(item => forward ? item.from <= at && at < item.to : item.from < at && at <= item.to);
         if (!span) break;
@@ -51,6 +67,7 @@ export function deleteAroundHiddenSyntax(view: EditorView, syntax: DecorationSet
       cursor = Math.max(cursor, span.to);
     }
     if (cursor < to) deletions.push({ from: cursor, to });
+    if (marker?.closing) deletions.push(marker.closing);
     // Once all visible contents of a formatted span are removed, remove its
     // empty wrapper too; never leave raw **** or an empty link behind.
     const covered = merge([...masks, ...deletions]);
@@ -63,6 +80,6 @@ export function deleteAroundHiddenSyntax(view: EditorView, syntax: DecorationSet
     return { changes, range: EditorSelection.cursor(view.state.changes(changes).mapPos(origin, -1)) };
   });
   if (!touched) return false;
-  view.dispatch({ ...transaction, scrollIntoView: true, userEvent: forward ? "delete.forward" : "delete.backward" });
+  view.dispatch({ ...transaction, scrollIntoView: true, userEvent: forward ? "delete.forward" : "delete.backward", annotations: removedHeading ? isolateHistory.of("full") : undefined });
   return true;
 }

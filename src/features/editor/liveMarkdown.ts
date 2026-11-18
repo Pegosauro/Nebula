@@ -125,14 +125,22 @@ const headingDigits = [
 ];
 
 class HeadingWidget extends WidgetType {
-  constructor(readonly level: number) { super(); }
-  eq(other: HeadingWidget) { return other.level === this.level; }
-  toDOM() {
+  constructor(readonly level: number, readonly markerLength: number) { super(); }
+  eq(other: HeadingWidget) { return other.level === this.level && other.markerLength === this.markerLength; }
+  toDOM(view: EditorView) {
     const namespace = "http://www.w3.org/2000/svg";
     const icon = document.createElement("span");
     icon.className = "live-heading-icon";
     icon.setAttribute("role", "img");
     icon.setAttribute("aria-label", `Titolo H${this.level}`);
+    icon.title = "Seleziona l’icona, poi premi Canc o Backspace per tornare al testo normale";
+    icon.addEventListener("mousedown", event => {
+      if (event.button !== 0 || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || view.state.readOnly) return;
+      event.preventDefault();
+      const from = view.posAtDOM(icon);
+      view.dispatch({ selection: { anchor: from, head: from + this.markerLength }, userEvent: "select.pointer" });
+      view.focus();
+    });
     const svg = document.createElementNS(namespace, "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("aria-hidden", "true");
@@ -157,6 +165,8 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
   const markers = analysis.markers;
   const hiddenMarker = (from: number, to = from) => markers.some(marker => from >= marker.from && to < marker.to);
   const active = (from: number, to: number) => revealsSyntax(view.state, from, to);
+  const selection = view.state.selection.main;
+  const cursorLine = view.hasFocus && !view.state.readOnly ? view.state.doc.lineAt(selection.head) : null;
   const hide = (from: number, to: number, owner?: { from: number; to: number }) => { if (to > from) decorations.push(Decoration.replace({ nebulaSyntax: true, nebulaOwner: owner && { from: owner.from, to: owner.to } }).range(from, to)); };
   const addMark = (from: number, to: number, className: string, attributes?: Record<string, string>) => { if (to > from) decorations.push(Decoration.mark({ class: className, attributes }).range(from, to)); };
   const tree = syntaxTree(view.state);
@@ -228,6 +238,22 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
       if (name === "HorizontalRule" && !active(node.from, node.to)) {
         decorations.push(Decoration.replace({ widget: new LabelWidget("", "live-divider") }).range(node.from, node.to)); return false;
       }
+      const headingPrefix = name === "HeaderMark" && parent?.from === node.from && /^ATXHeading([1-4])$/.exec(parent.name);
+      if (headingPrefix) {
+        const line = view.state.doc.lineAt(node.from);
+        const end = node.to + (view.state.sliceDoc(node.to, line.to).match(/^[ \t]*/)?.[0].length ?? 0);
+        if (cursorLine?.from !== line.from || selection.from < line.from || selection.to > line.to) {
+          hide(node.from, end);
+        } else {
+          const last = parent?.lastChild;
+          const closing = last?.name === "HeaderMark" && last.from > node.from
+            ? { from: end + view.state.sliceDoc(end, last.from).replace(/[ \t]+$/, "").length, to: line.to }
+            : undefined;
+          const widget = new HeadingWidget(Number(headingPrefix[1]), end - node.from);
+          decorations.push(Decoration.replace({ widget, nebulaSyntax: true, nebulaHeading: { closing } }).range(node.from, end));
+        }
+        return;
+      }
       // Inline delimiters use their own formatted span; structural markers use only their prefix.
       const extent = ["EmphasisMark", "StrikethroughMark", "CodeMark"].includes(name) ? parent : null;
       if (!active(extent?.from ?? node.from, extent?.to ?? node.to)) {
@@ -238,11 +264,7 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
         if (name === "TaskMarker") decorations.push(Decoration.replace({ widget: new TaskWidget(/x/i.test(view.state.sliceDoc(node.from, node.to)), node.from, view.state.readOnly) }).range(node.from, node.to));
         else if (["HeaderMark", "EmphasisMark", "CodeMark", "StrikethroughMark", "QuoteMark"].includes(name)) {
           const end = ["HeaderMark", "QuoteMark"].includes(name) && view.state.sliceDoc(node.to, node.to + 1) === " " ? node.to + 1 : node.to;
-          const headingPrefix = name === "HeaderMark" && parent?.from === node.from && /^ATXHeading([1-4])$/.exec(parent.name);
-          if (headingPrefix) {
-            const widget = new HeadingWidget(Number(headingPrefix[1]));
-            decorations.push(Decoration.replace({ widget, nebulaSyntax: true }).range(node.from, end));
-          } else hide(node.from, end, extent ?? undefined);
+          hide(node.from, end, extent ?? undefined);
         }
       }
     } });
@@ -295,7 +317,7 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
       this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
     }
     update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet || update.viewportChanged || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+      if (update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
         this.decorations = build(update.view, sourcePath, update.state.field(tableField).analysis);
         this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
       }

@@ -41,6 +41,7 @@
   margin-inline-end: 8px;
   vertical-align: middle;
   color: light-dark(#777, #e0e3e8);
+  cursor: pointer;
 }
 .live-heading-icon svg { display: block; width: 100%; height: 100%; }
 .live-heading-icon path:first-child { stroke: light-dark(#d9d9d9, #626977); }

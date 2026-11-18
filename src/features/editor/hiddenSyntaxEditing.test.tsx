@@ -60,28 +60,44 @@ it("leaves visible Markdown editable when reveal-at-cursor is enabled", async ()
   const { view } = await editor("**testo**", false, true);
   await key("Backspace"); expect(view.state.doc.toString()).toBe("**testo*");
 });
-it("shows icons only for opening H1–H4 markers and preserves the Markdown", async () => {
-  const content = "# Uno #\n## Due\n### Tre\n#### Quattro\n##### Cinque\n###### Sei\n\nTitolo\n======\n\n```md\n## Esempio\n```";
-  const { view } = await editor(content);
-  const icons = Array.from(host.querySelectorAll(".live-heading-icon"));
-  expect(icons.map(icon => icon.getAttribute("aria-label"))).toEqual(["Titolo H1", "Titolo H2", "Titolo H3", "Titolo H4"]);
-  expect(new Set(icons.map(icon => icon.querySelector("path:last-child")?.getAttribute("d"))).size).toBe(4);
-  expect(view.state.doc.toString()).toBe(content);
-
+it("shows one heading icon on the active H1–H4 line, even at the start of the marker", async () => {
+  const content = "# Uno #\n## Due\n### Tre\n#### Quattro\n##### Cinque\n###### Sei\n\nTitolo\n======\n\n```md\n## Esempio\n```\n\nParagrafo";
+  const { view } = await editor(content, false, true);
+  const icons = () => Array.from(host.querySelectorAll(".live-heading-icon"));
+  expect(icons()).toHaveLength(0);
+  const digits = new Set();
+  for (let level = 1; level <= view.state.doc.lines; level++) {
+    const line = view.state.doc.line(level);
+    await act(async () => view.dispatch({ selection: { anchor: line.from } }));
+    expect(icons().map(icon => icon.getAttribute("aria-label"))).toEqual(level <= 4 ? [`Titolo H${level}`] : []);
+    if (level <= 4) digits.add(icons()[0]?.querySelector("path:last-child")?.getAttribute("d"));
+  }
+  expect(digits.size).toBe(4);
   await act(async () => view.dispatch({ selection: { anchor: 0 } }));
   await key("ArrowRight");
   expect(view.state.selection.main.head).toBe(2);
-  await act(async () => view.dispatch({ selection: { anchor: 0 } }));
-  await key("Delete");
-  expect(view.state.doc.toString()).toBe(content.replace("Uno", "no"));
+  expect(view.state.doc.toString()).toBe(content);
+  await act(async () => view.contentDOM.blur());
+  await expect.poll(() => icons().length).toBe(0);
 });
-it("reveals heading hashes at the marker when requested", async () => {
-  const content = "## Titolo";
-  const { view } = await editor(content, false, true);
-  expect(host.querySelector(".live-heading-icon")).not.toBeNull();
-  await act(async () => view.dispatch({ selection: { anchor: 1 } }));
+it.each([["Backspace", 7], ["Delete", 0]] as const)("turns a heading into plain text with %s next to its icon", async (button, anchor) => {
+  const content = "####   **Testo** ###  \n\nAltro";
+  const { view, api } = await editor(content);
+  await act(async () => view.dispatch({ selection: { anchor } }));
+  await key(button);
+  expect(view.state.doc.toString()).toBe("**Testo**\n\nAltro");
   expect(host.querySelector(".live-heading-icon")).toBeNull();
-  expect(host.querySelector(".cm-content")?.textContent).toBe(content);
+  await act(async () => api.current!.undo());
+  expect(view.state.doc.toString()).toBe(content);
+});
+it("selects the icon on click and removes it through mobile beforeinput", async () => {
+  const { view } = await editor("## Titolo");
+  const icon = host.querySelector(".live-heading-icon")!;
+  await act(async () => icon.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })));
+  expect([view.state.selection.main.from, view.state.selection.main.to]).toEqual([0, 3]);
+  await act(async () => view.contentDOM.dispatchEvent(new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: true })));
+  expect(view.state.doc.toString()).toBe("Titolo");
+  expect(host.querySelector(".live-heading")).toBeNull();
 });
 it("handles mobile beforeinput and Unicode without deleting delimiters", async () => {
   const { view } = await editor("**A😀**");
