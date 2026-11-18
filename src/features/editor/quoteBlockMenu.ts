@@ -2,6 +2,7 @@ import { StateEffect, StateField } from "@codemirror/state";
 import { showTooltip, WidgetType, type EditorView, type Tooltip } from "@codemirror/view";
 import { quoteBlockGlyph, quoteKinds, type QuoteBlockKind } from "../../infrastructure/markdown/quoteBlocks";
 import { applyTextEdit } from "./editorCommands";
+import { inlineMenuNavigation } from "./inlineMenuNavigation";
 import { convertQuotedBlock, type QuotedBlock } from "./quoteBlockEditing";
 
 type BlockMenu = QuotedBlock & { anchor: number };
@@ -99,34 +100,12 @@ function blockTooltip(menu: BlockMenu): Tooltip {
       dom.append(separator, plain);
       buttons.push(plain);
 
-      const dismiss = (event: PointerEvent) => {
-        const target = event.target;
-        if (target instanceof Element && (dom.contains(target) || target.closest(".live-quote-control"))) return;
-        close(false);
-      };
-      dom.addEventListener("keydown", event => {
-        if (event.key === "Escape" || event.key === "Tab") {
-          event.preventDefault();
-          close(true);
-          return;
-        }
-        const current = buttons.findIndex(button => button === owner.activeElement);
-        const next = { ArrowUp: current - 1, ArrowDown: current + 1, Home: 0, End: buttons.length - 1 }[event.key];
-        if (next === undefined) return;
-        event.preventDefault();
-        buttons[(next + buttons.length) % buttons.length]?.focus();
-      });
       return {
-        dom,
+        ...inlineMenuNavigation(dom, buttons, quoteKinds.findIndex(form => form.kind === menu.kind), ".live-quote-control", close),
         getCoords(pos) {
           const anchor = view.dom.querySelector(`[data-quote-block-from="${menu.from}"]`);
           return anchor?.getBoundingClientRect() ?? view.coordsAtPos(pos)!;
         },
-        mount() {
-          owner.addEventListener("pointerdown", dismiss, true);
-          buttons[quoteKinds.findIndex(form => form.kind === menu.kind)]?.focus({ preventScroll: true });
-        },
-        destroy() { owner.removeEventListener("pointerdown", dismiss, true); },
       };
     },
   };

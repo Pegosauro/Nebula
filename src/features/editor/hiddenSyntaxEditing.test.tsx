@@ -90,15 +90,42 @@ it.each([["Backspace", 7], ["Delete", 0]] as const)("turns a heading into plain 
   await act(async () => api.current!.undo());
   expect(view.state.doc.toString()).toBe(content);
 });
-it("selects the icon on click and removes it through mobile beforeinput", async () => {
+it("changes the heading level from its icon and preserves the text, caret and undo", async () => {
+  const content = "##  **Titolo** ###  \n\nTesto";
+  const { view, api } = await editor(content);
+  const caret = content.indexOf("Titolo") + 2;
+  await act(async () => api.current!.select(caret));
+  const icon = () => host.querySelector<HTMLButtonElement>(".live-heading-icon")!;
+  await act(async () => icon().click());
+  const menu = host.querySelector<HTMLElement>(".heading-level-menu")!;
+  expect(icon().getAttribute("aria-expanded")).toBe("true");
+  const options = [...menu.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')];
+  expect(options.map(option => option.textContent)).toEqual(["Titolo H1", "Titolo H2", "Titolo H3", "Titolo H4"]);
+  expect(options[1]?.getAttribute("aria-checked")).toBe("true");
+  await act(async () => options[1]!.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true })));
+  expect(document.activeElement?.textContent).toBe("Converti in testo normale");
+  await act(async () => options[3]?.click());
+  expect(view.state.doc.toString()).toBe("####" + content.slice(2));
+  expect(view.state.selection.main.head).toBe(caret + 2);
+  await expect.poll(() => icon()?.getAttribute("aria-label")).toBe("Titolo H4");
+  expect(host.querySelector(".heading-level-menu")).toBeNull();
+  await act(async () => api.current!.undo());
+  expect(view.state.doc.toString()).toBe(content);
+  await expect.poll(() => icon()?.getAttribute("aria-label")).toBe("Titolo H2");
+  await act(async () => icon().click());
+  await act(async () => host.querySelector<HTMLButtonElement>('.heading-level-menu [role="menuitem"]')!.click());
+  expect(view.state.doc.toString()).toBe("**Titolo**\n\nTesto");
+  expect(host.querySelector(".live-heading-icon")).toBeNull();
+});
+
+it("removes the heading prefix through mobile beforeinput at the start of the text", async () => {
   const { view } = await editor("## Titolo");
-  const icon = host.querySelector(".live-heading-icon")!;
-  await act(async () => icon.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })));
-  expect([view.state.selection.main.from, view.state.selection.main.to]).toEqual([0, 3]);
+  await act(async () => view.dispatch({ selection: { anchor: 3 } }));
   await act(async () => view.contentDOM.dispatchEvent(new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: true })));
   expect(view.state.doc.toString()).toBe("Titolo");
   expect(host.querySelector(".live-heading")).toBeNull();
 });
+
 it("opens the color palette with Backspace and changes only the highlight emoji", async () => {
   const content = "Prima ==🟢**testo**== dopo";
   const { view, api } = await editor(content);

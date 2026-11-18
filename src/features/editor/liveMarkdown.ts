@@ -14,7 +14,7 @@ import { renderedLinkHref } from "./noteLinkTarget";
 import { parseWikilinks } from "../../infrastructure/markdown/parseKnowledge";
 import { undo, redo, isolateHistory } from "@codemirror/commands";
 import { InlineTable } from "./inlineTable";
-import { headingBars, headingDigits } from "./headingIcon";
+import { HeadingWidget, headingLevelMenu, type HeadingMarker } from "./headingLevelMenu";
 import { findHighlights } from "../../domain/markdownHighlight";
 import { calloutTag, quoteKind, type QuoteBlockKind } from "../../infrastructure/markdown/quoteBlocks";
 import { applyTextEdit } from "./editorCommands";
@@ -124,41 +124,6 @@ class BulletWidget extends WidgetType {
   ignoreEvent() { return false; }
 }
 
-class HeadingWidget extends WidgetType {
-  constructor(readonly level: number, readonly markerLength: number) { super(); }
-  eq(other: HeadingWidget) { return other.level === this.level && other.markerLength === this.markerLength; }
-  toDOM(view: EditorView) {
-    const namespace = "http://www.w3.org/2000/svg";
-    const icon = document.createElement("span");
-    icon.className = "live-heading-icon";
-    icon.setAttribute("role", "img");
-    icon.setAttribute("aria-label", `Titolo H${this.level}`);
-    icon.title = "Seleziona l’icona, poi premi Canc o Backspace per tornare al testo normale";
-    icon.addEventListener("mousedown", event => {
-      if (event.button !== 0 || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || view.state.readOnly) return;
-      event.preventDefault();
-      const from = view.posAtDOM(icon);
-      view.dispatch({ selection: { anchor: from, head: from + this.markerLength }, userEvent: "select.pointer" });
-      view.focus();
-    });
-    const svg = document.createElementNS(namespace, "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("aria-hidden", "true");
-    const bars = document.createElementNS(namespace, "path");
-    bars.setAttribute("d", headingBars);
-    bars.setAttribute("fill", "none");
-    bars.setAttribute("stroke-width", "2.65");
-    bars.setAttribute("stroke-linecap", "round");
-    const digit = document.createElementNS(namespace, "path");
-    digit.setAttribute("d", headingDigits[this.level - 1]!);
-    digit.setAttribute("fill", "currentColor");
-    svg.append(bars, digit);
-    icon.append(svg);
-    return icon;
-  }
-  ignoreEvent() { return false; }
-}
-
 function decorateQuoteBlock(
   view: EditorView,
   block: { from: number; to: number; kind: QuoteBlockKind },
@@ -214,6 +179,8 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
   const active = (from: number, to: number) => revealsSyntax(view.state, from, to);
   const selection = view.state.selection.main;
   const cursorLine = view.hasFocus && !view.state.readOnly ? view.state.doc.lineAt(selection.head) : null;
+  const headingMenu = view.state.field(headingLevelMenu);
+  const focusedHeading = view.dom.querySelector(".live-heading-icon:focus");
   const palette = view.state.field(highlightPalette);
   const quoteMarks = new Set<number>();
   const visitedQuotes = new Set<number>();
@@ -306,14 +273,17 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
       if (headingPrefix) {
         const line = view.state.doc.lineAt(node.from);
         const end = node.to + (view.state.sliceDoc(node.to, line.to).match(/^[ \t]*/)?.[0].length ?? 0);
-        if (cursorLine?.from !== line.from || selection.from < line.from || selection.to > line.to) {
+        const current = cursorLine?.from === line.from || headingMenu?.from === node.from ||
+          focusedHeading?.getAttribute("data-heading-marker") === String(node.from);
+        if (!current || view.state.readOnly || selection.from < line.from || selection.to > line.to) {
           hide(node.from, end);
         } else {
           const last = parent?.lastChild;
           const closing = last?.name === "HeaderMark" && last.from > node.from
             ? { from: end + view.state.sliceDoc(end, last.from).replace(/[ \t]+$/, "").length, to: line.to }
             : undefined;
-          const widget = new HeadingWidget(Number(headingPrefix[1]), end - node.from);
+          const level = Number(headingPrefix[1]) as HeadingMarker["level"];
+          const widget = new HeadingWidget({ from: node.from, to: node.to, prefixTo: end, level, closing }, headingMenu?.from === node.from);
           decorations.push(Decoration.replace({ widget, nebulaSyntax: true, nebulaHeading: { closing } }).range(node.from, end));
         }
         return;
@@ -432,8 +402,9 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
       this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
     }
     update(update: ViewUpdate) {
+      const headingMenuChanged = update.startState.field(headingLevelMenu, false) !== update.state.field(headingLevelMenu, false);
       const quoteMenuChanged = update.startState.field(quoteBlockMenu) !== update.state.field(quoteBlockMenu);
-      if (quoteMenuChanged || update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+      if (headingMenuChanged || quoteMenuChanged || update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
         this.decorations = build(update.view, sourcePath, update.state.field(tableField).analysis);
         this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
       }
@@ -451,7 +422,7 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     }
     return deleteAroundHiddenSyntax(view, plugin?.syntax ?? Decoration.none, forward, word);
   };
-  return [tableField, highlightPalette, quoteBlockMenu, separateTextBelowBlocks, inline, Prec.high(keymap.of([
+  return [tableField, highlightPalette, headingLevelMenu, quoteBlockMenu, separateTextBelowBlocks, inline, Prec.high(keymap.of([
     { key: "Enter", run(view) {
       if (view.composing) return false;
       const edit = exitQuotedBlock(view.state);
