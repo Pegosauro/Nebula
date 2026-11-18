@@ -65,7 +65,8 @@ it("applies and remembers H1–H4 and runs the grouped and direct toolbar comman
   await open("Elenchi, citazioni e avvisi");
   expect(menuItems().map(item => item.textContent)).toEqual(["Elenco puntato", "Elenco numerato", "Checklist", "Citazione", "Suggerimento", "Avviso"]);
   await act(async () => menuItems()[5]!.click());
-  expect(editing()).toContain("\n\n> [!WARNING]\n> Presta attenzione a questo punto\n\n");
+  expect(editing()).toContain("\n\n> [!WARNING]\n> ### Paragrafo");
+  await act(async () => view.dispatch({ changes: { from: view.state.doc.length, insert: "\n\n" }, selection: { anchor: view.state.doc.length + 2 } }));
   await open("Separatore");
   expect(editing()).toContain("\n\n---\n\n");
   await open("Immagine");

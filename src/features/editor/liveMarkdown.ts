@@ -16,6 +16,10 @@ import { undo, redo, isolateHistory } from "@codemirror/commands";
 import { InlineTable } from "./inlineTable";
 import { headingBars, headingDigits } from "./headingIcon";
 import { findHighlights } from "../../domain/markdownHighlight";
+import { calloutTag, quoteKind, type QuoteBlockKind } from "../../infrastructure/markdown/quoteBlocks";
+import { applyTextEdit } from "./editorCommands";
+import { exitQuotedBlock } from "./quoteBlockEditing";
+import { QuoteBlockIcon, quoteBlockMenu } from "./quoteBlockMenu";
 import { HighlightIcon, highlightPalette, openHighlightPalette, type HighlightMarker } from "./highlightPalette";
 
 const inlineTables = new WeakMap<HTMLElement, InlineTable>();
@@ -155,6 +159,53 @@ class HeadingWidget extends WidgetType {
   ignoreEvent() { return false; }
 }
 
+function decorateQuoteBlock(
+  view: EditorView,
+  block: { from: number; to: number; kind: QuoteBlockKind },
+  tagLength: number,
+  decorations: Range<Decoration>[],
+  quoteMarks: Set<number>,
+  hide: (from: number, to: number) => void,
+) {
+  const { doc, readOnly } = view.state;
+  const first = doc.lineAt(block.from);
+  const last = doc.lineAt(block.to);
+  const prefix = /^>[ \t]?/.exec(doc.sliceString(block.from, first.to))?.[0] ?? "";
+  const markerEnd = block.from + prefix.length + tagLength;
+  const hideHeader = tagLength > 0 && first.number < last.number && !doc.sliceString(markerEnd, first.to).trim();
+  const firstBody = first.number + Number(hideHeader);
+
+  if (hideHeader) {
+    decorations.push(Decoration.line({ class: "live-quote-meta" }).range(first.from));
+    quoteMarks.add(block.from);
+    hide(block.from, first.to);
+  }
+  for (let number = firstBody; number <= last.number; number++) {
+    const line = doc.line(number);
+    const start = number === first.number ? block.from : line.from;
+    const leading = /^[ \t]*>[ \t]?/.exec(doc.sliceString(start, line.to))?.[0] ?? "";
+    let anchor = start + leading.length;
+    if (number === first.number && tagLength) {
+      anchor = markerEnd;
+      if (/^[ \t]/.test(doc.sliceString(anchor, line.to))) anchor++;
+    }
+    if (leading) {
+      quoteMarks.add(start + leading.indexOf(">"));
+      hide(start, anchor);
+    }
+    const isFirst = number === firstBody;
+    const isLast = number === last.number;
+    decorations.push(Decoration.line({
+      class: `live-quote-block quote-block-${block.kind}${isFirst ? " live-block-start" : ""}${isLast ? " live-block-end" : ""}`,
+    }).range(line.from));
+    if (isFirst) {
+      const menu = view.state.field(quoteBlockMenu);
+      const widget = new QuoteBlockIcon({ ...block, anchor }, menu?.from === block.from, readOnly);
+      decorations.push(Decoration.widget({ widget, side: -1 }).range(anchor));
+    }
+  }
+}
+
 function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const metadataEnd = analysis.metadata?.end ?? 0;
@@ -164,6 +215,8 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
   const selection = view.state.selection.main;
   const cursorLine = view.hasFocus && !view.state.readOnly ? view.state.doc.lineAt(selection.head) : null;
   const palette = view.state.field(highlightPalette);
+  const quoteMarks = new Set<number>();
+  const visitedQuotes = new Set<number>();
   const hide = (from: number, to: number, owner?: { from: number; to: number }) => { if (to > from) decorations.push(Decoration.replace({ nebulaSyntax: true, nebulaOwner: owner && { from: owner.from, to: owner.to } }).range(from, to)); };
   const addMark = (from: number, to: number, className: string, attributes?: Record<string, string>) => { if (to > from) decorations.push(Decoration.mark({ class: className, attributes }).range(from, to)); };
   const tree = syntaxTree(view.state);
@@ -197,17 +250,31 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
       if (name === "Strikethrough") addMark(node.from, node.to, "live-strike");
       if (name === "InlineCode") addMark(node.from, node.to, "live-code");
       if (name === "Blockquote") {
-        const callout = /^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/.exec(view.state.sliceDoc(node.from, node.to));
-        for (let line = view.state.doc.lineAt(node.from); line.from <= node.to; ) {
-          decorations.push(Decoration.line({ class: `${callout ? `live-callout live-callout-${callout[1]!.toLowerCase()}` : "live-quote-line"} ${line.from === view.state.doc.lineAt(node.from).from ? "live-block-start" : ""} ${line.to >= node.to ? "live-block-end" : ""}` }).range(line.from));
-          if (line.to >= node.to) break; line = view.state.doc.lineAt(line.to + 1);
-        }
-        if (callout) {
-          const start = node.from + callout[0].indexOf("[!"), end = node.from + callout[0].length;
-          const labels: Record<string, string> = { NOTE: "Nota", TIP: "Suggerimento", IMPORTANT: "Importante", WARNING: "Attenzione", CAUTION: "Avvertenza" };
-          if (!active(start, end)) decorations.push(Decoration.replace({ widget: new LabelWidget(labels[callout[1]!]!, "live-callout-label") }).range(start, end));
+        let outer = parent;
+        while (outer && outer.name !== "Blockquote") outer = outer.parent;
+        if (!outer && !visitedQuotes.has(node.from)) {
+          visitedQuotes.add(node.from);
+          const first = view.state.sliceDoc(node.from, view.state.doc.lineAt(node.from).to);
+          const callout = calloutTag.exec(first.replace(/^>[ \t]?/, ""));
+          const tag = callout?.[1]?.toUpperCase();
+          const kind = quoteKind(tag);
+          if (kind) {
+            decorateQuoteBlock(view, { from: node.from, to: node.to, kind }, callout?.[0].length ?? 0, decorations, quoteMarks, hide);
+          } else if (callout && tag) {
+            for (let line = view.state.doc.lineAt(node.from); ; line = view.state.doc.lineAt(line.to + 1)) {
+              decorations.push(Decoration.line({
+                class: `live-callout live-callout-${tag.toLowerCase()}${line.from <= node.from ? " live-block-start" : ""}${line.to >= node.to ? " live-block-end" : ""}`,
+              }).range(line.from));
+              if (line.to >= node.to) break;
+            }
+            const start = node.from + first.indexOf("[!");
+            const end = start + callout[0].length;
+            const labels: Record<string, string> = { NOTE: "Nota", IMPORTANT: "Importante", CAUTION: "Avvertenza" };
+            if (!active(start, end)) decorations.push(Decoration.replace({ widget: new LabelWidget(labels[tag]!, "live-callout-label") }).range(start, end));
+          }
         }
       }
+      if (name === "QuoteMark" && quoteMarks.has(node.from)) return;
       if (name === "Autolink" || (name === "URL" && !["Link", "Image"].includes(parent?.name ?? ""))) {
         const url = name === "Autolink" ? node.node.getChild("URL") : node.node;
         if (url) {
@@ -331,7 +398,8 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
       this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
     }
     update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+      const quoteMenuChanged = update.startState.field(quoteBlockMenu) !== update.state.field(quoteBlockMenu);
+      if (quoteMenuChanged || update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
         this.decorations = build(update.view, sourcePath, update.state.field(tableField).analysis);
         this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
       }
@@ -349,7 +417,14 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     }
     return deleteAroundHiddenSyntax(view, plugin?.syntax ?? Decoration.none, forward, word);
   };
-  return [tableField, highlightPalette, inline, Prec.high(keymap.of([
+  return [tableField, highlightPalette, quoteBlockMenu, inline, Prec.high(keymap.of([
+    { key: "Enter", run(view) {
+      if (view.composing) return false;
+      const edit = exitQuotedBlock(view.state);
+      if (!edit) return false;
+      applyTextEdit(view, edit);
+      return true;
+    } },
     { key: "Backspace", run: erase(false), shift: erase(false) },
     { key: "Delete", run: erase(true) },
     { key: "Mod-Backspace", mac: "Alt-Backspace", run: erase(false, true) },

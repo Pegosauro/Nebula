@@ -111,7 +111,7 @@
 .live-highlight-icon:hover, .live-highlight-icon:focus-visible {
   background: color-mix(in srgb, currentColor 14%, transparent);
 }
-.cm-tooltip.highlight-color-menu {
+.cm-tooltip:is(.highlight-color-menu, .quote-block-menu) {
   z-index: 20;
   min-width: 164px;
   max-width: calc(100vw - 24px);
@@ -122,7 +122,7 @@
   box-shadow: var(--shadow-float);
   color: var(--text-primary);
 }
-.highlight-color-menu button {
+:is(.highlight-color-menu, .quote-block-menu) button {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -138,9 +138,9 @@
   text-align: start;
   cursor: pointer;
 }
-.highlight-color-menu button[aria-checked="true"] { background: var(--bg-hover); }
-.highlight-color-menu button[aria-checked="true"]::after { content: "✓"; margin-inline-start: auto; }
-.highlight-color-menu button:hover, .highlight-color-menu button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+:is(.highlight-color-menu, .quote-block-menu) button[aria-checked="true"] { background: var(--bg-hover); }
+:is(.highlight-color-menu, .quote-block-menu) button[aria-checked="true"]::after { content: "✓"; margin-inline-start: auto; }
+:is(.highlight-color-menu, .quote-block-menu) button:hover, :is(.highlight-color-menu, .quote-block-menu) button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .highlight-color-swatch {
   width: 16px;
   height: 16px;
@@ -288,7 +288,6 @@
 
 /* Scrivi is the document itself; source symbols appear only at the caret. */
 .live-code-line { background: var(--bg-panel); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; padding-inline: 14px !important; }
-.live-quote-line { border-left: 3px solid var(--accent); padding-left: 16px !important; color: var(--text-secondary); }
 .live-callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding-inline: 16px !important; }
 .live-callout-warning, .live-callout-caution { border-left-color: #dca746; }
 .live-callout-label { color: var(--accent-hover); font-size: 14px; font-weight: 650; }

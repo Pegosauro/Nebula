@@ -27,6 +27,21 @@ describe("renderMarkdownSafe", () => {
     expect(html).toContain("<code>==🟢letterale==</code>");
   });
 
+  it("renders three distinct blocks with decorative icons and no generated titles", () => {
+    const html = renderMarkdownSafe("> Una citazione\n\n> [!TIP]\n> **Utile**\n\n> [!WARNING] Verificare\n\n> [!NOTE]\n> Nota esistente");
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const blocks = [...container.querySelectorAll("blockquote")];
+    expect(blocks.slice(0, 3).map(block => block.textContent?.trim())).toEqual(["Una citazione", "Utile", "Verificare"]);
+    expect(blocks[3]?.querySelector(".callout-label")?.textContent).toBe("Nota");
+    for (const [index, kind] of ["quote", "tip", "warning"].entries()) {
+      expect(blocks[index]?.classList).toContain(`quote-block-${kind}`);
+      expect(blocks[index]?.querySelector("svg[aria-hidden=true]")).toBeTruthy();
+      expect(blocks[index]?.querySelector(".callout-label")).toBeNull();
+    }
+    expect(blocks[1]?.querySelector(".quote-block-content strong")?.textContent).toBe("Utile");
+  });
+
   it("renders resolved, unresolved and ambiguous wikilinks as safe controls", () => {
     const knowledge = resolveKnowledgeIndex([
       parseKnowledgeDocument("Home.md", "[[Nota]] [[Mancante]]"),

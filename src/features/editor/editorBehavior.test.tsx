@@ -210,12 +210,61 @@ describe("unified writing surface", () => {
     const content = "Introduzione\n\n[Visita](https://example.com) e [[Nota|alias]]\n\n> [!TIP]\n> Utile **qui**\n\n```js\nconst a = 1;\n```\n\n---";
     const { api, text, view } = await editor(content);
     expect(text()).toContain("Visita e alias"); expect(text()).not.toContain("https://");
-    expect(text()).toContain("Suggerimento"); expect(text()).not.toContain("[!TIP]");
+    expect(text()).toContain("Utile qui"); expect(text()).not.toContain("[!TIP]");
+    expect(host!.querySelector(".quote-block-tip .live-quote-control svg")).toBeTruthy();
+    expect(text()).not.toContain("Suggerimento");
     expect(text()).toContain("const a = 1;"); expect(text()).not.toContain("```");
     expect(host!.querySelector(".live-divider")).toBeTruthy();
     await act(async () => api.current!.select(0, content.length));
     expect(text()).not.toContain("[!TIP]"); expect(text()).not.toContain("**");
     expect(view.state.doc.toString()).toBe(content);
+  });
+  it("changes a multi-line block from its icon and converts it to plain text without losing Markdown", async () => {
+    const content = "**Piano** e [dettagli](https://example.com)\n\nSeconda riga";
+    const { api, render, text, view } = await editor(content);
+    await act(async () => { api.current!.select(0, content.length); api.current!.format("tip"); });
+    const tip = "> [!TIP]\n> **Piano** e [dettagli](https://example.com)\n> \n> Seconda riga";
+    expect(view.state.doc.toString()).toBe(tip);
+    const open = async (kind: string) => act(async () =>
+      host!.querySelector<HTMLButtonElement>(`[aria-label="Cambia tipo di blocco: ${kind}"]`)!.click());
+    const items = () => [...document.querySelectorAll<HTMLButtonElement>(".quote-block-menu button")];
+    expect(host!.querySelectorAll(".live-quote-control")).toHaveLength(1);
+    await open("Suggerimento");
+    expect(items()[1]?.getAttribute("aria-checked")).toBe("true");
+    await act(async () => items()[2]!.click());
+    expect(view.state.doc.toString()).toBe(tip.replace("[!TIP]", "[!WARNING]"));
+    await open("Avviso");
+    await act(async () => items()[0]!.click());
+    expect(view.state.doc.toString()).toBe(tip.slice(tip.indexOf("\n") + 1));
+    await open("Citazione");
+    await act(async () => items()[3]!.click());
+    expect(view.state.doc.toString()).toBe(content);
+    await act(async () => api.current!.undo());
+    expect(host!.querySelector(".quote-block-quote .live-quote-control")).toBeTruthy();
+    await render(true);
+    expect(host!.querySelector(".live-quote-control")).toBeNull();
+    expect(text()).toContain("> **Piano**");
+  });
+  it("places the cursor in a new block and switches its type at the end of the last line", async () => {
+    const { api, view } = await editor("");
+    await act(async () => api.current!.format("warning"));
+    expect(view.state.doc.toString()).toBe("> [!WARNING]\n> ");
+    expect(view.state.selection.main.head).toBe(view.state.doc.length);
+    await act(async () => {
+      api.current!.replace(view.state.doc.length, view.state.doc.length, "Controllare");
+      api.current!.select(view.state.doc.length);
+      api.current!.format("tip");
+    });
+    expect(view.state.doc.toString()).toBe("> [!TIP]\n> Controllare");
+    const enter = async () => act(async () => host!.querySelector(".cm-content")!.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+    ));
+    await enter();
+    expect(view.state.doc.toString()).toBe("> [!TIP]\n> Controllare\n> ");
+    await enter();
+    expect(view.state.doc.toString()).toBe("> [!TIP]\n> Controllare\n\n");
+    await act(async () => api.current!.replace(view.state.doc.length, view.state.doc.length, "Fuori dal blocco"));
+    expect(host!.querySelector(".quote-block-tip")?.textContent).not.toContain("Fuori dal blocco");
   });
   it("keeps a visual table during selection with direct controls and no advanced popup", async () => {
     const content = "Dati\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\nFine";

@@ -1,0 +1,126 @@
+:is(.nebula-quote-block, .live-quote-block) {
+  --quote-icon: light-dark(#475569, #cbd5e1);
+  --quote-border: light-dark(#94a3b8, #67758a);
+  --quote-fill: transparent;
+  --quote-icon-fill: transparent;
+  --quote-radius: 0px;
+  --quote-top: 8px;
+  position: relative;
+}
+
+:is(.nebula-quote-block, .live-quote-block).quote-block-tip {
+  --quote-icon: light-dark(#185541, #a7e2cd);
+  --quote-border: light-dark(#9acdb9, #3e7966);
+  --quote-fill: light-dark(#edf9f3, #142d26);
+  --quote-icon-fill: light-dark(#daf1e6, #22483b);
+  --quote-radius: 20px;
+  --quote-top: 13px;
+}
+
+:is(.nebula-quote-block, .live-quote-block).quote-block-warning {
+  --quote-icon: light-dark(#80450f, #f8d098);
+  --quote-border: light-dark(#d6aa67, #a67236);
+  --quote-fill: light-dark(#fff5e6, #302518);
+  --quote-icon-fill: transparent;
+  --quote-radius: 5px;
+  --quote-top: 16px;
+  --quote-band: repeating-linear-gradient(-45deg, light-dark(#ffe3aa, #583c22) 0 6px, light-dark(#bf7623, #ad743b) 6px 9px);
+}
+
+:is(.nebula-quote-block, .live-quote-block).quote-block-quote {
+  font-style: italic;
+  color: var(--text-secondary, #435268);
+}
+
+blockquote.nebula-quote-block:is(.quote-block-quote, .quote-block-tip, .quote-block-warning) {
+  margin: 16px 0;
+  padding: var(--quote-top) 16px 12px 60px;
+  border: 1px solid var(--quote-border);
+  border-radius: var(--quote-radius);
+  background-color: var(--quote-fill);
+}
+blockquote.nebula-quote-block.quote-block-quote {
+  padding-bottom: 8px;
+  border: 0;
+  border-inline-start: 3px solid var(--quote-border);
+}
+.nebula-quote-block.quote-block-warning,
+.live-quote-block.quote-block-warning.live-block-start {
+  background-image: var(--quote-band);
+  background-size: 100% 6px;
+  background-repeat: no-repeat;
+}
+.quote-block-content > :first-child { margin-top: 0; }
+.quote-block-content > :last-child { margin-bottom: 0; }
+
+.editor-v2 .cm-line.live-quote-block {
+  box-sizing: border-box;
+  padding-inline: 59px 15px !important;
+  border-inline: 1px solid var(--quote-border);
+  background-color: color-mix(in srgb, var(--quote-fill) 65%, transparent);
+}
+.editor-v2 .cm-line.live-quote-block.live-block-start {
+  padding-top: var(--quote-top);
+  border-top: 1px solid var(--quote-border);
+  border-start-start-radius: var(--quote-radius);
+  border-start-end-radius: var(--quote-radius);
+}
+.editor-v2 .cm-line.live-quote-block.live-block-end {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--quote-border);
+  border-end-start-radius: var(--quote-radius);
+  border-end-end-radius: var(--quote-radius);
+}
+.editor-v2 .cm-line.live-quote-block.quote-block-quote {
+  border: 0;
+  border-inline-start: 3px solid var(--quote-border);
+}
+.editor-v2 .cm-line.live-quote-meta {
+  height: 0;
+  min-height: 0;
+  line-height: 0;
+  padding-block: 0 !important;
+  overflow: hidden;
+}
+
+.quote-block-icon {
+  position: absolute;
+  inset-inline-start: 8px;
+  top: calc(var(--quote-top) + (1lh - 44px) / 2);
+  display: inline-grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--quote-icon);
+}
+.quote-block-icon::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: inherit;
+  background: var(--quote-icon-fill);
+  pointer-events: none;
+}
+.quote-block-icon svg { position: relative; inline-size: 21px; block-size: 21px; }
+.live-quote-control { cursor: pointer; }
+.live-quote-control:is(:hover, [aria-expanded="true"])::before {
+  background: color-mix(in srgb, var(--quote-icon) 15%, var(--quote-icon-fill));
+}
+.live-quote-control:is(:focus-visible, [aria-expanded="true"]) {
+  outline: 2px solid var(--quote-icon);
+  outline-offset: -4px;
+}
+
+.cm-tooltip.quote-block-menu { min-width: 222px; }
+.quote-block-menu svg { inline-size: 18px; block-size: 18px; flex: none; }
+.quote-block-menu hr { margin: 4px 5px; border: 0; border-top: 1px solid var(--border); }
+.quote-block-menu[data-quote-kind="tip"] button[aria-checked="true"] {
+  background: light-dark(#e5f4ee, #214034);
+}
+.quote-block-menu[data-quote-kind="warning"] button[aria-checked="true"] {
+  background: light-dark(#fff2db, #42311e);
+}

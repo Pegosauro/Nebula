@@ -3,7 +3,7 @@ import { Lexer, type Tokens } from "marked";
 import { serializeTableLayout, tableMetadataAt, type TableLayout } from "../../infrastructure/markdown/tableLayout";
 
 export interface TextEdit { from: number; to: number; insert: string; anchor: number; head: number }
-export type FormatAction = "bold" | "italic" | "strike" | "highlight" | "inlineCode" | "bullet" | "ordered" | "task" | "quote" | "paragraph" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+export type FormatAction = "bold" | "italic" | "strike" | "highlight" | "inlineCode" | "bullet" | "ordered" | "task" | "quote" | "tip" | "warning" | "paragraph" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 export function minimalChange(before: string, after: string) {
   let from = 0;
   while (from < before.length && from < after.length && before[from] === after[from]) from++;

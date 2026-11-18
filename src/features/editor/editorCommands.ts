@@ -3,6 +3,7 @@ import type { EditorView } from "@codemirror/view";
 import { redo, undo, redoDepth, undoDepth, isolateHistory } from "@codemirror/commands";
 import { EditorSelection } from "@codemirror/state";
 import type { FormatAction, TextEdit } from "./markdownTools";
+import { convertQuotedBlock, quoteBlockAt, wrapQuotedLines } from "./quoteBlockEditing";
 import { formatEdit } from "./markdownFormatting";
 import { findHighlights } from "../../domain/markdownHighlight";
 
@@ -29,6 +30,16 @@ export function createEditorApi(view: EditorView): EditorApi {
     format: (action, toggle) => {
       if (view.state.readOnly) return;
       const { from, to } = view.state.selection.main;
+      if (action === "quote" || action === "tip" || action === "warning") {
+        const block = quoteBlockAt(view.state, from, to);
+        const target = action === "quote" && block?.kind === "quote" && toggle !== false ? "plain" : action;
+        const edit = block
+          ? convertQuotedBlock(view.state, block, target)
+          : wrapQuotedLines(view.state, from, to, action);
+        if (edit) applyTextEdit(view, edit);
+        else view.focus();
+        return;
+      }
       const names: Partial<Record<FormatAction, string>> = { bold: "StrongEmphasis", italic: "Emphasis", strike: "Strikethrough", inlineCode: "InlineCode" };
       if (from === to && names[action]) {
         for (let node = syntaxTree(view.state).resolveInner(from, -1); node; node = node.parent!) {
@@ -83,6 +94,7 @@ export function editorUiState(view: EditorView): EditorUiState {
   if (/^\s*[-*+] \[[ xX]\]/.test(line.text)) active.push("task");
   else if (/^\s*[-*+] /.test(line.text)) active.push("bullet");
   if (/^\s*\d+[.)] /.test(line.text)) active.push("ordered");
-  if (/^\s*>/.test(line.text)) active.push("quote");
+  const quote = quoteBlockAt(view.state, from, to);
+  if (quote) active.push(quote.kind);
   return { from, to, selected, line: line.number, column: head - line.from + 1, canUndo: undoDepth(view.state) > 0, canRedo: redoDepth(view.state) > 0, active, x: 0, y: 0 };
 }

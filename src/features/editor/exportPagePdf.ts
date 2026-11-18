@@ -3,6 +3,7 @@ import { resolveImagePath } from "../../infrastructure/filesystem/vaultImages";
 import { vaultService } from "../vault/vaultService";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import highlightStyles from "../../styles/highlight-colors.css?inline";
+import quoteBlockStyles from "../../styles/quote-blocks.css?inline";
 
 export const pdfStyles = `
 @page { size: A4; margin: 18mm 16mm; }
@@ -18,6 +19,7 @@ th,td { padding: 6pt; border: 1px solid #bbb; vertical-align: top; overflow-wrap
 input[type=checkbox] { accent-color: #5d478f; } .image-error { color: #a32e2e; } video,audio { display: none; }
 body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 ${highlightStyles}
+${quoteBlockStyles}
 `;
 
 export function pagePdfContent(content: string, title: string): HTMLElement {

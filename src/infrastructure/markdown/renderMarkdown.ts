@@ -1,3 +1,4 @@
+import { calloutTag, quoteBlockGlyph, quoteKind } from "./quoteBlocks";
 import { maskInternalNoteMarkers } from "./internalNoteMarkers";
 import { withoutFrontmatter } from "../../domain/noteProperties";
 import DOMPurify from "dompurify";
@@ -104,14 +105,33 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
     if (/^https?:|^mailto:/i.test(a.getAttribute("href") ?? "")) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
   }
   for (const quote of container.querySelectorAll("blockquote")) {
-    const p = quote.querySelector("p"); const first = p?.firstChild;
-    if (first?.nodeType !== 3) continue;
-    const match = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i.exec(first.textContent ?? "");
-    if (!match) continue;
-    const labels: Record<string, string> = { NOTE: "Nota", TIP: "Suggerimento", IMPORTANT: "Importante", WARNING: "Attenzione", CAUTION: "Avvertenza" };
-    first.textContent = first.textContent!.slice(match[0].length);
-    quote.classList.add("markdown-callout", `callout-${match[1]!.toLowerCase()}`);
-    const label = document.createElement("strong"); label.className = "callout-label"; label.textContent = labels[match[1]!.toUpperCase()]; quote.prepend(label);
+    const p = quote.firstElementChild;
+    const first = p?.tagName === "P" && p.firstChild?.nodeType === Node.TEXT_NODE ? p.firstChild : null;
+    const match = calloutTag.exec(first?.textContent ?? "");
+    const tag = match?.[1]?.toUpperCase();
+    const kind = quoteKind(tag);
+    if (first && match && tag) {
+      first.textContent = first.textContent!.slice(match[0].length).trimStart();
+      if (!p!.textContent?.trim() && p!.children.length === 0) p!.remove();
+      quote.classList.add("markdown-callout", `callout-${tag.toLowerCase()}`);
+    }
+    if (kind) {
+      quote.classList.add("nebula-quote-block", `quote-block-${kind}`);
+      const content = document.createElement("div");
+      content.className = "quote-block-content";
+      content.append(...quote.childNodes);
+      const icon = document.createElement("span");
+      icon.className = "quote-block-icon";
+      icon.setAttribute("aria-hidden", "true");
+      icon.append(quoteBlockGlyph(kind));
+      quote.append(icon, content);
+    } else if (tag) {
+      const labels: Record<string, string> = { NOTE: "Nota", IMPORTANT: "Importante", CAUTION: "Avvertenza" };
+      const label = document.createElement("strong");
+      label.className = "callout-label";
+      label.textContent = labels[tag]!;
+      quote.prepend(label);
+    }
   }
   return container.innerHTML;
 }

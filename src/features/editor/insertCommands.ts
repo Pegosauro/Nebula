@@ -18,7 +18,7 @@ export const insertCommands: InsertCommand[] = [
   { id: "quote", label: "Citazione", group: "Blocchi", keywords: "quote", format: "quote", syntax: "> Citazione" },
   { id: "code", label: "Blocco di codice", group: "Blocchi", keywords: "javascript python codice", text: "```text\nInserisci il codice\n```", syntax: "```linguaggio\ncodice\n```" },
   { id: "note", label: "Riquadro informativo", group: "Blocchi", keywords: "callout nota", text: "> [!NOTE]\n> Informazione utile", syntax: "> [!NOTE]\n> Informazione utile" },
-  { id: "tip", label: "Suggerimento", group: "Blocchi", keywords: "callout tip consiglio", text: "> [!TIP]\n> Un suggerimento", syntax: "> [!TIP]\n> Un suggerimento" },
-  { id: "warning", label: "Avviso", group: "Blocchi", keywords: "callout warning attenzione", text: "> [!WARNING]\n> Presta attenzione a questo punto", syntax: "> [!WARNING]\n> Avviso" },
+  { id: "tip", label: "Suggerimento", group: "Blocchi", keywords: "callout tip consiglio", format: "tip", syntax: "> [!TIP]\n> Un suggerimento" },
+  { id: "warning", label: "Avviso", group: "Blocchi", keywords: "callout warning attenzione", format: "warning", syntax: "> [!WARNING]\n> Avviso" },
   { id: "divider", label: "Separatore", group: "Blocchi", keywords: "linea orizzontale", text: "---", syntax: "---" },
 ];
