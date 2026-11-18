@@ -69,3 +69,28 @@ test("hides attachments, saves merged resized cells, and keeps writing centered 
     }
   }
 });
+
+test("keeps external table controls out of the document layout", async ({ page }) => {
+  const widget = page.locator(".live-table");
+  const table = widget.getByRole("grid", { name: "Tabella della nota" });
+  const toolbar = widget.getByRole("toolbar", { name: "Strumenti tabella" });
+  const paragraph = page.getByText("Fine della nota", { exact: true });
+  await expect(table).toBeVisible();
+  await expect(toolbar).toBeHidden();
+  const gridBefore = (await table.boundingBox())!;
+  const widgetBefore = (await widget.boundingBox())!;
+  const paragraphBefore = (await paragraph.boundingBox())!;
+
+  expect(gridBefore.y - widgetBefore.y).toBeLessThan(2);
+  expect(widgetBefore.height - gridBefore.height).toBeLessThan(20);
+
+  await table.locator("tbody td").first().click();
+  await expect(toolbar).toBeVisible();
+  const rulerBefore = (await widget.locator(".inline-table-ruler").boundingBox())!;
+  const bottomControl = (await widget.getByRole("button", { name: "Aggiungi riga sotto" }).boundingBox())!;
+  const gridAfter = (await table.boundingBox())!;
+  expect(rulerBefore.y + rulerBefore.height).toBeLessThanOrEqual(gridAfter.y + 1);
+  expect(bottomControl.y).toBeGreaterThanOrEqual(gridAfter.y + gridAfter.height - 1);
+  expect(gridAfter).toEqual(gridBefore);
+  expect((await paragraph.boundingBox())!.y).toEqual(paragraphBefore.y);
+});

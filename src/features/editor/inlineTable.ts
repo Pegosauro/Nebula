@@ -38,6 +38,8 @@ export class InlineTable {
   private buttons = new Map<string, HTMLButtonElement>();
   private tableElement!: HTMLTableElement;
   private frame!: HTMLDivElement;
+  private controls!: HTMLDivElement;
+  private scroll?: HTMLElement;
   private cells: HTMLTableCellElement[] = [];
   private rowHandles: HTMLButtonElement[] = [];
   private columnHandles: HTMLButtonElement[] = [];
@@ -127,7 +129,9 @@ export class InlineTable {
     else if (this.drag.kind === "cells" && cell && (row !== this.active.row || column !== this.active.column)) this.select({ row, column }, true);
   }
   private paint() {
+    const activated = this.selected && !this.host.classList.contains("is-active");
     this.host.classList.toggle("is-active", this.selected); this.host.classList.toggle("is-editing", !!this.editing);
+    if (activated) this.scheduleGeometry();
     const bounds = this.bounds, rowCount = bounds.bottom - bounds.top + 1, columnCount = bounds.right - bounds.left + 1, count = rowCount * columnCount;
     this.status.textContent = this.selected ? this.kind === "row" ? `${rowCount} ${rowCount === 1 ? "riga" : "righe"}` : this.kind === "column" ? `${columnCount} ${columnCount === 1 ? "colonna" : "colonne"}` : count > 1 ? `${count} celle` : `R${this.active.row + 1} · C${this.active.column + 1}` : "Doppio clic per scrivere";
     const formats = new Map((this.layout.cells ?? []).map(cell => [`${cell.row}:${cell.column}`, cell]));
@@ -152,6 +156,7 @@ export class InlineTable {
     }
   }
   private render() {
+    const scrollLeft = this.scroll?.scrollLeft ?? 0;
     this.observer?.disconnect(); this.body.innerHTML = renderMarkdownSafe(this.raw, navigationKnowledge());
     this.tableElement = this.body.querySelector("table")!;
     this.tableElement.setAttribute("aria-label", "Tabella della nota"); this.tableElement.setAttribute("role", "grid"); this.tableElement.setAttribute("aria-multiselectable", "true");
@@ -175,9 +180,30 @@ export class InlineTable {
     let scroll = this.tableElement.parentElement!;
     if (scroll === this.body) { scroll = document.createElement("div"); scroll.className = "nebula-table-scroll"; this.tableElement.replaceWith(scroll); scroll.append(this.tableElement); }
     this.frame = document.createElement("div"); this.frame.className = "inline-table-frame"; this.tableElement.replaceWith(this.frame); this.frame.append(this.tableElement);
+    const overlay = document.createElement("div");
+    overlay.className = "inline-table-overlay";
+    const controls = document.createElement("div");
+    controls.className = "inline-table-controls";
+    this.body.append(overlay);
+    overlay.append(controls);
+    this.controls = controls;
+    this.scroll = scroll;
     this.sizeFrame(this.layout.widths);
-    this.tool("all", "Seleziona tutta la tabella", icon("M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z"), () => this.selectAll(), this.frame).classList.add("inline-table-corner");
-    const ruler = document.createElement("div"); ruler.className = "inline-table-ruler"; this.frame.append(ruler);
+    scroll.scrollLeft = scrollLeft;
+    const positionControls = () => { controls.style.transform = `translateX(${-scroll.scrollLeft}px)`; };
+    scroll.addEventListener("scroll", positionControls, { passive: true });
+    overlay.addEventListener("focusin", event => {
+      if (!(event.target instanceof HTMLElement)) return;
+      const target = event.target.getBoundingClientRect();
+      const viewport = overlay.getBoundingClientRect();
+      if (target.left < viewport.left) scroll.scrollLeft += target.left - viewport.left;
+      else if (target.right > viewport.right) scroll.scrollLeft += target.right - viewport.right;
+      positionControls();
+    });
+    positionControls();
+
+    this.tool("all", "Seleziona tutta la tabella", icon("M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z"), () => this.selectAll(), controls).classList.add("inline-table-corner");
+    const ruler = document.createElement("div"); ruler.className = "inline-table-ruler"; controls.append(ruler);
     this.columnHandles = [];
     const widths = this.layout.widths ?? Array.from({ length: this.columns }, () => DEFAULT_COLUMN_WIDTH);
     widths.forEach((width, c) => {
@@ -200,10 +226,10 @@ export class InlineTable {
       });
       track.append(handle); ruler.append(track);
     });
-    const gutter = document.createElement("div"); gutter.className = "inline-table-row-gutter"; this.frame.append(gutter);
+    const gutter = document.createElement("div"); gutter.className = "inline-table-row-gutter"; controls.append(gutter);
     this.rowHandles = this.table.rows.map((_, row) => { const handle = this.axisHandle("row", row); gutter.append(handle); return handle; });
-    this.tool("add-column", "Aggiungi colonna a destra", "+", () => this.append("column"), this.frame).classList.add("inline-table-add", "inline-table-add-column");
-    this.tool("add-row", "Aggiungi riga sotto", "+", () => this.append("row"), this.frame).classList.add("inline-table-add", "inline-table-add-row");
+    this.tool("add-column", "Aggiungi colonna a destra", "+", () => this.append("column"), controls).classList.add("inline-table-add", "inline-table-add-column");
+    this.tool("add-row", "Aggiungi riga sotto", "+", () => this.append("row"), controls).classList.add("inline-table-add", "inline-table-add-row");
     this.options.decorate(this.body); this.paint(); this.scheduleGeometry(); this.options.measure();
     if (typeof ResizeObserver !== "undefined") { this.observer = new ResizeObserver(() => this.scheduleGeometry()); this.observer.observe(this.tableElement); }
   }
@@ -217,14 +243,31 @@ export class InlineTable {
     return handle;
   }
   private sizeFrame(widths?: number[]) {
-    this.frame.style.width = widths ? `calc(${widths.reduce((a, b) => a + b, 0)}px + 2 * var(--table-gutter))` : "100%";
-    this.frame.style.minWidth = `calc(${widths ? widths.reduce((a, b) => a + b, 0) : this.columns * 90}px + 2 * var(--table-gutter))`;
+    const minimum = `calc(${widths ? widths.reduce((a, b) => a + b, 0) : this.columns * 90}px + 2 * var(--table-gutter))`;
+    for (const element of [this.frame, this.controls]) {
+      element.style.minWidth = minimum;
+      element.style.width = widths ? minimum : "100%";
+    }
   }
   private scheduleGeometry() {
     cancelAnimationFrame(this.geometryFrame);
     this.geometryFrame = requestAnimationFrame(() => {
-      const top = this.frame.getBoundingClientRect().top, rects = Array.from(this.tableElement.rows, row => row.getBoundingClientRect());
-      rects.forEach((rect, row) => { const handle = this.rowHandles[row]!; handle.style.top = `${rect.top - top}px`; handle.style.height = `${rect.height}px`; });
+      const frame = this.frame.getBoundingClientRect();
+      const rects = Array.from(this.tableElement.rows, row => row.getBoundingClientRect());
+      const scroller = this.host.closest(".cm-scroller")?.getBoundingClientRect();
+      if (scroller) {
+        const toolbarHeight = this.toolbar.offsetHeight;
+        const rulerHeight = this.controls.querySelector(".inline-table-ruler")!.getBoundingClientRect().height;
+        const above = frame.top - scroller.top;
+        const below = scroller.bottom - frame.bottom;
+        this.toolbar.classList.toggle("is-below", above < toolbarHeight + rulerHeight + 4 && below > above);
+      }
+      this.controls.style.height = `${frame.height}px`;
+      rects.forEach((rect, row) => {
+        const handle = this.rowHandles[row]!;
+        handle.style.top = `${rect.top - frame.top}px`;
+        handle.style.height = `${rect.height}px`;
+      });
     });
   }
   private actualWidths() { return Array.from(this.body.querySelectorAll<HTMLElement>(".inline-table-ruler > div"), (track, column) => columnWidth(track.getBoundingClientRect().width || this.layout.widths?.[column] || DEFAULT_COLUMN_WIDTH)); }

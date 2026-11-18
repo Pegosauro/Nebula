@@ -298,16 +298,46 @@
 .live-table.markdown-preview th, .live-table.markdown-preview td { min-width: 90px; }
 .live-table.markdown-preview caption button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Stable gutters keep table controls out of the note's content. Selection and
-   typing never mount a second editor or move the surrounding text. */
-.live-table.inline-table { --table-gutter: 28px; --table-ruler: 24px; overflow: visible; padding: 0 0 8px; }
-.inline-table .inline-table-toolbar { display: flex; align-items: center; gap: 6px; width: 100%; margin: 0; min-height: 42px; padding: 4px 0; overflow-x: auto; scrollbar-width: thin; color: var(--text-secondary); font-family: inherit; font-size: 12px; line-height: 1.3; }
-.inline-table-toolbar > :not(.inline-table-status) { visibility: hidden; }
-.inline-table:not(.is-active):not(:focus-within) .inline-table-toolbar { overflow-x: hidden; }
-.inline-table:is(.is-active, :focus-within) .inline-table-toolbar > * { visibility: visible; }
-.inline-table-status { flex: none; min-width: 65px; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
-.inline-table:not(.is-active):not(:focus-within) .inline-table-status { opacity: 0; }
-.inline-table:hover .inline-table-status { opacity: 1; }
+/* The grid alone contributes to document height. The controls use the
+   surrounding editor space, with their own horizontal clipping. */
+.live-table.inline-table {
+  --table-gutter: 28px;
+  --table-ruler: 24px;
+  --table-add-height: 24px;
+  --table-hit-width: 30px;
+  position: relative;
+  overflow: visible;
+  padding: 0;
+}
+.inline-table .inline-table-toolbar {
+  position: absolute;
+  z-index: 3;
+  bottom: calc(100% + var(--table-ruler) + 4px);
+  inset-inline-end: var(--table-gutter);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--table-gutter));
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-float);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.3;
+  visibility: hidden;
+}
+.inline-table .inline-table-toolbar.is-below {
+  bottom: auto;
+  top: calc(100% + var(--table-add-height) + 4px);
+}
+.inline-table.is-active .inline-table-toolbar { visibility: visible; }
+.inline-table-status { flex: none; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
 .inline-table-tool-group { display: flex; flex: none; gap: 1px; border: 1px solid var(--border); border-radius: 6px; padding: 1px; }
 .inline-table-toolbar button { flex: none; display: inline-flex; align-items: center; justify-content: center; height: 30px; min-width: 30px; padding: 0 7px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg-panel); color: var(--text-secondary); font: inherit; white-space: nowrap; cursor: pointer; }
 .inline-table-tool-group button { padding: 0; border-color: transparent; background: transparent; }
@@ -315,9 +345,22 @@
 .inline-table-toolbar button.inline-table-delete:hover { color: var(--danger, #d74757); border-color: currentColor; }
 .inline-table-toolbar :disabled { opacity: .35; cursor: default; }
 .inline-table :is(button,[role="separator"]):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; opacity: 1; }
-.inline-table .inline-table-body { width: 100%; padding: 0; margin: 0; font-size: inherit; line-height: inherit; }
-.inline-table .nebula-table-scroll { padding: 0 0 4px; overscroll-behavior-x: contain; scrollbar-width: thin; }
-.inline-table-frame { position: relative; box-sizing: border-box; padding: var(--table-ruler) var(--table-gutter) var(--table-gutter); }
+.inline-table .inline-table-body { position: relative; width: 100%; padding: 0; margin: 0; font-size: inherit; line-height: inherit; }
+.inline-table .nebula-table-scroll { overscroll-behavior-x: contain; scrollbar-width: thin; }
+.inline-table-frame { box-sizing: border-box; padding-inline: var(--table-gutter); }
+.inline-table-overlay {
+  position: absolute;
+  inset: calc(-4px - var(--table-ruler)) 0 calc(-4px - var(--table-add-height));
+  z-index: 2;
+  overflow: clip;
+  pointer-events: none;
+}
+.inline-table-controls {
+  position: absolute;
+  top: calc(4px + var(--table-ruler));
+  left: 0;
+  height: calc(100% - var(--table-ruler) - var(--table-add-height) - 8px);
+}
 .inline-table table { width: 100%; }
 .inline-table table:not(.has-column-widths) { table-layout: fixed; }
 .inline-table :is(th,td)[data-row] { position: relative; min-height: 40px; height: 40px; cursor: cell; outline: none; user-select: none; }
@@ -327,32 +370,24 @@
 .inline-table :is(th,td).is-delete-preview { background-color: color-mix(in srgb, var(--danger, #d74757) 16%, var(--bg-panel)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger, #d74757) 55%, transparent); }
 .editor-v2 .inline-table :is(th,td):has(.inline-table-input) { padding: 0; }
 .inline-table textarea.inline-table-input { display: block; resize: none; box-sizing: border-box; width: 100%; min-width: 0; min-height: 42px; margin: 0; padding: 9px 11px; border: 0; border-radius: 0; outline: 2px solid var(--accent); outline-offset: -2px; background: var(--bg-panel); color: var(--text-primary); font: inherit; line-height: inherit; cursor: text; user-select: text; overflow: hidden; }
-.inline-table-ruler { position: absolute; top: 0; left: var(--table-gutter); right: var(--table-gutter); display: flex; height: var(--table-ruler); }
+.inline-table-ruler { position: absolute; bottom: 100%; left: var(--table-gutter); right: var(--table-gutter); display: flex; height: var(--table-ruler); }
 .inline-table-ruler > div { position: relative; min-width: 0; }
-.inline-table-frame :is(.inline-table-row-handle,.inline-table-column-handle,.inline-table-corner,.inline-table-add) { display: flex; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); cursor: pointer; font: inherit; font-size: 16px; line-height: 1; opacity: 0; }
-.inline-table-column-handle { width: calc(100% - 12px); height: calc(var(--table-ruler) - 2px); margin-inline: 6px !important; }
-
+.inline-table-controls :is(.inline-table-row-handle,.inline-table-column-handle,.inline-table-corner,.inline-table-add) { display: flex; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); cursor: pointer; font: inherit; font-size: 16px; line-height: 1; opacity: 0; }
+.inline-table-controls .inline-table-column-handle { width: min(var(--table-hit-width), 100%); height: 100%; margin-inline: auto; touch-action: none; }
 .inline-table-row-handle { position: absolute; left: 2px; width: calc(var(--table-gutter) - 6px); touch-action: none; }
-.inline-table-column-handle { touch-action: none; }
-.inline-table-corner { position: absolute; left: 2px; top: 0; width: calc(var(--table-gutter) - 6px); height: calc(var(--table-ruler) - 2px); }
-.inline-table-add-column { position: absolute; right: 2px; top: var(--table-ruler); bottom: var(--table-gutter); width: calc(var(--table-gutter) - 6px); }
-.inline-table-add-row { position: absolute; bottom: 2px; left: var(--table-gutter); right: var(--table-gutter); height: calc(var(--table-gutter) - 6px); }
-.inline-table-frame:hover :is(.inline-table-row-handle,.inline-table-column-handle,.inline-table-corner,.inline-table-add), .inline-table-frame :is(button:focus-visible,button[aria-pressed="true"]) { opacity: 1; }
-.inline-table-frame :is(.inline-table-row-handle,.inline-table-column-handle,.inline-table-corner,.inline-table-add):hover, .inline-table-frame button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.inline-table-corner { position: absolute; left: 2px; bottom: 100%; width: calc(var(--table-gutter) - 6px); height: var(--table-ruler); }
+.inline-table-add-column { position: absolute; right: 2px; top: 0; bottom: 0; width: calc(var(--table-gutter) - 6px); }
+.inline-table-add-row { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: var(--table-hit-width); height: var(--table-add-height); }
 .inline-table-resizer { position: absolute; right: -6px; top: 0; width: 12px; height: var(--table-ruler); cursor: col-resize; touch-action: none; z-index: 1; opacity: 0; }
-.inline-table-frame:hover .inline-table-resizer, .inline-table-resizer:focus-visible { opacity: 1; }
-.inline-table-resizer::after { content: ""; position: absolute; left: 5px; top: 5px; bottom: 5px; width: 2px; background: var(--border-strong); border-radius: 2px; }
+.inline-table:is(:hover,.is-active,:focus-within) .inline-table-controls :is(button,.inline-table-resizer) { opacity: 1; pointer-events: auto; }
+.inline-table-controls button:is(:hover,[aria-pressed="true"]) { background: var(--accent-soft); color: var(--accent); }
+.inline-table-resizer::after { content: ""; position: absolute; left: calc(50% - 1px); top: 5px; bottom: 5px; width: 2px; background: var(--border-strong); border-radius: 2px; }
 .inline-table-resizer:is(:hover,:focus-visible)::after { background: var(--accent); }
 @media (hover: none), (pointer: coarse) {
-  .live-table.inline-table { --table-gutter: 48px; --table-ruler: 48px; }
+  .live-table.inline-table { --table-gutter: 48px; --table-ruler: 44px; --table-add-height: 44px; --table-hit-width: 44px; }
   .inline-table-toolbar button { height: 44px; min-width: 44px; }
-  .inline-table .inline-table-toolbar { min-height: 54px; }
-  .inline-table:is(.is-active,:focus-within) .inline-table-frame :is(button,.inline-table-resizer) { opacity: 1; }
-  .inline-table-row-handle, .inline-table-add-column { width: 44px; }
-  .inline-table-corner { width: 44px; height: 44px; }
-  .inline-table-column-handle, .inline-table-add-row { height: 44px; }
+  .inline-table-row-handle, .inline-table-add-column, .inline-table-corner { width: 44px; }
   .inline-table-resizer { width: 18px; right: -9px; }
-  .inline-table-resizer::after { left: 8px; }
 }
 
 /* Shared document typography in writing and locked reading. */
