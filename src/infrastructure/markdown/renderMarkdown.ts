@@ -2,7 +2,7 @@ import { calloutTag, quoteBlockGlyph, quoteKind } from "./quoteBlocks";
 import { maskInternalNoteMarkers } from "./internalNoteMarkers";
 import { withoutFrontmatter } from "../../domain/noteProperties";
 import DOMPurify from "dompurify";
-import { Marked, type Tokens } from "marked";
+import { Marked, type Token, type Tokens } from "marked";
 import { markdownTables } from "../../features/editor/markdownTools";
 import { applyTableLayout } from "./renderTableLayout";
 import type { KnowledgeIndexData } from "../../domain/knowledge";
@@ -25,6 +25,29 @@ function renderWikilinks(source: string, knowledge: KnowledgeIndexData): string 
   }
   return output;
 }
+function preserveQuoteLines(tokens: Token[]): Token[] {
+  return tokens.flatMap<Token>(token => {
+    // Nested quotes pass through the same renderer. Image descriptions stay inline.
+    if (token.type === "blockquote" || token.type === "image") return token;
+    if (token.type === "list") {
+      const list = token as Tokens.List;
+      return { ...list, items: list.items.map(item => ({ ...item, tokens: preserveQuoteLines(item.tokens) })) };
+    }
+    if ("tokens" in token && token.tokens) return { ...token, tokens: preserveQuoteLines(token.tokens) };
+    if (token.type !== "text") return token;
+    const leaf = token as Tokens.Text;
+    if (leaf.escaped || !leaf.text.includes("\n")) return token;
+
+    // Only Markdown soft breaks remain in plain text tokens. Explicit breaks
+    // and the contents of code spans already have their own token types.
+    return leaf.text.split("\n").flatMap<Token>((text, index) => {
+      const line: Token[] = index ? [{ type: "br", raw: "\n" }] : [];
+      if (text) line.push({ ...leaf, text, raw: text });
+      return line;
+    });
+  });
+}
+
 const parser = new Marked({ gfm: true, breaks: false });
 parser.use({
   extensions: [{
@@ -39,6 +62,9 @@ parser.use({
     renderer(token) { return `<mark${token.color ? ` data-highlight-color="${token.color}"` : ""}>${this.parser.parseInline(token.tokens!)}</mark>`; },
   }],
   renderer: {
+    blockquote({ tokens }) {
+      return `<blockquote>\n${this.parser.parse(preserveQuoteLines(tokens))}</blockquote>\n`;
+    },
     table(token) {
       const key = (token as Tokens.Table & { nebulaKey?: string }).nebulaKey;
       if (key === undefined) return false;
@@ -105,16 +131,24 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
     if (/^https?:|^mailto:/i.test(a.getAttribute("href") ?? "")) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
   }
   for (const quote of container.querySelectorAll("blockquote")) {
+    const nested = quote.parentElement?.closest("blockquote");
     const p = quote.firstElementChild;
     const first = p?.tagName === "P" && p.firstChild?.nodeType === Node.TEXT_NODE ? p.firstChild : null;
     const match = calloutTag.exec(first?.textContent ?? "");
     const tag = match?.[1]?.toUpperCase();
     const kind = quoteKind(tag);
     if (first && match && tag) {
-      first.textContent = first.textContent!.slice(match[0].length).trimStart();
-      if (!p!.textContent?.trim() && p!.children.length === 0) p!.remove();
-      quote.classList.add("markdown-callout", `callout-${tag.toLowerCase()}`);
+      const body = first.textContent!.slice(match[0].length).trimStart();
+      if (body) first.textContent = body;
+      else {
+        if (first.nextSibling?.nodeName === "BR") first.nextSibling.remove();
+        first.remove();
+        if (!p!.textContent?.trim() && p!.children.length === 0) p!.remove();
+      }
+      if (!nested) quote.classList.add("markdown-callout", `callout-${tag.toLowerCase()}`);
     }
+    // Scrittura uses the outer block type for the entire quote.
+    if (nested) continue;
     if (kind) {
       quote.classList.add("nebula-quote-block", `quote-block-${kind}`);
       const content = document.createElement("div");

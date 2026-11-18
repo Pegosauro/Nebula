@@ -50,8 +50,17 @@ blockquote.nebula-quote-block.quote-block-quote {
   background-size: 100% 6px;
   background-repeat: no-repeat;
 }
-.quote-block-content > :first-child { margin-top: 0; }
-.quote-block-content > :last-child { margin-bottom: 0; }
+blockquote.nebula-quote-block blockquote {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+.quote-block-content > :first-child,
+blockquote.nebula-quote-block blockquote > :first-child { margin-top: 0; }
+.quote-block-content > :last-child,
+blockquote.nebula-quote-block blockquote > :last-child { margin-bottom: 0; }
 
 .editor-v2 .cm-line.live-quote-block {
   box-sizing: border-box;

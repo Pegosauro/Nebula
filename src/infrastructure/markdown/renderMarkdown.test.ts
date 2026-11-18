@@ -42,6 +42,41 @@ describe("renderMarkdownSafe", () => {
     expect(blocks[1]?.querySelector(".quote-block-content strong")?.textContent).toBe("Utile");
   });
 
+  it("preserves line breaks in the three quote types without adding a blank line after the callout marker", () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderMarkdownSafe([
+      "Fuori\ndal blocco",
+      "> Prima\n> **seconda**\n> terza",
+      "> [!TIP]  \n> **Prima**\n> seconda  \n> terza",
+      "> [!WARNING] Prima\n> seconda\n> terza",
+    ].join("\n\n"));
+
+    expect(container.querySelector(":scope > p")?.innerHTML).toBe("Fuori\ndal blocco");
+    expect([...container.querySelectorAll("blockquote p")].map(p => p.innerHTML)).toEqual([
+      "Prima<br><strong>seconda</strong><br>terza",
+      "<strong>Prima</strong><br>seconda<br>terza",
+      "Prima<br>seconda<br>terza",
+    ]);
+  });
+
+  it("shows one icon for each outer block and preserves the content of nested quotes", () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderMarkdownSafe([
+      "> [!TIP]\n> > Testo\n> > **del suggerimento**",
+      "> [!WARNING]\n> > Testo\n> > [dell’avviso](https://example.com)",
+      "> Citazione\n> > [!TIP]\n> > Testo annidato\n> > ancora",
+    ].join("\n\n"));
+
+    const blocks = [...container.querySelectorAll(":scope > blockquote")];
+    expect(blocks.map(block => block.querySelectorAll(".quote-block-icon").length)).toEqual([1, 1, 1]);
+    expect(blocks.map(block => block.querySelector(":scope blockquote p")?.innerHTML)).toEqual([
+      "Testo<br><strong>del suggerimento</strong>",
+      'Testo<br><a href="https://example.com" target="_blank" rel="noopener noreferrer">dell’avviso</a>',
+      "Testo annidato<br>ancora",
+    ]);
+    expect(container.querySelector("blockquote blockquote.nebula-quote-block")).toBeNull();
+  });
+
   it("renders resolved, unresolved and ambiguous wikilinks as safe controls", () => {
     const knowledge = resolveKnowledgeIndex([
       parseKnowledgeDocument("Home.md", "[[Nota]] [[Mancante]]"),
