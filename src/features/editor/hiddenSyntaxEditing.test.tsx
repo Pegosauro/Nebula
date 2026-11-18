@@ -51,12 +51,37 @@ it("removes empty wrappers and preserves wrappers around partially selected text
   await key("Backspace", true); expect(view.state.doc.toString()).toBe("opo");
 });
 it("keeps source mode fully editable", async () => {
-  const { view } = await editor("**testo**", true);
-  await key("Backspace"); expect(view.state.doc.toString()).toBe("**testo*");
+  const { view } = await editor("## Titolo\n**testo**", true);
+  expect(host.querySelector(".live-heading-icon")).toBeNull();
+  expect(host.querySelector(".cm-content")?.textContent).toContain("## Titolo");
+  await key("Backspace"); expect(view.state.doc.toString()).toBe("## Titolo\n**testo*");
 });
 it("leaves visible Markdown editable when reveal-at-cursor is enabled", async () => {
   const { view } = await editor("**testo**", false, true);
   await key("Backspace"); expect(view.state.doc.toString()).toBe("**testo*");
+});
+it("shows icons only for opening H1–H4 markers and preserves the Markdown", async () => {
+  const content = "# Uno #\n## Due\n### Tre\n#### Quattro\n##### Cinque\n###### Sei\n\nTitolo\n======\n\n```md\n## Esempio\n```";
+  const { view } = await editor(content);
+  const icons = Array.from(host.querySelectorAll(".live-heading-icon"));
+  expect(icons.map(icon => icon.getAttribute("aria-label"))).toEqual(["Titolo H1", "Titolo H2", "Titolo H3", "Titolo H4"]);
+  expect(new Set(icons.map(icon => icon.querySelector("path:last-child")?.getAttribute("d"))).size).toBe(4);
+  expect(view.state.doc.toString()).toBe(content);
+
+  await act(async () => view.dispatch({ selection: { anchor: 0 } }));
+  await key("ArrowRight");
+  expect(view.state.selection.main.head).toBe(2);
+  await act(async () => view.dispatch({ selection: { anchor: 0 } }));
+  await key("Delete");
+  expect(view.state.doc.toString()).toBe(content.replace("Uno", "no"));
+});
+it("reveals heading hashes at the marker when requested", async () => {
+  const content = "## Titolo";
+  const { view } = await editor(content, false, true);
+  expect(host.querySelector(".live-heading-icon")).not.toBeNull();
+  await act(async () => view.dispatch({ selection: { anchor: 1 } }));
+  expect(host.querySelector(".live-heading-icon")).toBeNull();
+  expect(host.querySelector(".cm-content")?.textContent).toBe(content);
 });
 it("handles mobile beforeinput and Unicode without deleting delimiters", async () => {
   const { view } = await editor("**A😀**");

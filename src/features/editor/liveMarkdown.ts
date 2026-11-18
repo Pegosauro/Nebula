@@ -116,6 +116,41 @@ class BulletWidget extends WidgetType {
   toDOM() { const span = document.createElement("span"); span.className = "live-bullet"; span.textContent = "•"; return span; }
   ignoreEvent() { return false; }
 }
+
+const headingDigits = [
+  "M18.35 12.83 15.6 14.48v-1.99l2.9-1.82h1.78V20h-1.93z",
+  "M14.8 13.42c.04-1.77 1.35-2.92 3.31-2.92 1.99 0 3.25 1.07 3.25 2.69 0 1.21-.62 2.03-2.19 3.43l-1.85 1.66v.05h4.16V20h-6.62v-1.48l3.17-2.96c1.05-.99 1.39-1.49 1.39-2.24 0-.69-.52-1.16-1.36-1.16-.85 0-1.42.53-1.44 1.26z",
+  "M16.9 14.44h1.02c.91 0 1.46-.46 1.46-1.17 0-.68-.51-1.13-1.38-1.13-.84 0-1.36.44-1.44 1.13h-1.82c.1-1.69 1.37-2.77 3.37-2.77 1.93 0 3.16.94 3.16 2.43 0 1.08-.64 1.83-1.65 2.08v.04c1.24.15 2.02.96 2.02 2.2 0 1.76-1.43 2.92-3.6 2.92-2.07 0-3.42-1.09-3.51-2.85h1.88c.07.72.66 1.18 1.63 1.18.96 0 1.58-.5 1.58-1.25 0-.85-.61-1.29-1.67-1.29H16.9z",
+  "M18.67 20v-1.73h-4.32v-1.66l3.79-5.94h2.38v5.96h1.24v1.64h-1.24V20zm-2.52-3.34h2.55v-4.04h-.04z",
+];
+
+class HeadingWidget extends WidgetType {
+  constructor(readonly level: number) { super(); }
+  eq(other: HeadingWidget) { return other.level === this.level; }
+  toDOM() {
+    const namespace = "http://www.w3.org/2000/svg";
+    const icon = document.createElement("span");
+    icon.className = "live-heading-icon";
+    icon.setAttribute("role", "img");
+    icon.setAttribute("aria-label", `Titolo H${this.level}`);
+    const svg = document.createElementNS(namespace, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    const bars = document.createElementNS(namespace, "path");
+    bars.setAttribute("d", "M3.325 5.325h17.35M3.325 12h5.35M3.325 18.675h5.35");
+    bars.setAttribute("fill", "none");
+    bars.setAttribute("stroke-width", "2.65");
+    bars.setAttribute("stroke-linecap", "round");
+    const digit = document.createElementNS(namespace, "path");
+    digit.setAttribute("d", headingDigits[this.level - 1]!);
+    digit.setAttribute("fill", "currentColor");
+    svg.append(bars, digit);
+    icon.append(svg);
+    return icon;
+  }
+  ignoreEvent() { return false; }
+}
+
 function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const metadataEnd = analysis.metadata?.end ?? 0;
@@ -203,7 +238,11 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
         if (name === "TaskMarker") decorations.push(Decoration.replace({ widget: new TaskWidget(/x/i.test(view.state.sliceDoc(node.from, node.to)), node.from, view.state.readOnly) }).range(node.from, node.to));
         else if (["HeaderMark", "EmphasisMark", "CodeMark", "StrikethroughMark", "QuoteMark"].includes(name)) {
           const end = ["HeaderMark", "QuoteMark"].includes(name) && view.state.sliceDoc(node.to, node.to + 1) === " " ? node.to + 1 : node.to;
-          hide(node.from, end, extent ?? undefined);
+          const headingPrefix = name === "HeaderMark" && parent?.from === node.from && /^ATXHeading([1-4])$/.exec(parent.name);
+          if (headingPrefix) {
+            const widget = new HeadingWidget(Number(headingPrefix[1]));
+            decorations.push(Decoration.replace({ widget, nebulaSyntax: true }).range(node.from, end));
+          } else hide(node.from, end, extent ?? undefined);
         }
       }
     } });
