@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, AlignLeft, AlignCenter, AlignRight, Merge, Split, MousePointer2 } from "lucide-react";
 import { EditorDialog } from "./EditorDialog";
-import { parseTsv, serializeTable, type MarkdownTable } from "./markdownTools";
+import { initialTableRows, parseTsv, serializeTable, type MarkdownTable } from "./markdownTools";
 import { cellSpan, cellText, changeTableStructure, columnWidth, containsCell, DEFAULT_COLUMN_WIDTH, MAX_COLUMN_WIDTH, mergeTableLayout, MIN_COLUMN_WIDTH, selectionBounds, type TableCell, type TableLayout } from "../../infrastructure/markdown/tableLayout";
 
 interface TableDraft { rows: string[][]; align: MarkdownTable["align"]; layout: TableLayout }
 function initialDraft(table?: MarkdownTable): TableDraft {
-  const rows = table?.rows ?? [["Colonna 1", "Colonna 2"], ["", ""], ["", ""]];
+  const rows = table?.rows ?? initialTableRows;
   const columns = Math.max(1, ...rows.map(row => row.length));
   return { rows: rows.map(row => Array.from({ length: columns }, (_, c) => row[c] ?? "")), align: table?.align ?? [null, null], layout: table?.layout ?? { spans: [] } };
 }

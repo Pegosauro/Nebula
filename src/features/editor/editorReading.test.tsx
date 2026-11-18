@@ -73,6 +73,30 @@ it("applies and remembers H1–H4 and runs the grouped and direct toolbar comman
   expect(host!.querySelector("dialog")?.textContent).toContain("Inserisci immagine");
 });
 
+it("inserts an editable starter table directly from the toolbar and the insert menu", async () => {
+  const path = "Tabella.md", content = "Introduzione";
+  vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content, size: content.length, lastModified: 1 });
+  vi.spyOn(vaultService, "writeText").mockResolvedValue({ size: content.length, lastModified: 2 });
+  useWorkspaceStore.setState({ tabs: [{ id: "table", kind: "document", title: "Tabella", path, extension: ".md" }], activeTabId: "table" });
+  mount(); await act(async () => root!.render(<MarkdownEditorView />));
+  const view = EditorView.findFromDOM(host!.querySelector<HTMLElement>(".cm-editor")!)!;
+  await act(async () => view.dispatch({ selection: { anchor: content.length } }));
+  const table = host!.querySelector<HTMLButtonElement>('.editor-toolbar button[aria-label="Tabella"]')!;
+  await act(async () => table.click());
+  expect(host!.querySelector("dialog")).toBeNull();
+  expect(host!.querySelectorAll(".live-table thead th")).toHaveLength(2);
+  expect(host!.querySelectorAll(".live-table tbody td")).toHaveLength(4);
+  expect(view.state.doc.toString()).toContain("Introduzione\n\n| Colonna 1 | Colonna 2 |");
+
+  await act(async () => host!.querySelector<HTMLButtonElement>('.editor-toolbar button[aria-label="Annulla"]')!.click());
+  expect(view.state.doc.toString()).toBe(content);
+  await act(async () => host!.querySelector<HTMLButtonElement>(".insert-trigger")!.click());
+  const pickerItem = [...host!.querySelectorAll<HTMLButtonElement>("dialog .insert-command-list button")].find(item => item.querySelector("strong")?.textContent === "Tabella")!;
+  await act(async () => pickerItem.click());
+  expect(host!.querySelector("dialog")).toBeNull();
+  expect(host!.querySelectorAll(".live-table tbody td")).toHaveLength(4);
+});
+
 it("inserts the four local calendar formats and keeps the main button on the numeric date", async () => {
   vi.setSystemTime(new Date(2026, 0, 2, 3, 4));
   const path = "Calendario.md", content = "Date: ";

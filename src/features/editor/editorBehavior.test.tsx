@@ -71,7 +71,8 @@ describe("editor continuity", () => {
     await act(async () => { api.current!.replace(0, content.length, "/tabella"); api.current!.select(content.length); startCompletion(view); });
     await act(async () => { await vi.waitFor(() => expect(completionStatus(view.state)).toBe("active")); });
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 100)); expect(acceptCompletion(view)).toBe(true); });
-    expect(panel).toHaveBeenCalledWith("table"); expect(content).toBe("");
+    expect(panel).not.toHaveBeenCalled();
+    expect(markdownTables(content)[0]?.rows).toEqual([["Colonna 1", "Colonna 2"], ["", ""], ["", ""]]);
   });
 
 });
@@ -265,6 +266,45 @@ describe("unified writing surface", () => {
     expect(view.state.doc.toString()).toBe("> [!TIP]\n> Controllare\n\n");
     await act(async () => api.current!.replace(view.state.doc.length, view.state.doc.length, "Fuori dal blocco"));
     expect(host!.querySelector(".quote-block-tip")?.textContent).not.toContain("Fuori dal blocco");
+  });
+  it.each([
+    ["> Citazione", "input.type"],
+    ["> [!TIP]\n> Suggerimento", "input.paste"],
+    ["> [!WARNING]\n> Avviso", "input.type"],
+  ])("keeps text typed immediately below %s outside the block", async (block, userEvent) => {
+    const content = `${block}\n`;
+    const { api, view } = await editor(content);
+    const insert = "Nuovo paragrafo";
+    await act(async () => view.dispatch({
+      changes: { from: content.length, insert },
+      selection: { anchor: content.length + insert.length },
+      userEvent,
+    }));
+
+    const expected = `${block}\n\n${insert}`;
+    expect(view.state.doc.toString()).toBe(expected);
+    expect(view.state.selection.main.head).toBe(expected.length);
+    expect(host!.querySelector(".cm-line:last-child")?.classList).not.toContain("live-quote-block");
+    const preview = document.createElement("div");
+    preview.innerHTML = renderMarkdownSafe(expected);
+    expect(preview.querySelector(":scope > p")?.textContent).toBe(insert);
+    expect(preview.querySelector("blockquote")?.textContent).not.toContain(insert);
+
+    await act(async () => api.current!.undo());
+    expect(view.state.doc.toString()).toBe(content);
+    await act(async () => api.current!.redo());
+    expect(view.state.doc.toString()).toBe(expected);
+  });
+
+  it("allows an explicit quote continuation and leaves source-mode input literal", async () => {
+    const content = "> Citazione\n";
+    const { render, view } = await editor(content);
+    await act(async () => view.dispatch({ changes: { from: content.length, insert: "> Continua" }, userEvent: "input.paste" }));
+    expect(view.state.doc.toString()).toBe(content + "> Continua");
+
+    await render(true);
+    await act(async () => view.dispatch({ changes: { from: content.length, to: view.state.doc.length, insert: "Continua" }, userEvent: "input.type" }));
+    expect(view.state.doc.toString()).toBe(content + "Continua");
   });
   it("keeps a visual table during selection with direct controls and no advanced popup", async () => {
     const content = "Dati\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\nFine";

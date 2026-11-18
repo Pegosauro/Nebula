@@ -20,6 +20,7 @@ const blockTools = [
   ["quote", Quote], ["tip", Lightbulb], ["warning", TriangleAlert],
 ] as const;
 const blocks = blockTools.map(([id, Icon]) => ({ command: insertCommands.find(command => command.id === id)!, Icon }));
+const table = insertCommands.find(command => command.id === "table")!;
 const divider = insertCommands.find(command => command.id === "divider")!;
 
 function HeadingIcon({ level }: { level: number }) {
@@ -62,7 +63,7 @@ export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, 
     </div>}
     <button type="button" title="Collegamento (Ctrl/⌘ K)" aria-label="Inserisci collegamento" onClick={() => onPanel("link")}><Link2 size={17} /></button>
     {!floating && <>
-      <button type="button" title="Inserisci o modifica tabella" aria-label="Tabella" onClick={() => onPanel("table")}><Table2 size={17} /></button>
+      <button type="button" title="Inserisci tabella" aria-label="Tabella" onClick={() => onCommand(table)}><Table2 size={17} /></button>
       <button type="button" className="editor-toolbar-direct" title="Inserisci separatore" aria-label="Separatore" onClick={() => onCommand(divider)}><Minus size={19} aria-hidden="true" /></button>
       <button type="button" className="editor-toolbar-direct" title="Inserisci immagine" aria-label="Immagine" onClick={() => onPanel("image")}><Image size={18} aria-hidden="true" /></button>
       <CalendarTool api={api} />

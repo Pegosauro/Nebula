@@ -50,6 +50,8 @@ export function markdownTables(source: string): MarkdownTable[] {
   }
   return tables;
 }
+export const initialTableRows = [["Colonna 1", "Colonna 2"], ["", ""], ["", ""]];
+
 export function serializeTable(rows: string[][], align: MarkdownTable["align"] = [], layout?: TableLayout): string {
   const width = Math.max(1, ...rows.map(row => row.length));
   const clean = (value = "") => value.replace(/\r?\n/g, "<br>").replace(/(?<!\\)\|/g, "\\|");

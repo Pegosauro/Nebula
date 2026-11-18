@@ -1,6 +1,8 @@
 import type { EditorPanel } from "./editorCommands";
-import type { FormatAction } from "./markdownTools";
+import { initialTableRows, serializeTable, type FormatAction } from "./markdownTools";
 export interface InsertCommand { id: string; label: string; group: string; keywords: string; format?: FormatAction; panel?: EditorPanel; text?: string; syntax: string; shortcut?: string }
+const starterTable = serializeTable(initialTableRows);
+
 export const insertCommands: InsertCommand[] = [
   ...[1,2,3,4,5,6].map(n => ({ id: `h${n}`, label: `Titolo ${n}`, group: "Testo", keywords: "intestazione heading", format: `h${n}` as FormatAction, syntax: `${"#".repeat(n)} Titolo`, shortcut: `Ctrl/⌘ Alt ${n}` })),
   { id: "paragraph", label: "Paragrafo", group: "Testo", keywords: "normale testo", format: "paragraph", syntax: "Testo normale" },
@@ -14,7 +16,7 @@ export const insertCommands: InsertCommand[] = [
   { id: "task", label: "Checklist", group: "Elenchi", keywords: "attività casella spunta task", format: "task", syntax: "- [ ] Da fare\n- [x] Completato" },
   { id: "link", label: "Collegamento", group: "Collegamenti e media", keywords: "link nota pagina url", panel: "link", syntax: "[[Nota]] oppure [Sito](https://…)", shortcut: "Ctrl/⌘ K" },
   { id: "image", label: "Immagine", group: "Collegamenti e media", keywords: "foto immagine allegato", panel: "image", syntax: "![Descrizione](attachments/foto.png)" },
-  { id: "table", label: "Tabella", group: "Blocchi", keywords: "griglia celle excel", panel: "table", syntax: "| Nome | Valore |\n| --- | --- |\n| Dato | 1 |" },
+  { id: "table", label: "Tabella", group: "Blocchi", keywords: "griglia celle excel", text: starterTable, syntax: starterTable },
   { id: "quote", label: "Citazione", group: "Blocchi", keywords: "quote", format: "quote", syntax: "> Citazione" },
   { id: "code", label: "Blocco di codice", group: "Blocchi", keywords: "javascript python codice", text: "```text\nInserisci il codice\n```", syntax: "```linguaggio\ncodice\n```" },
   { id: "note", label: "Riquadro informativo", group: "Blocchi", keywords: "callout nota", text: "> [!NOTE]\n> Informazione utile", syntax: "> [!NOTE]\n> Informazione utile" },

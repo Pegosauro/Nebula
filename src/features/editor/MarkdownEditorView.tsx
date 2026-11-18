@@ -15,7 +15,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import { ImagePanel, InsertPanel, LinkPanel, TablePanel } from "./EditorPanels";
 import { EditorSearch } from "./EditorSearch";
 import type { EditorApi, EditorPanel, EditorUiState } from "./editorCommands";
-import { markdownTables, type MarkdownTable } from "./markdownTools";
+import type { MarkdownTable } from "./markdownTools";
 import type { InsertCommand } from "./insertCommands";
 import { vaultService } from "../vault/vaultService";
 import { useVaultStore } from "../vault/vaultStore";
@@ -96,10 +96,6 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
   const openPanel = (next: EditorPanel) => {
     if (locked) return;
     if (next === "search") { setSearch(true); return; }
-    if (next === "table") {
-      const at = api.current?.getSelection().from ?? 0;
-      setEditingTable(markdownTables(session?.content ?? "").find(table => at >= table.from && at <= table.to));
-    }
     setPanel(next);
   };
   const closePanel = () => { setPanel(null); requestAnimationFrame(() => api.current?.focus()); };
@@ -175,8 +171,8 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
       try { if (!/^https?:\/\//i.test(reference)) resolveImagePath(path, reference); api.current?.insert(imageMarkdown(reference, alt), true); closePanel(); }
       catch (error) { setNotice(error instanceof Error ? error.message : "Percorso non valido"); closePanel(); }
     }} />}
-    {panel === "table" && <TablePanel table={editingTable} onClose={closePanel} onSave={text => {
-      if (editingTable) api.current?.replace(editingTable.from, editingTable.to, text); else { api.current?.insert(text, true); }
+    {panel === "table" && editingTable && <TablePanel table={editingTable} onClose={closePanel} onSave={text => {
+      api.current?.replace(editingTable.from, editingTable.to, text);
       closePanel();
     }} />}
     {savingTemplate ? <SaveTemplateDialog title={title} content={session.content} sourcePath={path} hasUnsavedChanges={session.content !== session.savedContent} onClose={() => setSavingTemplate(false)} onSaved={setNotice} /> : null}

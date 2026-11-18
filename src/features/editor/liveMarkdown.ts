@@ -18,7 +18,7 @@ import { headingBars, headingDigits } from "./headingIcon";
 import { findHighlights } from "../../domain/markdownHighlight";
 import { calloutTag, quoteKind, type QuoteBlockKind } from "../../infrastructure/markdown/quoteBlocks";
 import { applyTextEdit } from "./editorCommands";
-import { exitQuotedBlock } from "./quoteBlockEditing";
+import { exitQuotedBlock, separateTextBelowQuote } from "./quoteBlockEditing";
 import { QuoteBlockIcon, quoteBlockMenu } from "./quoteBlockMenu";
 import { HighlightIcon, highlightPalette, openHighlightPalette, type HighlightMarker } from "./highlightPalette";
 
@@ -417,7 +417,7 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     }
     return deleteAroundHiddenSyntax(view, plugin?.syntax ?? Decoration.none, forward, word);
   };
-  return [tableField, highlightPalette, quoteBlockMenu, inline, Prec.high(keymap.of([
+  return [tableField, highlightPalette, quoteBlockMenu, separateTextBelowQuote, inline, Prec.high(keymap.of([
     { key: "Enter", run(view) {
       if (view.composing) return false;
       const edit = exitQuotedBlock(view.state);
