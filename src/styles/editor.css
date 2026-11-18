@@ -83,7 +83,6 @@
 .editor-v2 .codemirror-host .cm-editor { font-size: 16px; }
 .editor-v2 .codemirror-host .cm-content { width: min(820px, calc(100% - 48px)); padding-top: 30px; }
 .editor-v2 .codemirror-host .is-live { font-family: inherit; }
-.editor-v2 .codemirror-host .is-live .cm-scroller { font-family: inherit; line-height: 1.8; }
 .live-strong { font-weight: 700; }
 /* System/variable fonts may lack an italic face. The global UI disables
    synthesis, so opt rendered emphasis into style synthesis explicitly. */
@@ -402,17 +401,18 @@
 .editor-v2 {
   --note-font: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif;
   --note-width: 780px;
+  --note-line-height: 1.62;
   --note-link: var(--accent-hover);
 }
 .editor-v2 .codemirror-host .is-live,
 .editor-v2 > .editor-surface > .markdown-preview { font-family: var(--note-font); }
-.editor-v2 .codemirror-host .is-live .cm-scroller { font-family: var(--note-font); line-height: 1.8; scrollbar-gutter: stable; }
+.editor-v2 .codemirror-host .is-live .cm-scroller { font-family: var(--note-font); line-height: var(--note-line-height); scrollbar-gutter: stable; }
 .editor-v2 .codemirror-host .is-live .cm-content,
 .editor-v2 > .editor-surface > .markdown-preview > div {
   width: min(var(--note-width), calc(100% - 80px));
   padding: 40px 4px 120px;
   font-size: 1.0625rem;
-  line-height: 1.8;
+  line-height: var(--note-line-height);
   letter-spacing: .005em;
   color: var(--text-primary);
 }
@@ -461,10 +461,11 @@
 .editor-v2 .live-callout.live-block-start { border-top-right-radius: 9px; padding-top: 12px; }
 .editor-v2 .live-callout.live-block-end { border-bottom-right-radius: 9px; padding-bottom: 12px; }
 .editor-v2 .live-bullet { color: var(--text-secondary); font-weight: 500; }
+.editor-v2 > .editor-surface > .markdown-preview p { margin-bottom: .9em; }
 .editor-v2 .markdown-preview :is(ul,ol) { padding-left: 1.5em; }
 .editor-v2 .markdown-preview li::marker { color: var(--text-secondary); }
 .editor-v2 .markdown-preview li + li { margin-top: 5px; }
-.editor-v2 .markdown-preview table { border-radius: 8px; font-size: .9375rem; }
+.editor-v2 .markdown-preview table { border-radius: 8px; font-size: .9375rem; line-height: 1.8; }
 .editor-v2 .markdown-preview :is(th,td) { padding: 10px 13px; }
 .markdown-preview :is(th,td)[align="left"] { text-align: left; }
 .markdown-preview :is(th,td)[align="center"] { text-align: center; }
