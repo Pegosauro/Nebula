@@ -1,3 +1,4 @@
+import { decorateCodeBlock, formulaLayouts } from "./liveCodeBlocks";
 import { deleteAroundHiddenSyntax } from "./hiddenSyntaxEditing";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { analyzeMarkdown, type MarkdownAnalysis } from "./markdownAnalysis";
@@ -184,6 +185,7 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
   const palette = view.state.field(highlightPalette);
   const quoteMarks = new Set<number>();
   const visitedQuotes = new Set<number>();
+  const visitedCode = new Set<number>();
   const hide = (from: number, to: number, owner?: { from: number; to: number }) => { if (to > from) decorations.push(Decoration.replace({ nebulaSyntax: true, nebulaOwner: owner && { from: owner.from, to: owner.to } }).range(from, to)); };
   const addMark = (from: number, to: number, className: string, attributes?: Record<string, string>) => { if (to > from) decorations.push(Decoration.mark({ class: className, attributes }).range(from, to)); };
   const tree = syntaxTree(view.state);
@@ -200,15 +202,9 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
       const heading = /^(?:ATX|Setext)Heading([1-6])$/.exec(name);
       if (heading) decorations.push(Decoration.line({ class: `live-heading live-h${heading[1]}`, attributes: { "data-heading-from": String(node.from) } }).range(view.state.doc.lineAt(node.from).from));
       if (name === "FencedCode" || name === "CodeBlock") {
-        for (let line = view.state.doc.lineAt(node.from); line.from <= node.to; ) {
-          if (!hiddenMarker(line.from)) decorations.push(Decoration.line({ class: `live-code-line ${line.from === view.state.doc.lineAt(node.from).from ? "live-block-start" : ""} ${line.to >= node.to ? "live-block-end" : ""}` }).range(line.from));
-          if (line.to >= node.to) break; line = view.state.doc.lineAt(line.to + 1);
-        }
-        for (let child = node.node.firstChild; child; child = child.nextSibling) {
-          if (child.name === "CodeMark" || child.name === "CodeInfo") {
-            const line = view.state.doc.lineAt(child.from);
-            if (!active(line.from, line.to)) hide(child.from, child.to);
-          }
+        if (!visitedCode.has(node.from)) {
+          visitedCode.add(node.from);
+          decorateCodeBlock(view, node.node, decorations, active, hide);
         }
         return false;
       }
@@ -404,7 +400,7 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     update(update: ViewUpdate) {
       const headingMenuChanged = update.startState.field(headingLevelMenu, false) !== update.state.field(headingLevelMenu, false);
       const quoteMenuChanged = update.startState.field(quoteBlockMenu) !== update.state.field(quoteBlockMenu);
-      if (headingMenuChanged || quoteMenuChanged || update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+      if (update.startState.field(formulaLayouts) !== update.state.field(formulaLayouts) || headingMenuChanged || quoteMenuChanged || update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
         this.decorations = build(update.view, sourcePath, update.state.field(tableField).analysis);
         this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
       }
@@ -422,7 +418,7 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     }
     return deleteAroundHiddenSyntax(view, plugin?.syntax ?? Decoration.none, forward, word);
   };
-  return [tableField, highlightPalette, headingLevelMenu, quoteBlockMenu, separateTextBelowBlocks, inline, Prec.high(keymap.of([
+  return [tableField, formulaLayouts, highlightPalette, headingLevelMenu, quoteBlockMenu, separateTextBelowBlocks, inline, Prec.high(keymap.of([
     { key: "Enter", run(view) {
       if (view.composing) return false;
       const edit = exitQuotedBlock(view.state);

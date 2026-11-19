@@ -52,6 +52,64 @@ describe("editor continuity", () => {
     await render(false); await render(true);
     await act(async () => api.current!.undo()); expect(content).toContain("# Titolo");
   });
+  it("edits, formats and copies an entire fenced block in writing and reading modes", async () => {
+    mountRoot();
+    const api = createRef<EditorApi>();
+    const macro = "Sub Demo()\n\tDim n As Long  \n\nIf n = 0 Then\nn = 1\nEnd If\nEnd Sub";
+    const formula = '=SE(A1="";"";ARROTONDA(A1*B1;2))';
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", Object.create(navigator, { clipboard: { value: { writeText } } }));
+    try {
+      let content = "# Note\n\n" + macro;
+      await act(async () => root!.render(<CodeMirrorEditor path="Codice.md" value={content} visible source={false} apiRef={api}
+        onChange={value => { content = value; }} onSave={() => {}} onOpenLink={() => {}} suggestions={[]} onUiChange={() => {}} onPanel={() => {}} onImages={() => {}} />));
+
+      const buttons = () => [...host!.querySelectorAll<HTMLButtonElement>(".nebula-code-copy")];
+      const view = EditorView.findFromDOM(host!.querySelector<HTMLElement>(".cm-editor")!)!;
+      await act(async () => { api.current!.select(content.length - macro.length, content.length); api.current!.format("codeBlock"); });
+      expect(content).toContain("```\n" + macro + "\n```");
+      await act(async () => buttons()[0]!.click());
+      expect(writeText).toHaveBeenLastCalledWith(macro);
+
+      const format = [...host!.querySelectorAll<HTMLButtonElement>(".nebula-code-toolbar button")].find(button => button.textContent === "Formatta")!;
+      await act(async () => format.click());
+      expect(content).toContain("    If n = 0 Then\n        n = 1");
+      await act(async () => api.current!.undo());
+      expect(content).toContain(macro);
+
+      await act(async () => {
+        api.current!.select(content.length);
+        api.current!.format("codeBlock");
+        expect(api.current!.getSelection().text).toBe("");
+        view.dispatch(view.state.replaceSelection(formula));
+      });
+      const select = [...host!.querySelectorAll<HTMLSelectElement>(".nebula-code-toolbar select")].at(-1)!;
+      expect(select.value).toBe("");
+      await act(async () => {
+        select.value = "excel";
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      expect(content).toContain("```excel\n" + formula);
+      await act(async () => host!.querySelector<HTMLButtonElement>(".nebula-code-layout")!.click());
+      expect(host!.querySelector(".nebula-code-break br")).not.toBeNull();
+      expect(content).toContain(formula);
+      await act(async () => buttons().at(-1)!.click());
+      expect(writeText).toHaveBeenLastCalledWith(formula);
+
+      await act(async () => root!.render(<MarkdownPreview sourcePath="Codice.md" content={content} readOnly />));
+      const layout = host!.querySelector<HTMLButtonElement>(".nebula-code-layout")!;
+      await act(async () => layout.click());
+      expect(layout.getAttribute("aria-pressed")).toBe("true");
+      expect(host!.querySelector(".nebula-code-block:last-child code")!.textContent).toContain("\n");
+      expect(buttons().every(button => !button.disabled)).toBe(true);
+      await act(async () => buttons().at(-1)!.click());
+      expect(writeText).toHaveBeenLastCalledWith(formula);
+      await act(async () => buttons()[0]!.click());
+      expect(writeText).toHaveBeenLastCalledWith(macro);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it("routes formatting shortcuts and inserts a table from Excel clipboard", async () => {
     mountRoot(); const api = createRef<EditorApi>(); let content = "abc";
     await act(async () => root!.render(<CodeMirrorEditor path="B.md" value={content} visible source={false} onChange={value => { content = value; }} onSave={() => {}} onOpenLink={() => {}} suggestions={[]} apiRef={api} onUiChange={() => {}} onPanel={() => {}} onImages={() => {}} />));

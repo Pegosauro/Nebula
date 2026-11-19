@@ -1,3 +1,4 @@
+import { insideCodeBlock } from "./liveCodeBlocks";
 import { frontmatterRange } from "../../domain/noteProperties";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { autocompletion, closeCompletion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
@@ -45,7 +46,7 @@ export default function CodeMirrorEditor(props: Props) {
     lastValue.current = props.value; configuredMode.current = props.source; configuredReadOnly.current = !!props.readOnly;
     let alive = true;
     const complete = (context: CompletionContext): CompletionResult | null => {
-      if (context.state.readOnly) return null;
+      if (context.state.readOnly || insideCodeBlock(context.state, context.pos)) return null;
       const link = context.matchBefore(/\[\[[^\]\n|]*/u);
       if (link) return {
         from: link.from + 2,
@@ -177,6 +178,7 @@ export default function CodeMirrorEditor(props: Props) {
           if (editor.state.readOnly) { event.preventDefault(); return true; }
           const images = Array.from(event.clipboardData?.files ?? []).filter(file => file.type.startsWith("image/"));
           if (images.length) { event.preventDefault(); current.current.onImages(images); return true; }
+          if (insideCodeBlock(editor.state, editor.state.selection.main.head)) return false;
           const text = event.clipboardData?.getData("text/plain") ?? "";
           if (text.includes("\t") && /<table[\s>]/i.test(event.clipboardData?.getData("text/html") ?? "")) {
             event.preventDefault(); current.current.apiRef.current?.insert(serializeTable(parseTsv(text)), true); return true;

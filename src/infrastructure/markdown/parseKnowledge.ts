@@ -1,8 +1,8 @@
+import { markdownLanguage } from "@codemirror/lang-markdown";
 import { maskFrontmatter } from "../../domain/noteProperties";
 import type { ParsedKnowledgeDocument, ParsedWikilink } from "../../domain/knowledge";
 
 const FRONTMATTER_BOUNDARY = /^---\s*$/u;
-const FENCED_CODE = /^(\s*)(```|~~~)/u;
 const WIKILINK = /(!)?\[\[([^\]\n]+)\]\]/gu;
 
 function stripQuotes(value: string): string {
@@ -45,25 +45,16 @@ export function parseFrontmatterAliases(source: string): string[] {
 }
 
 export function maskMarkdownCode(source: string): string {
-  const characters = source.split("");
-  const lines = source.split(/(?<=\n)/u);
+  const pieces: string[] = [];
   let offset = 0;
-  let fence: string | undefined;
-
-  for (const line of lines) {
-    const marker = line.match(FENCED_CODE)?.[2];
-    const shouldMask = Boolean(fence || marker);
-    if (shouldMask) {
-      for (let index = offset; index < offset + line.length; index += 1) {
-        if (characters[index] !== "\n" && characters[index] !== "\r") characters[index] = " ";
-      }
-    }
-    if (marker) fence = fence ? undefined : marker;
-    offset += line.length;
-  }
-
-  const masked = characters.join("");
-  return masked.replace(/`+[^`\n]*`+/gu, (segment) => segment.replace(/[^\r\n]/gu, " "));
+  markdownLanguage.parser.parse(source).iterate({ enter(node) {
+    if (!["FencedCode", "CodeBlock", "InlineCode"].includes(node.name)) return;
+    pieces.push(source.slice(offset, node.from), source.slice(node.from, node.to).replace(/[^\r\n]/g, " "));
+    offset = node.to;
+    return false;
+  } });
+  pieces.push(source.slice(offset));
+  return pieces.join("");
 }
 
 function parseTarget(value: string): { target: string; display: string; heading?: string } | undefined {
@@ -79,6 +70,7 @@ function parseTarget(value: string): { target: string; display: string; heading?
 }
 
 export function parseWikilinks(source: string): ParsedWikilink[] {
+  if (!source.includes("[[")) return [];
   const masked = maskMarkdownCode(maskFrontmatter(source));
   const links: ParsedWikilink[] = [];
   for (const match of masked.matchAll(WIKILINK)) {

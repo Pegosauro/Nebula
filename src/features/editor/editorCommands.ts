@@ -30,6 +30,25 @@ export function createEditorApi(view: EditorView): EditorApi {
     format: (action, toggle) => {
       if (view.state.readOnly) return;
       const { from, to } = view.state.selection.main;
+      if (action === "codeBlock") {
+        for (let node = syntaxTree(view.state).resolveInner(from, 1); node; node = node.parent!) {
+          if ((node.name === "FencedCode" || node.name === "CodeBlock") && from > node.from && to <= node.to) {
+            view.focus();
+            return;
+          }
+        }
+        const selected = view.state.sliceDoc(from, to);
+        const longest = [...selected.matchAll(/`+/g)].reduce((length, run) => Math.max(length, run[0].length + 1), 3);
+        const fence = "`".repeat(longest);
+        const left = view.state.sliceDoc(Math.max(0, from - 2), from);
+        const right = view.state.sliceDoc(to, Math.min(view.state.doc.length, to + 2));
+        const prefix = from === 0 || left === "\n\n" ? "" : left.endsWith("\n") ? "\n" : "\n\n";
+        const suffix = to === view.state.doc.length ? "\n" : right === "\n\n" ? "" : right.startsWith("\n") ? "\n" : "\n\n";
+        const insert = `${prefix}${fence}\n${selected}\n${fence}${suffix}`;
+        const anchor = from + prefix.length + fence.length + 1;
+        applyTextEdit(view, { from, to, insert, anchor, head: anchor + selected.length });
+        return;
+      }
       if (action === "quote" || action === "tip" || action === "warning") {
         const block = quoteBlockAt(view.state, from, to);
         const target = action === "quote" && block?.kind === "quote" && toggle !== false ? "plain" : action;

@@ -1,3 +1,4 @@
+import { fencedPayload } from "../../domain/codeBlock";
 import { calloutTag, quoteBlockGlyph, quoteKind } from "./quoteBlocks";
 import { maskInternalNoteMarkers } from "./internalNoteMarkers";
 import { withoutFrontmatter } from "../../domain/noteProperties";
@@ -63,6 +64,11 @@ parser.use({
     renderer(token) { return `<mark${token.color ? ` data-highlight-color="${token.color}"` : ""}>${this.parser.parseInline(token.tokens!)}</mark>`; },
   }],
   renderer: {
+    code(token) {
+      const key = (token as Tokens.Code & { nebulaKey?: string }).nebulaKey;
+      if (key === undefined) return false;
+      return `<pre data-nebula-code="${key}"><code>${escapeHtml(token.text)}</code></pre>\n`;
+    },
     blockquote({ tokens }) {
       return `<blockquote>\n${this.parser.parse(preserveQuoteLines(tokens))}</blockquote>\n`;
     },
@@ -86,7 +92,7 @@ parser.use({
     },
   },
 });
-export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexData, options?: { omitMedia?: boolean }): string {
+export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexData, options?: { omitMedia?: boolean; interactiveCode?: boolean }): string {
   source = maskInternalNoteMarkers(withoutFrontmatter(source));
   const tables = source.includes("<!-- nebula-table:") ? markdownTables(source) : [];
   const tokens = parser.lexer(knowledge ? renderWikilinks(source, knowledge) : source);
@@ -94,14 +100,20 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
   let index = 0;
   for (const token of tokens) if (token.type === "table") (token as Tokens.Table & { nebulaKey: string }).nebulaKey = `${tablePrefix}${index++}`;
   let taskIndex = 0;
+  const codeBlocks: Array<{ info: string; source: string }> = [];
   parser.walkTokens(tokens, token => {
     if (token.type === "checkbox") (token as Tokens.Checkbox & { nebulaKey: string }).nebulaKey = `${tablePrefix}${taskIndex++}`;
+    if (options?.interactiveCode && token.type === "code") {
+      const code = token as Tokens.Code & { nebulaKey: string };
+      code.nebulaKey = `${tablePrefix}${codeBlocks.length}`;
+      codeBlocks.push({ info: code.lang ?? "", source: code.codeBlockStyle === "indented" ? code.text : fencedPayload(code.raw) ?? code.text });
+    }
   });
   const rendered = parser.parser(tokens);
   const safe = DOMPurify.sanitize(rendered, {
     FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form", "svg", "math", ...(options?.omitMedia ? ["img", "video", "audio", "source"] : [])],
     FORBID_ATTR: ["style", "srcdoc", "srcset", "contenteditable", "data-task-index"],
-    ADD_ATTR: ["data-nebula-target", "data-nebula-image", "data-nebula-task", "data-nebula-table", "referrerpolicy"],
+    ADD_ATTR: ["data-nebula-target", "data-nebula-image", "data-nebula-task", "data-nebula-table", "data-nebula-code", "referrerpolicy"],
   });
   const container = document.createElement("div"); container.innerHTML = safe;
   for (const input of container.querySelectorAll<HTMLInputElement>("input[data-nebula-task]")) {
@@ -117,6 +129,12 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
     const tableIndex = Number(key.slice(tablePrefix.length)); table.dataset.nebulaTable = String(tableIndex);
     const layout = tables[tableIndex]?.layout;
     if (layout) applyTableLayout(table, layout);
+  }
+  for (const pre of container.querySelectorAll<HTMLPreElement>("pre[data-nebula-code]")) {
+    const key = pre.dataset.nebulaCode!;
+    const block = key.startsWith(tablePrefix) ? codeBlocks[Number(key.slice(tablePrefix.length))] : undefined;
+    if (block) pre.dataset.nebulaCode = JSON.stringify(block);
+    else pre.removeAttribute("data-nebula-code");
   }
   for (const mark of container.querySelectorAll<HTMLElement>("mark[data-highlight-color]")) {
     const color = mark.dataset.highlightColor!;

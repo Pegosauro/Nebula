@@ -17,7 +17,7 @@ const formats: Array<{ action: FormatAction; label: string; icon: typeof Bold; s
 const headings = [1, 2, 3, 4] as const;
 const blockTools = [
   ["bullet", List], ["ordered", ListOrdered], ["task", ListTodo],
-  ["quote", Quote], ["tip", Lightbulb], ["warning", TriangleAlert],
+  ["quote", Quote], ["tip", Lightbulb], ["warning", TriangleAlert], ["code", Code2],
 ] as const;
 const blocks = blockTools.map(([id, Icon]) => ({ command: insertCommands.find(command => command.id === id)!, Icon }));
 const table = insertCommands.find(command => command.id === "table")!;

@@ -1,3 +1,4 @@
+import { attachCodePreview } from "./codeBlockControls";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { useVaultStore } from "../vault/vaultStore";
 import { taskMarkers } from "./markdownTasks";
@@ -14,9 +15,10 @@ import { headingEntries, markdownTables, type MarkdownTable } from "./markdownTo
 export default function MarkdownPreview({ content, sourcePath, onChange, onTable, onTaskToggle, readOnly = false }: { onTaskToggle?: (from: number, checked: boolean, expectedContent: string) => void; readOnly?: boolean; content: string; sourcePath: string; onChange?: (value: string) => void; onTable?: (table: MarkdownTable) => void }) {
   const revision = useKnowledgeStore(state => state.revision), activate = useKnowledgeNavigationStore(state => state.activate);
   const host = useRef<HTMLElement>(null);
+  const codeControls = useRef(new WeakSet<Element>());
   const focusedTask = useRef<number | undefined>(undefined);
   const vaultRevision = useVaultStore(state=>state.snapshot?.scannedAt);
-  const preview = useMemo(() => renderMarkdownSafe(content, navigationKnowledge()), [content, revision, vaultRevision]);
+  const preview = useMemo(() => renderMarkdownSafe(content, navigationKnowledge(), { interactiveCode: true }), [content, revision, vaultRevision]);
   const html = useMemo(() => ({ __html: preview }), [preview]);
   const tasks = useMemo(() => taskMarkers(content), [content]);
   const tables = useMemo(() => markdownTables(content), [content]);
@@ -28,7 +30,15 @@ export default function MarkdownPreview({ content, sourcePath, onChange, onTable
   }, [sourcePath]);
   useLayoutEffect(() => {
     const element = host.current; if (!element) return;
-    if (readOnly) { element.querySelectorAll<HTMLInputElement>("input,textarea,select,button").forEach(control => { control.disabled = true; }); }
+    if (readOnly) {
+      element.querySelectorAll<HTMLInputElement>("input,textarea,select,button").forEach(control => {
+        if (!codeControls.current.has(control)) control.disabled = true;
+      });
+    }
+    element.querySelectorAll<HTMLPreElement>("pre[data-nebula-code]").forEach(pre => {
+      const toolbar = attachCodePreview(pre);
+      toolbar?.querySelectorAll("button").forEach(control => codeControls.current.add(control));
+    });
     // Only Markdown task-list inputs, never arbitrary HTML controls.
     element.querySelectorAll<HTMLInputElement>('input[data-nebula-task][type="checkbox"]').forEach(input => {
       const index = Number(input.dataset.nebulaTask);

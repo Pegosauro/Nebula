@@ -18,7 +18,7 @@ export const insertCommands: InsertCommand[] = [
   { id: "image", label: "Immagine", group: "Collegamenti e media", keywords: "foto immagine allegato", panel: "image", syntax: "![Descrizione](attachments/foto.png)" },
   { id: "table", label: "Tabella", group: "Blocchi", keywords: "griglia celle excel", text: starterTable, syntax: starterTable },
   { id: "quote", label: "Citazione", group: "Blocchi", keywords: "quote", format: "quote", syntax: "> Citazione" },
-  { id: "code", label: "Blocco di codice", group: "Blocchi", keywords: "javascript python codice", text: "```text\nInserisci il codice\n```", syntax: "```linguaggio\ncodice\n```" },
+  { id: "code", label: "Blocco di codice", group: "Blocchi", keywords: "vba excel formula javascript python codice", format: "codeBlock", syntax: "```linguaggio\ncodice\n```" },
   { id: "note", label: "Riquadro informativo", group: "Blocchi", keywords: "callout nota", text: "> [!NOTE]\n> Informazione utile", syntax: "> [!NOTE]\n> Informazione utile" },
   { id: "tip", label: "Suggerimento", group: "Blocchi", keywords: "callout tip consiglio", format: "tip", syntax: "> [!TIP]\n> Un suggerimento" },
   { id: "warning", label: "Avviso", group: "Blocchi", keywords: "callout warning attenzione", format: "warning", syntax: "> [!WARNING]\n> Avviso" },
