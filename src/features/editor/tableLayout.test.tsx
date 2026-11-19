@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { EditorView } from "@codemirror/view";
 import { undo, redo } from "@codemirror/commands";
-import { cellText, cellSpan, changeTableStructure, mergeTableLayout, selectionBounds, formatTableCells, validateTableLayout, type TableLayout } from "../../infrastructure/markdown/tableLayout";
+import { cellText, cellSpan, changeTableStructure, mergeTableLayout, selectionBounds, formatTableCells, reorderTableAxis, tableAxisRange, validateTableLayout, type TableLayout } from "../../infrastructure/markdown/tableLayout";
 import { renderMarkdownSafe } from "../../infrastructure/markdown/renderMarkdown";
 import { headingEntries, markdownTables, parseTsv, serializeTable, serializeTsv } from "./markdownTools";
 import { TablePanel } from "./TablePanel";
@@ -95,6 +95,27 @@ describe("table layouts persisted in Markdown", () => {
       [{ row: 1, column: 0, bold: "yes" }],
       [{ row: 1, column: 0, horizontal: "center" }, { row: 1, column: 0, horizontal: "right" }],
     ]) expect(validateTableLayout({ spans: [], cells }, 3, 3)).toBeUndefined();
+  });
+  it("reorders axes with merged cells, widths and cell styles following the permutation", () => {
+    const merged: TableLayout = {
+      ...layout,
+      headerHidden: true,
+      cells: [{ row: 1, column: 0, bold: true, backgroundColor: "#bbf7d0" }],
+    };
+    const rows = tableAxisRange(merged, "row", 2);
+    expect(rows).toEqual({ first: 1, last: 2 });
+    expect(reorderTableAxis(merged, "row", 5, rows, 0)).toBeUndefined();
+    const reordered = reorderTableAxis(merged, "row", 5, rows, 5)!;
+    expect(reordered.order).toEqual([0, 3, 4, 1, 2]);
+    expect(reordered.layout.spans[0]!.row).toBe(3);
+    expect(reordered.layout.cells?.[0]).toMatchObject({ row: 3, column: 0, bold: true });
+    const columns = tableAxisRange(merged, "column", 1);
+    const changed = reorderTableAxis(merged, "column", 3, columns, 3)!;
+    expect(changed.order).toEqual([2, 0, 1]);
+    expect(changed.layout.widths).toEqual([120, 180, 240]);
+    expect(changed.layout.spans[0]!.column).toBe(1);
+    expect(reorderTableAxis(merged, "column", 3, { first: 2, last: 2 }, 1)).toBeUndefined();
+    expect(reorderTableAxis({ ...merged, headerHidden: false }, "row", 5, { first: 0, last: 0 }, 5)).toBeUndefined();
   });
   it("renders safe merged content and exact widths without affecting raw HTML tables", () => {
     const html = renderMarkdownSafe('<table data-nebula-table="0"><tr><td>HTML</td></tr></table>\n\n' + serializeTable(rows, [], layout) + '\n\n' + serializeTable([["X", "Y"], ['<img src="x" onerror="alert(1)">', "Z"]], [], { spans: [{ row: 1, column: 0, rows: 1, columns: 2 }] }));
@@ -314,7 +335,7 @@ describe("table editor interactions", () => {
   });
   it("selects and deletes multiple whole rows or columns, previews the affected area and undoes in one step", async () => {
     const { content, api } = await live(); const before = content();
-    await act(async () => inlineButton("Seleziona riga 2").dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 })));
+    await act(async () => inlineButton("Seleziona riga 2").dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0, shiftKey: true })));
     await act(async () => inlineButton("Seleziona riga 3").dispatchEvent(new MouseEvent("pointermove", { bubbles: true, buttons: 1 })));
     await act(async () => document.dispatchEvent(new MouseEvent("pointerup")));
     expect(host!.querySelectorAll(".inline-table td.is-selected")).toHaveLength(6);
@@ -333,6 +354,37 @@ describe("table editor interactions", () => {
     await act(async () => inlineButton("Elimina 3 colonne").click());
     expect(markdownTables(content())).toHaveLength(1); expect(content()).toContain("Dopo");
     await act(async () => api.current!.undo()); expect(content()).toBe(before);
+  });
+  it("moves a row by dragging its existing handle and a column by keyboard, with undo in one step", async () => {
+    const source = serializeTable(rows, ["left", "right", "center"], { spans: [], widths: [160, 190, 220], cells: [{ row: 1, column: 0, italic: true }] });
+    const { content, api } = await live(source);
+    const table = host!.querySelector<HTMLTableElement>(".inline-table table")!;
+    const rect = (element: Element, value: DOMRect) => vi.spyOn(element, "getBoundingClientRect").mockReturnValue(value);
+    rect(host!.querySelector(".nebula-table-scroll")!, new DOMRect(10, 50, 620, 150));
+    rect(host!.querySelector(".inline-table-ruler")!, new DOMRect(36, 24, 570, 24));
+    rect(table, new DOMRect(36, 50, 570, 120));
+    [...table.rows].forEach((row, index) => rect(row, new DOMRect(36, 50 + index * 40, 570, 40)));
+    const emitPointer = async (element: EventTarget, type: string, y: number) => {
+      const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 20, clientY: y });
+      Object.defineProperty(event, "pointerId", { value: 5 });
+      await act(async () => element.dispatchEvent(event));
+    };
+    await emitPointer(inlineButton("Seleziona riga 2"), "pointerdown", 105);
+    await emitPointer(document, "pointermove", 164);
+    expect(host!.querySelector(".inline-table.is-axis-dragging")).not.toBeNull();
+    expect(content()).toBe(source);
+    await emitPointer(document, "pointerup", 164);
+    let result = markdownTables(content())[0]!;
+    expect(result.rows).toEqual([rows[0], rows[2], rows[1]]);
+    expect(result.layout?.cells?.[0]).toMatchObject({ row: 2, column: 0, italic: true });
+    await act(async () => api.current!.undo());
+    expect(content()).toBe(source);
+    await key(inlineButton("Seleziona colonna 1"), "ArrowRight", { altKey: true, cancelable: true });
+    result = markdownTables(content())[0]!;
+    expect(result.rows[0]).toEqual(["B", "A", "C"]);
+    expect(result.layout?.widths).toEqual([190, 160, 220]);
+    expect(result.align).toEqual(["right", "left", "center"]);
+    expect(result.layout?.cells?.[0]?.column).toBe(1);
   });
   it("applies all nine alignment positions to the selection only and shows mixed values honestly", async () => {
     const { content } = await live(); await pick(1, 0); await pick(2, 1, true);

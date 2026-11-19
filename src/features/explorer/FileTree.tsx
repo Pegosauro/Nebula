@@ -19,9 +19,10 @@ import {
   Trash2,
 } from "lucide-react";
 import type { VaultEntry } from "../../domain/vault";
-import { withoutMarkdownExtension } from "../../domain/path";
+import { dirname, isPathInside, withoutMarkdownExtension } from "../../domain/path";
 import { useWorkspaceStore } from "../workspace/workspaceStore";
 
+import { useFileTreeDrag } from "./useFileTreeDrag";
 import { readExplorerState, saveExplorerState, type ExplorerState } from "./explorerState";
 
 export type FileTreeAction = import("./VaultOperationDialog").VaultOperationRequest | { type: "duplicate"; entry: VaultEntry };
@@ -32,6 +33,7 @@ interface FileTreeProps {
   vaultRevision: number;
   duplicating?: boolean;
   onAction: (request: FileTreeAction) => void;
+  onMove?: (entry: VaultEntry, destination: string) => Promise<string>;
 }
 
 // Keep service files available to the Vault adapter and image resolver; only
@@ -58,24 +60,34 @@ interface TreeNodeProps {
   menuPath?: string;
   setMenuPath: (path?: string) => void;
   onAction: FileTreeProps["onAction"];
+  drag: ReturnType<typeof useFileTreeDrag>;
   duplicating?: boolean;
 }
 
-function TreeNode({ entry, depth, expanded, toggle, menuPath, setMenuPath, onAction, duplicating }: TreeNodeProps) {
+function TreeNode({ entry, depth, expanded, toggle, menuPath, setMenuPath, onAction, duplicating, drag }: TreeNodeProps) {
   const selectedEntry = useWorkspaceStore((state) => state.selectedEntry);
   const openEntry = useWorkspaceStore((state) => state.openEntry);
   const selectEntry = useWorkspaceStore((state) => state.selectEntry);
   const isDirectory = entry.type === "directory";
   const isExpanded = isDirectory && expanded.has(entry.path);
   const isSelected = selectedEntry?.path === entry.path;
+  const isSource = drag.feedback?.source === entry.path;
+  const destination = drag.feedback?.target?.path === entry.path ? drag.feedback.target : undefined;
   const displayName = isConfiguratorPath(entry.path) ? configTitle(entry.name) : isTreePath(entry.path) ? treeTitle(entry.name) : entry.extension === ".md" ? withoutMarkdownExtension(entry.name) : entry.name;
 
   return (
     <li className="tree-node">
-      <div className={`tree-row ${isSelected ? "is-selected" : ""}`} style={{ "--tree-depth": depth } as React.CSSProperties}>
+      <div className={`tree-row${isSelected ? " is-selected" : ""}${isSource ? " is-drag-source" : ""}${destination ? destination.allowed ? " is-drop-target" : " is-drop-blocked" : ""}${drag.landed === entry.path ? " is-drop-landed" : ""}`}
+        data-tree-destination={isDirectory ? entry.path : undefined} style={{ "--tree-depth": depth } as React.CSSProperties}>
         <button
           type="button"
           className="tree-row-main"
+          onPointerDown={event => {
+            if (event.pointerType !== "touch" && event.button === 0 && event.isPrimary !== false) drag.start(entry, displayName, event.currentTarget, event.nativeEvent);
+          }}
+          onTouchStart={event => {
+            if (event.touches.length === 1) drag.start(entry, displayName, event.currentTarget, event.nativeEvent);
+          }}
           onClick={() => {
             if (isDirectory) {
               selectEntry(entry);
@@ -118,9 +130,9 @@ function TreeNode({ entry, depth, expanded, toggle, menuPath, setMenuPath, onAct
         </div>
       ) : null}
       {isDirectory && isExpanded && entry.children?.length ? (
-        <ul>
+        <ul className={drag.feedback?.expandedOnHover === entry.path ? "is-drag-expansion" : undefined}>
           {visibleEntries(entry.children).map((child) => (
-            <TreeNode key={child.id} entry={child} depth={depth + 1} expanded={expanded} toggle={toggle} menuPath={menuPath} setMenuPath={setMenuPath} onAction={onAction} duplicating={duplicating} />
+            <TreeNode key={child.id} entry={child} depth={depth + 1} expanded={expanded} toggle={toggle} menuPath={menuPath} setMenuPath={setMenuPath} onAction={onAction} duplicating={duplicating} drag={drag} />
           ))}
         </ul>
       ) : null}
@@ -132,7 +144,7 @@ export function FileTree(props: FileTreeProps) {
   return <VaultFileTree key={props.vaultId ?? "current"} {...props} />;
 }
 
-function VaultFileTree({ entries, vaultId, onAction, duplicating }: FileTreeProps) {
+function VaultFileTree({ entries, vaultId, onAction, onMove, duplicating }: FileTreeProps) {
   const [initial] = useState<ExplorerState>(() => readExplorerState(vaultId) ?? {
     expanded: entries.filter(entry => entry.type === "directory").map(entry => entry.path), scrollTop: 0,
   });
@@ -162,20 +174,39 @@ function VaultFileTree({ entries, vaultId, onAction, duplicating }: FileTreeProp
     return () => window.removeEventListener("click", closeMenu);
   }, []);
 
-  const toggle = (path: string) => {
-    const next = new Set(expanded);
-    if (next.has(path)) next.delete(path);
-    else next.add(path);
+  const updateExpansion = (next: Set<string>) => {
     memory.current = { ...memory.current, expanded: [...next] };
     saveExplorerState(vaultId, memory.current);
     setExpanded(next);
   };
+  const toggle = (path: string) => {
+    const next = new Set(memory.current.expanded);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    updateExpansion(next);
+  };
+  const expand = (path: string) => {
+    const next = new Set(memory.current.expanded);
+    if (next.has(path)) return;
+    next.add(path);
+    updateExpansion(next);
+  };
+  const drag = useFileTreeDrag(tree, entries, expanded, expand, onMove && (async (entry, destination) => {
+    setMenuPath(undefined);
+    const path = await onMove(entry, destination);
+    const next = new Set(memory.current.expanded.map(item => isPathInside(item, entry.path) ? path + item.slice(entry.path.length) : item));
+    if (destination) next.add(destination);
+    updateExpansion(next);
+    return path;
+  }));
 
   return (
-    <ul ref={tree} className="file-tree" aria-label="Contenuto del Vault">
+    <ul ref={tree} className={`file-tree${drag.feedback ? " is-dragging" : ""}`} aria-label="Contenuto del Vault">
       {visibleEntries(entries).map((entry) => (
-        <TreeNode key={entry.id} entry={entry} depth={0} expanded={expanded} toggle={toggle} menuPath={menuPath} setMenuPath={setMenuPath} onAction={onAction} duplicating={duplicating} />
+        <TreeNode key={entry.id} entry={entry} depth={0} expanded={expanded} toggle={toggle} menuPath={menuPath} setMenuPath={setMenuPath} onAction={onAction} duplicating={duplicating} drag={drag} />
       ))}
+      {drag.feedback && dirname(drag.feedback.source) && <li aria-hidden="true" data-tree-destination=""
+        className={`tree-root-drop${drag.feedback.target?.path === "" && drag.feedback.target.allowed ? " is-drop-target" : ""}`}>Sposta nella radice</li>}
     </ul>
   );
 }

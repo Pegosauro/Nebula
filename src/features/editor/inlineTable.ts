@@ -1,12 +1,13 @@
+import { dragPreview, scrollAtDragEdge, trackPointerDrag, type DragPoint } from "../../components/ui/pointerDrag";
 import { findClusterBreak } from "@codemirror/state";
 import type { PaletteColor } from "../../domain/colorPalette";
 import { showTableColorMenu } from "./tableColorMenu";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { renderMarkdownSafe } from "../../infrastructure/markdown/renderMarkdown";
-import { cellFontStyles, cellSpan, cellText, changeTableStructure, columnWidth, containsCell, DEFAULT_COLUMN_WIDTH, formatTableCells, MAX_COLUMN_WIDTH, mergeTableLayout, MIN_COLUMN_WIDTH, selectionBounds, type CellColor, type CellFontStyle, type CellFormat, type TableCell, type TableLayout } from "../../infrastructure/markdown/tableLayout";
+import { canInsertTableAxis, cellFontStyles, cellSpan, cellText, changeTableStructure, columnWidth, containsCell, DEFAULT_COLUMN_WIDTH, formatTableCells, MAX_COLUMN_WIDTH, mergeTableLayout, MIN_COLUMN_WIDTH, reorderTableAxis, selectionBounds, tableAxisRange, type AxisRange, type TableAxis, type CellColor, type CellFontStyle, type CellFormat, type TableCell, type TableLayout } from "../../infrastructure/markdown/tableLayout";
 import { parseTsv, serializeTable, serializeTsv, type MarkdownTable } from "./markdownTools";
 
-type Axis = "row" | "column";
+type Axis = TableAxis;
 type SelectionKind = "cells" | Axis | "all";
 interface Options {
   change: (previous: MarkdownTable, text: string, isolate: "before" | "full" | undefined) => void;
@@ -65,6 +66,7 @@ export class InlineTable {
   private geometryFrame = 0;
   private drag?: { kind: "cells" | Axis; pointerId: number };
   private preview?: Axis;
+  private cancelReorder?: () => void;
   private resizing?: { column: number; x: number; width: number; widths: number[] };
   constructor(readonly host: HTMLElement, private table: MarkdownTable, private raw: string, private options: Options) {
     host.classList.add("inline-table"); host.contentEditable = "false";
@@ -138,9 +140,9 @@ export class InlineTable {
   private intersects(s: { row: number; column: number; rows: number; columns: number }) { const b = this.bounds; return s.row <= b.bottom && s.row + s.rows > b.top && s.column <= b.right && s.column + s.columns > b.left; }
   sync(table: MarkdownTable, raw: string) {
     const changed = raw !== this.raw; this.table = table; this.raw = raw;
-    if (changed) { this.colorMenu?.close(); this.editing = undefined; this.resizing = undefined; this.drag = undefined; this.clampSelection(); this.render(); }
+    if (changed) { this.cancelReorder?.(); this.colorMenu?.close(); this.editing = undefined; this.resizing = undefined; this.drag = undefined; this.clampSelection(); this.render(); }
   }
-  destroy() { this.colorMenu?.close(); this.events.abort(); this.observer?.disconnect(); cancelAnimationFrame(this.geometryFrame); this.options.dispose(); }
+  destroy() { this.cancelReorder?.(); this.colorMenu?.close(); this.events.abort(); this.observer?.disconnect(); cancelAnimationFrame(this.geometryFrame); this.options.dispose(); }
   private toolGroup(label: string) {
     const group = document.createElement("div");
     group.className = "inline-table-tool-group";
@@ -346,10 +348,134 @@ export class InlineTable {
     const handle = document.createElement("button"); handle.type = "button"; handle.className = `inline-table-${axis}-handle`;
     handle.dataset[axis === "row" ? "selectRow" : "selectColumn"] = String(index); handle.textContent = axis === "row" ? "⋮" : "⋯";
     handle.title = `Seleziona ${axis === "row" ? "riga" : "colonna"} ${index + 1 - (axis === "row" ? this.firstVisibleRow : 0)}`; handle.setAttribute("aria-label", handle.title);
-    handle.addEventListener("pointerdown", e => { if (e.button !== 0) return; e.preventDefault(); this.selectAxis(axis, index, e.shiftKey); this.drag = { kind: axis, pointerId: e.pointerId }; });
+    handle.title += " · Trascina per spostare · Shift+trascina per estendere la selezione";
+    handle.setAttribute("aria-keyshortcuts", axis === "row" ? "Alt+ArrowUp Alt+ArrowDown" : "Alt+ArrowLeft Alt+ArrowRight");
+    handle.addEventListener("pointerdown", e => {
+      if (e.button !== 0 || e.isPrimary === false) return;
+      e.preventDefault();
+      this.selectAxis(axis, index, e.shiftKey);
+      if (e.shiftKey) this.drag = { kind: axis, pointerId: e.pointerId };
+      else this.startAxisReorder(axis, index, handle, e);
+    });
     handle.addEventListener("click", e => { if (e.detail === 0) this.selectAxis(axis, index, e.shiftKey); });
-    handle.addEventListener("keydown", e => { if (!e.shiftKey || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return; e.preventDefault(); const delta = ["ArrowUp", "ArrowLeft"].includes(e.key) ? -1 : 1; this.selectAxis(axis, Math.max(axis === "row" ? this.firstVisibleRow : 0, Math.min((axis === "row" ? this.table.rows.length : this.columns) - 1, this.active[axis] + delta)), true); });
+    handle.addEventListener("keydown", e => {
+      const previous = axis === "row" ? e.key === "ArrowUp" : e.key === "ArrowLeft";
+      const next = axis === "row" ? e.key === "ArrowDown" : e.key === "ArrowRight";
+      if (!previous && !next) return;
+      if (e.altKey && !e.shiftKey) {
+        e.preventDefault(); e.stopPropagation();
+        const source = tableAxisRange(this.layout, axis, index);
+        const neighbor = previous ? source.first - 1 : source.last + 1;
+        const target = tableAxisRange(this.layout, axis, neighbor);
+        this.moveAxis(axis, source, previous ? target.first : target.last + 1, true);
+      } else if (e.shiftKey) {
+        e.preventDefault(); e.stopPropagation();
+        const min = axis === "row" ? this.firstVisibleRow : 0;
+        this.selectAxis(axis, Math.max(min, Math.min(this.axisCount(axis) - 1, this.active[axis] + (previous ? -1 : 1))), true);
+      }
+    });
     return handle;
+  }
+  private axisCount(axis: Axis) { return axis === "row" ? this.table.rows.length : this.columns; }
+  private moveAxis(axis: Axis, source: AxisRange, slot: number, keepHandleFocus = false) {
+    const result = reorderTableAxis(this.layout, axis, this.axisCount(axis), source, slot);
+    if (!result) return;
+    const { first, last } = result.range;
+    const rows = axis === "row"
+      ? result.order.map(index => this.table.rows[index]!)
+      : this.table.rows.map(row => result.order.map(index => row[index]!));
+    const align = axis === "column" ? result.order.map(index => this.table.align[index] ?? null) : this.table.align;
+    this.first = axis === "row" ? { row: first, column: 0 } : { row: this.firstVisibleRow, column: first };
+    this.active = axis === "row" ? { row: last, column: this.columns - 1 } : { row: rows.length - 1, column: last };
+    this.axisAnchor = first;
+    this.kind = axis;
+    this.write({ ...this.table, rows, align, layout: result.layout });
+    this.paint();
+    const bounds = this.bounds;
+    for (const cell of this.cells) if (containsCell(bounds, Number(cell.dataset.row), Number(cell.dataset.column))) {
+      cell.classList.add("is-axis-landed");
+      cell.addEventListener("animationend", () => cell.classList.remove("is-axis-landed"), { once: true });
+    }
+    if (keepHandleFocus) this.axisHandles(axis)[first - (axis === "row" ? this.firstVisibleRow : 0)]?.focus();
+    else this.focusCell();
+  }
+  private axisHandles(axis: Axis) { return axis === "row" ? this.rowHandles : this.columnHandles; }
+  private axisDrop(axis: Axis, point: DragPoint) {
+    const viewport = this.scroll!.getBoundingClientRect();
+    const rect = this.tableElement.getBoundingClientRect();
+    const row = axis === "row";
+    const origin = row ? this.firstVisibleRow : 0;
+    const ruler = this.controls.querySelector<HTMLElement>(".inline-table-ruler")!.getBoundingClientRect();
+    if (point.x < viewport.left || point.x > viewport.right || point.y < ruler.top || point.y > rect.bottom + 12) return;
+    if (row && point.y < rect.top - 12) return;
+    const count = this.axisCount(axis) - origin;
+    const boxAt = (index: number) => row
+      ? this.tableElement.rows[origin + index]!.getBoundingClientRect()
+      : this.columnHandles[index]!.parentElement!.getBoundingClientRect();
+    let index = 0, end = count;
+    while (index < end) {
+      const mid = Math.floor((index + end) / 2), box = boxAt(mid);
+      if ((row ? point.y < (box.top + box.bottom) / 2 : point.x < (box.left + box.right) / 2)) end = mid;
+      else index = mid + 1;
+    }
+    const box = boxAt(Math.min(index, count - 1));
+    const edge = row ? (index === count ? box.bottom : box.top) : (index === count ? box.right : box.left);
+    const left = Math.max(viewport.left, rect.left), right = Math.min(viewport.right, rect.right);
+    if (!row && (edge < left || edge > right)) return;
+    return { slot: origin + index, left: row ? left : edge, top: row ? edge : rect.top, length: row ? right - left : rect.height };
+  }
+  private startAxisReorder(axis: Axis, index: number, handle: HTMLElement, event: PointerEvent) {
+    this.cancelReorder?.();
+    const source = tableAxisRange(this.layout, axis, index);
+    let point: DragPoint, frame = 0;
+    let marker: HTMLElement | undefined, preview: ReturnType<typeof dragPreview> | undefined;
+    const draw = () => {
+      frame = 0;
+      if (!marker || !preview) return;
+      preview.move(point);
+      const scroll = this.scroll;
+      const scroller = this.host.closest<HTMLElement>(".cm-scroller");
+      const scrolledX = axis === "column" && !!scroll && scrollAtDragEdge(scroll, point, "x");
+      const scrolledY = axis === "row" && !!scroller && scrollAtDragEdge(scroller, point, "y");
+      const drop = this.axisDrop(axis, point);
+      marker.hidden = !drop || !canInsertTableAxis(this.layout, axis, this.axisCount(axis), source, drop.slot);
+      if (drop && !marker.hidden) {
+        const host = this.host.getBoundingClientRect();
+        marker.style.left = `${drop.left - host.left}px`;
+        marker.style.top = `${drop.top - host.top}px`;
+        marker.style[axis === "row" ? "width" : "height"] = `${drop.length}px`;
+      }
+      if (scrolledX || scrolledY) frame = requestAnimationFrame(draw);
+    };
+    this.cancelReorder = trackPointerDrag(handle, event, {
+      start: at => {
+        point = at;
+        const size = source.last - source.first + 1;
+        const number = index + 1 - (axis === "row" ? this.firstVisibleRow : 0);
+        const label = size > 1 ? `${size} ${axis === "row" ? "righe" : "colonne"}` : `${axis === "row" ? "Riga" : "Colonna"} ${number}`;
+        preview = dragPreview(handle, label, at);
+        marker = this.host.ownerDocument.createElement("div");
+        marker.className = `inline-table-axis-marker is-${axis}`;
+        marker.hidden = true;
+        this.host.append(marker);
+        this.host.classList.add("is-axis-dragging");
+        for (const cell of this.cells) {
+          const value = Number(cell.dataset[axis]);
+          cell.classList.toggle("is-axis-source", value >= source.first && value <= source.last);
+        }
+      },
+      move: at => { point = at; if (!frame) frame = requestAnimationFrame(draw); },
+      end: at => {
+        this.cancelReorder = undefined;
+        cancelAnimationFrame(frame);
+        preview?.remove(); marker?.remove();
+        if (!preview) return;
+        this.host.classList.remove("is-axis-dragging");
+        for (const cell of this.cells) cell.classList.remove("is-axis-source");
+        const drop = at && this.axisDrop(axis, at);
+        if (drop) this.moveAxis(axis, source, drop.slot);
+      },
+    });
   }
   private sizeFrame(widths?: number[]) {
     const minimum = `calc(${widths ? widths.reduce((a, b) => a + b, 0) : this.columns * 90}px + 2 * var(--table-gutter))`;

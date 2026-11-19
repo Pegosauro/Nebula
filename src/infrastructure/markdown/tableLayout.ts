@@ -145,3 +145,58 @@ export function changeTableStructure(layout: TableLayout, axis: "row" | "column"
   const cells = layout.cells?.flatMap(cell => remove && cell[axis] === index ? [] : [{ ...cell, [axis]: cell[axis] + (cell[axis] >= index ? remove ? -1 : 1 : 0) }]);
   return { spans, ...(widths ? { widths } : {}), ...(cells?.length ? { cells } : {}), ...(layout.headerHidden ? { headerHidden: true } : {}) };
 }
+
+export type TableAxis = "row" | "column";
+export interface AxisRange { first: number; last: number }
+
+export function tableAxisRange(layout: TableLayout, axis: TableAxis, index: number): AxisRange {
+  const range = { first: index, last: index };
+  let changed: boolean;
+  do {
+    changed = false;
+    for (const span of layout.spans) {
+      const first = span[axis], last = first + (axis === "row" ? span.rows : span.columns) - 1;
+      if (first > range.last || last < range.first) continue;
+      if (first < range.first || last > range.last) {
+        range.first = Math.min(range.first, first);
+        range.last = Math.max(range.last, last);
+        changed = true;
+      }
+    }
+  } while (changed);
+  return range;
+}
+
+export function canInsertTableAxis(layout: TableLayout, axis: TableAxis, count: number, { first, last }: AxisRange, slot: number) {
+  const min = axis === "row" && layout.headerHidden ? 1 : 0;
+  if (first < min || last >= count || slot < min || slot > count || (slot >= first && slot <= last + 1)) return false;
+  for (const span of layout.spans) {
+    const start = span[axis], size = axis === "row" ? span.rows : span.columns;
+    if (start < slot && slot < start + size) return false;
+    if (axis === "row" && span.rows > 1 && ((slot === 0 && start === first) || (first === 0 && start === last + 1))) return false;
+  }
+  return true;
+}
+
+/** The insertion slot uses the original order. All metadata follows the same permutation as the cells. */
+export function reorderTableAxis(layout: TableLayout, axis: TableAxis, count: number, range: AxisRange, slot: number) {
+  if (!canInsertTableAxis(layout, axis, count, range, slot)) return;
+  const { first, last } = range;
+  const order = Array.from({ length: count }, (_, index) => index);
+  const moved = order.splice(first, last - first + 1);
+  const at = slot > last ? slot - moved.length : slot;
+  order.splice(at, 0, ...moved);
+  const inverse = new Map(order.map((old, index) => [old, index]));
+  const spans = layout.spans.map(span => ({ ...span, [axis]: inverse.get(span[axis])! }));
+  const widths = layout.widths;
+  return {
+    order,
+    range: { first: at, last: at + moved.length - 1 },
+    layout: {
+      ...layout,
+      spans,
+      ...(axis === "column" && widths ? { widths: order.map(index => widths[index]!) } : {}),
+      ...(layout.cells ? { cells: layout.cells.map(cell => ({ ...cell, [axis]: inverse.get(cell[axis])! })) } : {}),
+    },
+  };
+}

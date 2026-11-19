@@ -106,3 +106,55 @@ it("keeps folders usable with corrupt or unavailable browser storage", async () 
   expect(folder.getAttribute("aria-expanded")).toBe("false");
   await act(async () => root.unmount());
 });
+
+it("moves notes into folders and folders to the root, rejecting descendants and cancelled drags", async () => {
+  host = document.createElement("div"); host.className = "explorer-scroll"; document.body.append(host);
+  const root = createRoot(host);
+  const child: VaultEntry = { ...entries[0]!, id: "Progetti/Sub", path: "Progetti/Sub", name: "Sub" };
+  const folder: VaultEntry = { ...entries[0]!, children: [child] };
+  const move = vi.fn(async (entry: VaultEntry, destination: string) => destination ? `${destination}/${entry.name}` : entry.name);
+  let hit: Element | null = null;
+  const ownDescriptor = Object.getOwnPropertyDescriptor(document, "elementFromPoint");
+  Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => hit });
+  const emit = async (node: EventTarget, type: string, x: number) => {
+    const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: x, clientY: 40 });
+    Object.defineProperty(event, "pointerId", { value: 1 });
+    await act(async () => node.dispatchEvent(event));
+  };
+  const row = (name: string) => [...host!.querySelectorAll<HTMLButtonElement>(".tree-row-main")].find(button => button.querySelector(".tree-name")!.textContent === name)!;
+  try {
+    await act(async () => root.render(<FileTree entries={[folder, entries[1]!]} vaultRevision={1} onAction={() => {}} onMove={move} />));
+    hit = row("Sub");
+    await emit(row("Progetti"), "pointerdown", 10);
+    await emit(document, "pointermove", 50);
+    await emit(document, "pointerup", 50);
+    expect(move).not.toHaveBeenCalled();
+    expect(document.querySelector(".nebula-drag-preview")).toBeNull();
+
+    hit = row("Progetti");
+    await emit(row("Nota"), "pointerdown", 10);
+    await emit(document, "pointermove", 50);
+    expect(host.querySelector(".tree-row.is-drag-source .tree-name")!.textContent).toBe("Nota");
+    await emit(document, "pointerup", 50);
+    expect(move).toHaveBeenCalledWith(entries[1], "Progetti");
+    expect(useWorkspaceStore.getState().tabs.some(tab => tab.kind === "document")).toBe(false);
+
+    await emit(row("Sub"), "pointerdown", 10);
+    await emit(document, "pointermove", 50);
+    hit = host.querySelector(".tree-root-drop");
+    expect(hit).not.toBeNull();
+    await emit(document, "pointerup", 50);
+    expect(move).toHaveBeenLastCalledWith(child, "");
+
+    hit = row("Progetti");
+    await emit(row("Nota"), "pointerdown", 10);
+    await emit(document, "pointermove", 50);
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    await emit(document, "pointerup", 50);
+    expect(move).toHaveBeenCalledTimes(2);
+  } finally {
+    if (ownDescriptor) Object.defineProperty(document, "elementFromPoint", ownDescriptor);
+    else Reflect.deleteProperty(document, "elementFromPoint");
+    await act(async () => root.unmount());
+  }
+});

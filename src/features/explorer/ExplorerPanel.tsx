@@ -1,6 +1,7 @@
 import { GitBranch, FilePlus2, FolderOpen, FolderPlus, LoaderCircle, LogOut, RefreshCw, Replace, X } from "lucide-react";
 import { useRef, useState } from "react";
-import { dirname } from "../../domain/path";
+import type { VaultEntry } from "../../domain/vault";
+import { basename, dirname } from "../../domain/path";
 import { IconButton } from "../../components/ui/IconButton";
 import { PanelHeader } from "../../components/ui/PanelHeader";
 import { useVaultStore } from "../vault/vaultStore";
@@ -23,20 +24,39 @@ export function ExplorerPanel() {
   const [request, setRequest] = useState<VaultOperationRequest>();
   const [notice, setNotice] = useState<string>();
   const [duplicating, setDuplicating] = useState(false);
-  const duplicatePending = useRef(false);
+  const operationPending = useRef(false);
+  const [moving, setMoving] = useState(false);
   const action = async (next: FileTreeAction) => {
-    if (duplicatePending.current) return;
+    if (operationPending.current) return;
     setNotice(undefined); clearError();
     if (next.type !== "duplicate") { setRequest(next); return; }
-    duplicatePending.current = true; setDuplicating(true); setNotice("Duplicazione della nota…");
+    operationPending.current = true; setDuplicating(true); setNotice("Duplicazione della nota…");
     try {
       await useVaultStore.getState().duplicateNote(next.entry);
       setNotice("Nota duplicata nella stessa cartella.");
     } catch { setNotice(undefined); /* The store exposes the error above the tree. */ }
-    finally { duplicatePending.current = false; setDuplicating(false); }
+    finally { operationPending.current = false; setDuplicating(false); }
   };
 
-  const loading = status === "opening" || status === "restoring" || status === "scanning";
+  const move = async (entry: VaultEntry, destination: string) => {
+    if (operationPending.current) throw new Error("Attendi la fine dell’operazione in corso.");
+    operationPending.current = true;
+    setMoving(true);
+    clearError();
+    setNotice("Spostamento in corso…");
+    try {
+      const path = await useVaultStore.getState().moveEntry(entry, destination);
+      setNotice(destination ? `Spostato in ${basename(destination)}.` : "Spostato nella radice del Vault.");
+      return path;
+    } catch (error) {
+      setNotice(undefined);
+      throw error;
+    } finally {
+      operationPending.current = false;
+      setMoving(false);
+    }
+  };
+  const loading = moving || status === "opening" || status === "restoring" || status === "scanning";
   const creationParent = selectedEntry?.type === "directory"
     ? selectedEntry.path
     : selectedEntry?.path ? dirname(selectedEntry.path) : "";
@@ -79,7 +99,7 @@ export function ExplorerPanel() {
       {snapshot ? (
         snapshot.root.length ? (
           <div className="explorer-scroll">
-            <FileTree vaultId={activeVaultId} entries={snapshot.root} vaultRevision={snapshot.scannedAt} duplicating={duplicating} onAction={next => { void action(next); }} />
+            <FileTree vaultId={activeVaultId} entries={snapshot.root} vaultRevision={snapshot.scannedAt} duplicating={duplicating} onMove={moving || duplicating || request ? undefined : move} onAction={next => { void action(next); }} />
           </div>
         ) : (
           <div className="panel-empty compact-empty">
