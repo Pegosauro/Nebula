@@ -58,6 +58,12 @@ export function serializeTable(rows: string[][], align: MarkdownTable["align"] =
   const row = (cells: string[]) => `| ${Array.from({ length: width }, (_, i) => clean(cells[i])).join(" | ")} |`;
   return [row(rows[0] ?? ["Colonna"]), `| ${Array.from({ length: width }, (_, i) => align[i] === "center" ? ":---:" : align[i] === "right" ? "---:" : align[i] === "left" ? ":---" : "---").join(" | ")} |`, ...rows.slice(1).map(row)].join("\n") + serializeTableLayout(layout, rows.length, width);
 }
+export function serializeTsv(rows: string[][]): string {
+  const lines = rows.map(row => row.map(value => /["\t\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value).join("\t"));
+  // Terminate the last row in a multi-row selection, even when it is blank.
+  return lines.join("\r\n") + (lines.length > 1 ? "\r\n" : "");
+}
+
 // TSV parser preserves quoted multiline cells copied from Excel / Sheets.
 export function parseTsv(source: string): string[][] {
   const rows: string[][] = [[]]; let value = "", quoted = false;

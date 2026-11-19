@@ -7,7 +7,7 @@ import { EditorView } from "@codemirror/view";
 import { undo, redo } from "@codemirror/commands";
 import { cellText, cellSpan, changeTableStructure, mergeTableLayout, selectionBounds, formatTableCells, validateTableLayout, type TableLayout } from "../../infrastructure/markdown/tableLayout";
 import { renderMarkdownSafe } from "../../infrastructure/markdown/renderMarkdown";
-import { headingEntries, markdownTables, serializeTable } from "./markdownTools";
+import { headingEntries, markdownTables, parseTsv, serializeTable, serializeTsv } from "./markdownTools";
 import { TablePanel } from "./TablePanel";
 import CodeMirrorEditor from "./CodeMirrorEditor";
 import MarkdownPreview from "./MarkdownPreview";
@@ -185,6 +185,50 @@ describe("table editor interactions", () => {
     await act(async () => root!.render(<MarkdownPreview sourcePath="Inline.md" content={content()} readOnly />));
     expect(host!.querySelector(".inline-table-toolbar")).toBeNull(); expect(host!.querySelector("textarea")).toBeNull();
     expect(host!.querySelector("table")!.textContent).toContain("Quattro");
+  });
+  it("copies rendered cell ranges as spreadsheet rows with a button, keyboard and native copy", async () => {
+    const source = serializeTable([
+      ["Segreto", "Intestazione"],
+      ['**Uno**<br>Due "virgolette"', "Tre"],
+      ["Quattro", ""],
+    ], [], { headerHidden: true, spans: [{ row: 2, column: 0, rows: 1, columns: 2 }] });
+    const { content } = await live(source);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", Object.create(navigator, { clipboard: { value: { writeText } } }));
+    try {
+      await pick(1, 0); await pick(1, 1, true);
+      await act(async () => inlineButton("Copia celle").click());
+      expect(writeText).toHaveBeenLastCalledWith('"Uno\nDue ""virgolette"""\tTre');
+      expect(host!.querySelector(".inline-table-status")!.textContent).toBe("Celle copiate");
+
+      await act(async () => inlineButton("Seleziona tutta la tabella").click());
+      await key(document.activeElement as HTMLElement, "c", { metaKey: true, cancelable: true });
+      const expected = [['Uno\nDue "virgolette"', "Tre"], ["Quattro", ""]];
+      expect(parseTsv(writeText.mock.lastCall![0])).toEqual(expected);
+
+      const sendCopy = async (target: Element) => {
+        const event = new Event("copy", { bubbles: true, cancelable: true });
+        const setData = vi.fn();
+        Object.defineProperty(event, "clipboardData", { value: { setData } });
+        await act(async () => target.dispatchEvent(event));
+        return { event, setData };
+      };
+      const copied = await sendCopy(document.activeElement!);
+      expect(copied.setData).toHaveBeenCalledWith("text/plain", serializeTsv(expected));
+      expect(copied.event.defaultPrevented).toBe(true);
+      expect(content()).toBe(source);
+
+      await pick(1, 0); await key(inlineCell(1, 0), "Enter");
+      const textCopy = await sendCopy(host!.querySelector(".inline-table-input")!);
+      expect(textCopy.event.defaultPrevented).toBe(false);
+      expect(textCopy.setData).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+  it("retains quoted tabs and the last blank row when serializing a spreadsheet selection", () => {
+    const values = [['Valore\tcon "tab"'], [""]];
+    expect(parseTsv(serializeTsv(values))).toEqual(values);
   });
   it("selects rectangular cells by dragging, preserves text selection when editing, and clears only selected contents", async () => {
     const { content, api } = await live(); const before = content();

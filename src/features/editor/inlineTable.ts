@@ -1,7 +1,7 @@
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { renderMarkdownSafe } from "../../infrastructure/markdown/renderMarkdown";
 import { cellSpan, cellText, changeTableStructure, columnWidth, containsCell, DEFAULT_COLUMN_WIDTH, formatTableCells, MAX_COLUMN_WIDTH, mergeTableLayout, MIN_COLUMN_WIDTH, selectionBounds, type TableCell, type TableLayout } from "../../infrastructure/markdown/tableLayout";
-import { parseTsv, serializeTable, type MarkdownTable } from "./markdownTools";
+import { parseTsv, serializeTable, serializeTsv, type MarkdownTable } from "./markdownTools";
 
 type Axis = "row" | "column";
 type SelectionKind = "cells" | Axis | "all";
@@ -58,6 +58,9 @@ export class InlineTable {
     this.status.className = "inline-table-status"; this.status.setAttribute("role", "status");
     this.toolbar.append(this.status);
     this.headerButton = this.tool("header", "Nascondi intestazione", icon(headerIcon), () => this.toggleHeader());
+    const copy = this.tool("copy", "Copia celle", icon("M8 8h12v12H8zM16 8V4H4v12h4"), () => void this.copyCells());
+    copy.title = "Copia celle per Excel (Ctrl/⌘ C)";
+    copy.setAttribute("aria-keyshortcuts", "Control+C Meta+C");
     for (const [axis, label, values] of [
       ["horizontal", "Allineamento orizzontale", [["left", "Allinea a sinistra"], ["center", "Allinea al centro"], ["right", "Allinea a destra"]]],
       ["vertical", "Allineamento verticale", [["top", "Allinea in alto"], ["middle", "Allinea a metà altezza"], ["bottom", "Allinea in basso"]]],
@@ -85,6 +88,12 @@ export class InlineTable {
     window.addEventListener("blur", () => { this.drag = undefined; }, { signal });
     host.addEventListener("focusout", () => queueMicrotask(() => { if (!host.contains(document.activeElement) && !this.drag) { this.selected = false; this.paint(); } }), { signal });
     host.addEventListener("keydown", e => this.keydown(e), { signal });
+    host.addEventListener("copy", e => {
+      if (!this.selected || this.editing || !e.clipboardData || (e.target as Element).closest("input,textarea,select")) return;
+      e.clipboardData.setData("text/plain", this.selectionTsv());
+      e.preventDefault(); e.stopPropagation();
+      this.status.textContent = "Celle copiate";
+    }, { signal });
     host.addEventListener("paste", e => { if (this.editing || (e.target as HTMLElement).closest("input,select,button")) return; const text = e.clipboardData?.getData("text/plain") ?? ""; if (!text) return; e.preventDefault(); e.stopPropagation(); this.selected = true; if (text.includes("\t")) this.paste(text); else this.startEdit(text); }, { signal });
     this.clampSelection();
     this.render();
@@ -362,6 +371,28 @@ export class InlineTable {
     this.write({ ...this.table, rows, align, layout });
   }
   private clear() { const bounds = this.bounds; this.write({ ...this.table, rows: this.table.rows.map((row, r) => row.map((value, c) => containsCell(bounds, r, c) ? "" : value)) }); this.focusCell(); }
+  private selectionTsv() {
+    const bounds = this.bounds;
+    const rows = Array.from({ length: bounds.bottom - bounds.top + 1 }, () => Array<string>(bounds.right - bounds.left + 1).fill(""));
+    for (const cell of this.cells) {
+      const row = Number(cell.dataset.row), column = Number(cell.dataset.column);
+      if (!containsCell(bounds, row, column)) continue;
+      const rendered = cell.cloneNode(true) as HTMLTableCellElement;
+      rendered.querySelectorAll("br").forEach(line => line.replaceWith("\n"));
+      rendered.querySelectorAll("img").forEach(image => image.replaceWith(image.alt));
+      // A merged cell occupies its original rectangle, with text at the anchor.
+      rows[row - bounds.top]![column - bounds.left] = rendered.textContent ?? "";
+    }
+    return serializeTsv(rows);
+  }
+  private async copyCells() {
+    try {
+      await navigator.clipboard.writeText(this.selectionTsv());
+      if (this.selected) this.status.textContent = "Celle copiate";
+    } catch {
+      if (this.selected) this.status.textContent = "Copia non riuscita";
+    }
+  }
   private paste(text: string) {
     this.editing = undefined; const pasted = parseTsv(text), r = this.active.row, c = this.active.column;
     const columns = Math.max(this.columns, c + Math.max(...pasted.map(row => row.length))), bottom = r + pasted.length, right = c + Math.max(...pasted.map(row => row.length));
@@ -378,7 +409,10 @@ export class InlineTable {
       return;
     }
     if ((e.ctrlKey || e.metaKey) && ["z", "y"].includes(e.key.toLowerCase())) { e.preventDefault(); e.stopPropagation(); this.options.history(e.shiftKey || e.key.toLowerCase() === "y"); return; }
-    if ((e.target as Element).closest("button,input,select,[role=separator]")) return;
+    if ((e.target as Element).closest("button,input,textarea,select,[role=separator]")) return;
+    if (this.selected && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "c" && typeof navigator.clipboard?.writeText === "function") {
+      e.preventDefault(); e.stopPropagation(); void this.copyCells(); return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") { e.preventDefault(); e.stopPropagation(); this.selectAll(); return; }
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); this.selected = false; this.drag = undefined; this.cellElement()?.blur(); this.paint(); return; }
     if (e.key === "Tab") { e.preventDefault(); e.stopPropagation(); this.moveTab(e.shiftKey); return; }
