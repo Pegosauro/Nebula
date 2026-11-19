@@ -1,9 +1,84 @@
 import { syntaxTree } from "@codemirror/language";
 import { StateEffect, StateField, type EditorState, type Range } from "@codemirror/state";
 import { Decoration, EditorView, WidgetType } from "@codemirror/view";
-import { codeLanguage, codeTokens, excelBreaks, fenceOpening, fencedPayload, indentVba, type CodeMode } from "../../domain/codeBlock";
+import { codeLanguage, codeTokens, excelBreaks, fenceOpening, fencedPayload, formatExcelDisplay, indentVba, type CodeMode } from "../../domain/codeBlock";
 import { applyTextEdit } from "./editorCommands";
-import { codeBlockControls } from "./codeBlockControls";
+import { canCompactCode, codeBlockControls, drawCode, setCodeCompact } from "./codeBlockControls";
+
+interface CompactCode {
+  from: number;
+  to: number;
+  info: string;
+  source: string;
+  expanded: boolean;
+}
+
+const showCompactCode = StateEffect.define<CompactCode>();
+const expandCode = StateEffect.define<number>();
+
+export const compactCodeBlocks = StateField.define<readonly CompactCode[]>({
+  create: () => [],
+  update(blocks, transaction) {
+    const effects = transaction.effects.filter(effect => effect.is(showCompactCode) || effect.is(expandCode));
+    if (!effects.length && (!blocks.length || (!transaction.docChanged && !transaction.selection))) return blocks;
+    const next: CompactCode[] = [];
+    const inside = (pos: number, block: CompactCode) => pos > block.from && pos < block.to;
+    for (const block of blocks) {
+      if (transaction.changes.touchesRange(block.from, block.to)) continue;
+      const from = transaction.changes.mapPos(block.from, 1), to = transaction.changes.mapPos(block.to, -1);
+      const mapped = from === block.from && to === block.to ? block : { ...block, from, to };
+      if (!transaction.selection?.ranges.some(range => inside(range.from, mapped) || inside(range.to, mapped))) next.push(mapped);
+    }
+    for (const effect of effects) {
+      if (effect.is(showCompactCode)) next.push(effect.value);
+      if (effect.is(expandCode)) return next.filter(block => block.from !== effect.value);
+    }
+    return next.length === blocks.length && next.every((block, index) => block === blocks[index]) ? blocks : next;
+  },
+  provide: field => EditorView.decorations.compute([field], state => Decoration.set(state.field(field).map(block =>
+    Decoration.replace({ block: true, widget: new CompactCodeWidget(block) }).range(block.from, block.to)), true)),
+});
+
+export function expandCodeBeforeDeleting(view: EditorView, forward: boolean) {
+  if (view.state.readOnly || view.composing) return false;
+  const block = view.state.field(compactCodeBlocks).find(({ from, to }) => view.state.selection.ranges.some(range =>
+    range.empty && (forward ? range.head === from || range.head === from - 1 : range.head === to || range.head === to + 1)));
+  if (!block) return false;
+  view.dispatch({ effects: expandCode.of(block.from) });
+  return true;
+}
+
+function focusCodeControl(view: EditorView, from: number, control: string) {
+  const button = view.dom.querySelector<HTMLButtonElement>(`[data-live-code="${from}"] ${control}`);
+  if (button) button.focus({ preventScroll: true });
+  else view.focus();
+}
+
+class CompactCodeWidget extends WidgetType {
+  constructor(readonly block: CompactCode) { super(); }
+
+  eq(other: CompactCodeWidget) {
+    return this.block === other.block;
+  }
+
+  toDOM(view: EditorView) {
+    const { from, info, source, expanded } = this.block;
+    const owner = view.dom.ownerDocument;
+    const wrap = owner.createElement("div");
+    wrap.className = "nebula-code-block live-code-compact-block";
+    const bar = codeBlockControls(owner, { info, source, compact: { active: true, toggle: () => {
+      view.dispatch({ effects: expandCode.of(from) });
+      focusCodeControl(view, from, ".nebula-code-compact");
+    } } });
+    bar.dataset.liveCode = String(from);
+    const pre = owner.createElement("pre"), code = owner.createElement("code");
+    drawCode(code, expanded ? formatExcelDisplay(source) : source, codeLanguage(info, source));
+    setCodeCompact(pre, true);
+    pre.append(code);
+    wrap.append(bar, pre);
+    return wrap;
+  }
+}
 
 const toggleFormula = StateEffect.define<number>();
 export const formulaLayouts = StateField.define<ReadonlySet<number>>({
@@ -28,20 +103,22 @@ export const formulaLayouts = StateField.define<ReadonlySet<number>>({
 
 class CodeToolbar extends WidgetType {
   constructor(
-    readonly from: number, readonly info: string, readonly source: string, readonly bodyFrom: number,
-    readonly bodyTo: number, readonly modeFrom: number, readonly modeTo: number, readonly expanded: boolean,
-    readonly readOnly: boolean, readonly safeToFormat: boolean, readonly canExpand: boolean,
+    readonly from: number, readonly block: CompactCode, readonly bodyFrom: number,
+    readonly bodyTo: number, readonly modeFrom: number, readonly modeTo: number,
+    readonly readOnly: boolean, readonly safeToFormat: boolean, readonly canExpand: boolean, readonly canCompact: boolean,
   ) { super(); }
 
   eq(other: CodeToolbar) {
-    return this.from === other.from && this.info === other.info && this.source === other.source &&
+    return this.from === other.from && this.block.from === other.block.from && this.block.to === other.block.to &&
+      this.block.info === other.block.info && this.block.source === other.block.source && this.block.expanded === other.block.expanded &&
       this.bodyFrom === other.bodyFrom && this.bodyTo === other.bodyTo && this.modeFrom === other.modeFrom &&
-      this.modeTo === other.modeTo && this.expanded === other.expanded && this.readOnly === other.readOnly &&
-      this.safeToFormat === other.safeToFormat && this.canExpand === other.canExpand;
+      this.modeTo === other.modeTo && this.readOnly === other.readOnly && this.safeToFormat === other.safeToFormat &&
+      this.canExpand === other.canExpand && this.canCompact === other.canCompact;
   }
 
   toDOM(view: EditorView) {
-    const { from, info, source, bodyFrom, bodyTo, modeFrom, modeTo, expanded } = this;
+    const { from, block, bodyFrom, bodyTo, modeFrom, modeTo } = this;
+    const { info, source, expanded } = block;
     const change = (mode: CodeMode) => {
       const head = view.state.selection.main.head;
       const insert = mode;
@@ -70,10 +147,16 @@ class CodeToolbar extends WidgetType {
       format: !this.readOnly && this.safeToFormat && codeLanguage(info, source) === "vba" ? format : undefined,
       toggle: this.canExpand ? () => {
         view.dispatch({ effects: toggleFormula.of(from) });
-        view.dom.querySelector<HTMLButtonElement>(`[data-live-code="${from}"] .nebula-code-layout`)?.focus({ preventScroll: true });
+        focusCodeControl(view, block.from, ".nebula-code-layout");
       } : undefined,
+      compact: this.canCompact ? { active: false, toggle: () => {
+        const selection = view.state.selection;
+        const inside = selection.ranges.some(range => range.to > block.from && range.from < block.to);
+        view.dispatch({ effects: showCompactCode.of(block), selection: inside ? { anchor: block.from } : undefined });
+        focusCodeControl(view, block.from, ".nebula-code-compact");
+      } } : undefined,
     });
-    bar.dataset.liveCode = String(from);
+    bar.dataset.liveCode = String(block.from);
     return bar;
   }
 }
@@ -110,6 +193,7 @@ export function decorateCodeBlock(
 ) {
   const { state } = view, { doc } = state;
   const first = doc.lineAt(node.from), last = doc.lineAt(node.to);
+  if (state.field(compactCodeBlocks).some(block => block.from === first.from)) return;
   const marks = node.getChildren("CodeMark");
   const fenced = node.name === "FencedCode" && marks.length > 0;
   const opening = marks[0], closing = marks[1];
@@ -130,7 +214,9 @@ export function decorateCodeBlock(
   const mode = opening ? /^[ \t]*\S*/.exec(doc.sliceString(opening.to, first.to))?.[0] : undefined;
   const modeFrom = opening?.to ?? -1;
   const modeTo = modeFrom + (mode?.length ?? 0);
-  const header = new CodeToolbar(node.from, name, source, bodyFrom, bodyTo, modeFrom, modeTo, expanded, state.readOnly, simpleOffsets && bodyFrom <= bodyTo, canExpand);
+  const block = { from: first.from, to: last.to, info: name, source, expanded };
+  const canCompact = canCompactCode(source) || (expanded && breaks.length >= 10);
+  const header = new CodeToolbar(node.from, block, bodyFrom, bodyTo, modeFrom, modeTo, state.readOnly, simpleOffsets && bodyFrom <= bodyTo, canExpand, canCompact);
   decorations.push(Decoration.widget({ widget: header, side: -1 }).range(first.from));
   for (let number = first.number; number <= last.number; number++) {
     const line = doc.line(number);

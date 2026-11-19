@@ -38,10 +38,38 @@ interface CodeControls {
   setMode?: (mode: CodeMode) => void;
   format?: () => void;
   toggle?: () => void;
+  compact?: { active: boolean; toggle: () => void };
+}
+
+export function canCompactCode(display: string): boolean {
+  let newline = -1;
+  for (let line = 0; line < 10; line++) {
+    newline = display.indexOf("\n", newline + 1);
+    if (newline === -1) return false;
+  }
+  return true;
+}
+
+function updateCompactButton(control: HTMLButtonElement, compact: boolean) {
+  control.textContent = compact ? "Espandi codice" : "Compatta a 10 righe";
+  control.setAttribute("aria-expanded", String(!compact));
+}
+
+export function setCodeCompact(pre: HTMLPreElement, compact: boolean) {
+  pre.classList.toggle("is-code-compact", compact);
+  if (compact) {
+    pre.tabIndex = 0;
+    pre.setAttribute("role", "region");
+    pre.setAttribute("aria-label", "Codice scorrevole");
+  } else {
+    pre.removeAttribute("tabindex");
+    pre.removeAttribute("role");
+    pre.removeAttribute("aria-label");
+  }
 }
 
 export function codeBlockControls(owner: Document, options: CodeControls) {
-  const { info, source, expanded, setMode, format, toggle } = options;
+  const { info, source, expanded, setMode, format, toggle, compact } = options;
   const mode = codeMode(info), language = codeLanguage(info, source);
   const bar = owner.createElement("span");
   bar.className = "nebula-code-toolbar";
@@ -81,11 +109,16 @@ export function codeBlockControls(owner: Document, options: CodeControls) {
     control.prepend(icon(owner, "indent"));
   }
   if (toggle) {
-    const layout = button(actions, expanded ? "Su più righe" : "Compatta", toggle);
+    const layout = button(actions, expanded ? "Compatta formula" : "Su più righe", toggle);
     layout.className = "nebula-code-layout";
     layout.setAttribute("aria-label", "Formula su più righe");
     layout.setAttribute("aria-pressed", String(!!expanded));
     layout.title = expanded ? "Mostra formula compatta" : "Mostra formula su più righe";
+  }
+  if (compact) {
+    const control = button(actions, "", compact.toggle);
+    control.className = "nebula-code-compact";
+    updateCompactButton(control, compact.active);
   }
   const status = owner.createElement("span");
   status.className = "nebula-code-status";
@@ -117,6 +150,22 @@ export function codeBlockControls(owner: Document, options: CodeControls) {
   return bar;
 }
 
+export function drawCode(code: HTMLElement, display: string, language: ReturnType<typeof codeLanguage>) {
+  const owner = code.ownerDocument;
+  const nodes = owner.createDocumentFragment();
+  let at = 0;
+  for (const token of codeTokens(display, language)) {
+    if (token.from > at) nodes.append(owner.createTextNode(display.slice(at, token.from)));
+    const span = owner.createElement("span");
+    span.className = `nebula-code-${token.style}`;
+    span.textContent = display.slice(token.from, token.to);
+    nodes.append(span);
+    at = token.to;
+  }
+  nodes.append(owner.createTextNode(display.slice(at)));
+  code.replaceChildren(nodes);
+}
+
 export function attachCodePreview(pre: HTMLPreElement) {
   if (pre.parentElement?.classList.contains("nebula-code-block")) return;
   const code = pre.querySelector("code");
@@ -124,35 +173,38 @@ export function attachCodePreview(pre: HTMLPreElement) {
   const owner = pre.ownerDocument;
   const { info, source } = JSON.parse(pre.dataset.nebulaCode!) as { info: string; source: string };
   const language = codeLanguage(info, source);
-  const canExpand = language === "excel" && excelBreaks(source).length > 0;
+  const breaks = language === "excel" ? excelBreaks(source) : [];
+  const canExpand = breaks.length > 0;
   let expanded = canExpand && source.length > 80;
+  let compact = false;
+  const hasLongSource = canCompactCode(source);
+  const canCompact = () => hasLongSource || (expanded && breaks.length >= 10);
   const wrap = owner.createElement("div");
   wrap.className = "nebula-code-block";
-  function drawCode() {
-    const display = expanded ? formatExcelDisplay(source) : source;
-    const nodes = owner.createDocumentFragment();
-    let at = 0;
-    for (const token of codeTokens(display, language)) {
-      if (token.from > at) nodes.append(owner.createTextNode(display.slice(at, token.from)));
-      const span = owner.createElement("span");
-      span.className = `nebula-code-${token.style}`;
-      span.textContent = display.slice(token.from, token.to);
-      nodes.append(span);
-      at = token.to;
+  function updateDisplay() {
+    drawCode(code!, expanded ? formatExcelDisplay(source) : source, language);
+    const control = bar.querySelector<HTMLButtonElement>(".nebula-code-compact");
+    if (control) {
+      control.hidden = !canCompact();
+      updateCompactButton(control, compact);
     }
-    nodes.append(owner.createTextNode(display.slice(at)));
-    code!.replaceChildren(nodes);
+    setCodeCompact(pre, compact);
   }
   const bar = codeBlockControls(owner, { info, source, expanded, toggle: canExpand ? () => {
     expanded = !expanded;
-    drawCode();
+    if (!canCompact()) compact = false;
+    updateDisplay();
     const toggle = bar.querySelector<HTMLButtonElement>(".nebula-code-layout")!;
-    toggle.textContent = expanded ? "Su più righe" : "Compatta";
+    toggle.textContent = expanded ? "Compatta formula" : "Su più righe";
     toggle.title = expanded ? "Mostra formula compatta" : "Mostra formula su più righe";
     toggle.setAttribute("aria-pressed", String(expanded));
-  } : undefined });
+  } : undefined, compact: hasLongSource || breaks.length >= 10 ? { active: compact, toggle: () => {
+    compact = !compact;
+    setCodeCompact(pre, compact);
+    updateCompactButton(bar.querySelector<HTMLButtonElement>(".nebula-code-compact")!, compact);
+  } } : undefined });
   pre.replaceWith(wrap);
   wrap.append(bar, pre);
-  drawCode();
+  updateDisplay();
   return bar;
 }

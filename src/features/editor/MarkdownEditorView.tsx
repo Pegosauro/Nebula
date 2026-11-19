@@ -73,7 +73,7 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [notice, setNotice] = useState(""), [busy, setBusy] = useState(false);
   const [exportingPdf,setExportingPdf] = useState(false);
-  const exportPdf = async () => { if (!session || exportingPdf) return; setExportingPdf(true); try { const {exportPagePdf}=await import("./exportPagePdf"); const missing=await exportPagePdf(session.content,title,path); if(alive.current)setNotice(missing ? `Esportazione preparata: ${missing} immagini non disponibili sono segnalate nel documento. Scegli Salva come PDF nella finestra di stampa.` : "Scegli Salva come PDF nella finestra di stampa."); } catch(e) { if(alive.current)setNotice(e instanceof Error ? e.message : "Esportazione PDF non riuscita."); } finally { if(alive.current)setExportingPdf(false); } };
+  const exportPdf = async () => { if (!session || exportingPdf) return; setExportingPdf(true); try { const {exportPagePdf}=await import("./exportPagePdf"); const missing=await exportPagePdf(session.content,path); if(alive.current)setNotice(missing ? `Esportazione preparata: ${missing} immagini non disponibili sono segnalate nel documento. Scegli Salva come PDF nella finestra di stampa.` : "Scegli Salva come PDF nella finestra di stampa."); } catch(e) { if(alive.current)setNotice(e instanceof Error ? e.message : "Esportazione PDF non riuscita."); } finally { if(alive.current)setExportingPdf(false); } };
   const area = useRef<HTMLElement>(null), alive = useRef(true);
   const toggleLock = () => {
     if (busy) return;

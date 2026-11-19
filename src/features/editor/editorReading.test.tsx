@@ -223,7 +223,7 @@ it("exports current unsaved page content in both writing and locked reading with
   const updated="# Nota\n\nUltima modifica non salvata";
   await act(async()=>useDocumentStore.getState().updateContent("Nota.md",updated));
   await act(async()=>host!.querySelector<HTMLButtonElement>('[aria-label="Esporta pagina in PDF"]')!.click());
-  expect(exporter).toHaveBeenLastCalledWith(updated,"Nota","Nota.md");
+  expect(exporter).toHaveBeenLastCalledWith(updated,"Nota.md");
   await act(async()=>host!.querySelector<HTMLButtonElement>('[aria-label="Blocca pagina"]')!.click());
   await act(async()=>host!.querySelector<HTMLButtonElement>('[aria-label="Esporta pagina in PDF"]')!.click());
   expect(exporter).toHaveBeenCalledTimes(2);

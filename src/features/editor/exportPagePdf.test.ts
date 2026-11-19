@@ -7,8 +7,8 @@ describe("local page PDF export",()=>{
   it("renders the latest Markdown without frontmatter/internal markers or scripts and preserves merged tables",()=>{
     const table=serializeTable([["A","B"],["Uno","Due"]],[],{widths:[200,600],spans:[{row:1,column:0,rows:1,columns:2}]});
     const content=`---\ntags: [private]\n---\n# Titolo\n\n**Ultima modifica**\n\n${table}\n\n<script>alert(1)</script>\n<!-- nebula-quick-note:abc -->`;
-    const article=pagePdfContent(content,"Pagina <sicura>");
-    expect(article.querySelector(".page-title")?.textContent).toBe("Pagina <sicura>");
+    const article=pagePdfContent(content);
+    expect([...article.querySelectorAll("h1")].map(heading=>heading.textContent)).toEqual(["Titolo"]);
     expect(article.querySelector("strong")?.textContent).toBe("Ultima modifica");
     expect(article.querySelector("script")).toBeNull();expect(article.textContent).not.toContain("private");
     expect(article.querySelector('td[colspan="2"]')).not.toBeNull();
@@ -19,13 +19,16 @@ describe("local page PDF export",()=>{
   });
   it("opens the system printer on an isolated document and cleans up after cancellation/printing",async()=>{
     const original=document.title;
-    const promise=exportPagePdf("# Testo\n\nContenuto corrente","Prova PDF","Prova.md");
+    const code=Array.from({length:18},(_,index)=>`Riga ${index+1}`).join("\n");
+    const promise=exportPagePdf(`Contenuto corrente\n\n\`\`\`\n${code}\n\`\`\``,"Nome della nota.md");
     const frame=document.querySelector<HTMLIFrameElement>('iframe[title="Esportazione pagina PDF"]')!;
     const win=frame.contentWindow!;
     const print=vi.spyOn(win,"print").mockImplementation(()=>{});vi.spyOn(win,"focus").mockImplementation(()=>{});
     expect(await promise).toBe(0);expect(print).toHaveBeenCalledOnce();
     expect(frame.contentDocument!.body.textContent).toContain("Contenuto corrente");
-    expect(frame.contentDocument!.title).toBe("Prova PDF");expect(document.title).toBe(original);
+    expect(frame.contentDocument!.body.textContent).not.toContain("Nome della nota");
+    expect(frame.contentDocument!.querySelector("pre code")?.textContent?.trimEnd()).toBe(code);
+    expect(frame.contentDocument!.title).toBe("");expect(document.title).toBe(original);
     win.dispatchEvent(new Event("afterprint"));expect(frame.isConnected).toBe(false);
   });
 });

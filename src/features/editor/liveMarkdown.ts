@@ -1,5 +1,5 @@
 import { isInlineTextBlock, underlineSpans } from "./underlineMarkup";
-import { decorateCodeBlock, formulaLayouts } from "./liveCodeBlocks";
+import { compactCodeBlocks, decorateCodeBlock, expandCodeBeforeDeleting, formulaLayouts } from "./liveCodeBlocks";
 import { deleteAroundHiddenSyntax } from "./hiddenSyntaxEditing";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { analyzeMarkdown, type MarkdownAnalysis } from "./markdownAnalysis";
@@ -412,13 +412,15 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     update(update: ViewUpdate) {
       const headingMenuChanged = update.startState.field(headingLevelMenu, false) !== update.state.field(headingLevelMenu, false);
       const quoteMenuChanged = update.startState.field(quoteBlockMenu) !== update.state.field(quoteBlockMenu);
-      if (update.startState.field(formulaLayouts) !== update.state.field(formulaLayouts) || headingMenuChanged || quoteMenuChanged || update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+      const codeLayoutChanged = update.startState.field(formulaLayouts) !== update.state.field(formulaLayouts) || update.startState.field(compactCodeBlocks) !== update.state.field(compactCodeBlocks);
+      if (codeLayoutChanged || headingMenuChanged || quoteMenuChanged || update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
         this.decorations = build(update.view, sourcePath, update.state.field(tableField).analysis);
         this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
       }
     }
   }, { decorations: value => value.decorations, provide: plugin => EditorView.atomicRanges.of(view => view.plugin(plugin)?.syntax ?? Decoration.none) });
   const erase = (forward: boolean, word = false) => (view: EditorView) => {
+    if (expandCodeBeforeDeleting(view, forward)) return true;
     const plugin = view.plugin(inline);
     if (!forward && !word && !view.state.readOnly && !view.composing && view.state.selection.ranges.length === 1) {
       const { empty, head } = view.state.selection.main;
@@ -430,7 +432,7 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     }
     return deleteAroundHiddenSyntax(view, plugin?.syntax ?? Decoration.none, forward, word);
   };
-  return [tableField, formulaLayouts, highlightPalette, headingLevelMenu, quoteBlockMenu, separateTextBelowBlocks, inline, Prec.high(keymap.of([
+  return [tableField, formulaLayouts, compactCodeBlocks, highlightPalette, headingLevelMenu, quoteBlockMenu, separateTextBelowBlocks, inline, Prec.high(keymap.of([
     { key: "Enter", run(view) {
       if (view.composing) return false;
       const edit = exitQuotedBlock(view.state);

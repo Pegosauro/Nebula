@@ -115,6 +115,39 @@ describe("editor continuity", () => {
       vi.unstubAllGlobals();
     }
   });
+  it("compacts only long code blocks in writing and reading without changing the Markdown", async () => {
+    mountRoot();
+    const api = createRef<EditorApi>();
+    const code = Array.from({ length: 18 }, (_, index) => `Riga ${index + 1}`).join("\n");
+    const shortCode = code.split("\n").slice(0, 10).join("\n");
+    const original = `Prima\n\n\`\`\`text\n${code}\n\`\`\`\n\n\`\`\`text\n${shortCode}\n\`\`\`\n\nDopo`;
+    let content = original;
+    await act(async () => root!.render(<CodeMirrorEditor path="Compatto.md" value={content} visible source={false} apiRef={api}
+      onChange={value => { content = value; }} onSave={() => {}} onOpenLink={() => {}} suggestions={[]} onUiChange={() => {}} onPanel={() => {}} onImages={() => {}} />));
+
+    const controls = () => [...host!.querySelectorAll<HTMLButtonElement>(".nebula-code-compact:not([hidden])")];
+    const scrollable = () => host!.querySelector<HTMLPreElement>("pre.is-code-compact");
+    expect(controls()).toHaveLength(1);
+    await act(async () => controls()[0]!.click());
+    expect(scrollable()?.textContent).toBe(code);
+    expect(controls()[0]!.textContent).toBe("Espandi codice");
+    expect(content).toBe(original);
+
+    await act(async () => api.current!.replace(0, 0, "Nuovo testo. "));
+    expect(scrollable()?.textContent).toBe(code);
+    await act(async () => api.current!.select(content.indexOf("Riga 18")));
+    expect(scrollable()).toBeNull();
+    expect(controls()[0]!.textContent).toBe("Compatta a 10 righe");
+
+    await act(async () => root!.render(<MarkdownPreview sourcePath="Compatto.md" content={content} readOnly />));
+    expect(controls()).toHaveLength(1);
+    await act(async () => controls()[0]!.click());
+    expect(scrollable()?.textContent).toBe(code);
+    expect(controls()[0]!.disabled).toBe(false);
+    await act(async () => controls()[0]!.click());
+    expect(scrollable()).toBeNull();
+    expect(content).toBe(`Nuovo testo. ${original}`);
+  });
   it("routes formatting shortcuts and inserts a table from Excel clipboard", async () => {
     mountRoot(); const api = createRef<EditorApi>(); let content = "abc";
     await act(async () => root!.render(<CodeMirrorEditor path="B.md" value={content} visible source={false} onChange={value => { content = value; }} onSave={() => {}} onOpenLink={() => {}} suggestions={[]} apiRef={api} onUiChange={() => {}} onPanel={() => {}} onImages={() => {}} />));
