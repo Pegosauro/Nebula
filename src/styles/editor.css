@@ -294,7 +294,17 @@
 .live-bullet { color: var(--accent); font-weight: 700; }
 
 /* Scrivi is the document itself; source symbols appear only at the caret. */
-.live-code-line { background: var(--bg-panel); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; padding-inline: 14px !important; }
+.live-code-line { position: relative; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; padding-inline: 14px !important; }
+/* The line fill belongs below CodeMirror's selection layer. */
+.live-code-line::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -4;
+  pointer-events: none;
+  border-radius: inherit;
+  background: var(--bg-panel);
+}
 .live-callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding-inline: 16px !important; }
 .live-callout-warning, .live-callout-caution { border-left-color: #dca746; }
 .live-callout-label { color: var(--accent-hover); font-size: 14px; font-weight: 650; }
@@ -669,7 +679,12 @@
   font: .9em/1.55 ui-monospace, "Cascadia Code", Consolas, monospace;
   tab-size: 4;
 }
-.markdown-preview .nebula-code-block pre code { font: inherit; }
+.markdown-preview .nebula-code-block pre code {
+  font: inherit;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
 .nebula-code-keyword { color: light-dark(#6036b4, #c4a7fa); }
 .nebula-code-comment { color: light-dark(#526576, #a6b7c8); font-style: italic; }
 .nebula-code-string { color: light-dark(#a43525, #f5aa81); }
