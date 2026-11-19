@@ -116,7 +116,10 @@ export class InlineTable {
     document.addEventListener("pointerup", () => { this.drag = undefined; }, { signal });
     document.addEventListener("pointercancel", () => { this.drag = undefined; }, { signal });
     window.addEventListener("blur", () => { this.drag = undefined; }, { signal });
-    host.addEventListener("focusout", () => queueMicrotask(() => { if (!host.contains(document.activeElement) && !this.drag) { this.selected = false; this.paint(); } }), { signal });
+    host.addEventListener("focusout", event => {
+      if (event.relatedTarget instanceof Node && host.contains(event.relatedTarget)) return;
+      queueMicrotask(() => { if (!host.contains(document.activeElement) && !this.drag) { this.selected = false; this.paint(); } });
+    }, { signal });
     host.addEventListener("keydown", e => this.keydown(e), { signal });
     host.addEventListener("copy", e => {
       if (!this.selected || this.editing || !e.clipboardData || (e.target as Element).closest("input,textarea,select")) return;

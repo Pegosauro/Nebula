@@ -177,6 +177,7 @@
 .live-heading-icon path:first-child { stroke: light-dark(#d9d9d9, #626977); }
 .live-task, .markdown-preview input[type="checkbox"] { width: 17px; height: 17px; vertical-align: middle; accent-color: var(--accent); cursor: pointer; margin-right: 6px; }
 .floating-format-position { position: fixed; z-index: 90; }
+.editor-v2:has(.inline-table.is-active) .floating-format-position { display: none; }
 .selection-format-bar { display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--border-strong); border-radius: 9px; background: var(--bg-elevated); box-shadow: var(--shadow-float); }
 .editor-statusbar { flex: none; display: flex; align-items: center; gap: 18px; min-height: 30px; padding: 6px 16px; border-top: 1px solid var(--border); background: var(--bg-panel); font-size: 12px; color: var(--text-muted); flex-wrap: wrap; }
 .editor-statusbar > span { display: inline-flex; align-items: center; gap: 6px; }

@@ -247,7 +247,12 @@ describe("table editor interactions", () => {
       await act(async () => inlineButton(tool).click());
       const menu = host!.querySelector(".inline-table-color-menu")!;
       expect(menu.getAttribute("aria-label")).toBe(tool);
-      await act(async () => menu.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click());
+      const swatch = menu.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+      const pointer = new MouseEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 });
+      await act(async () => swatch.dispatchEvent(pointer));
+      expect(pointer.defaultPrevented).toBe(true);
+      expect(host!.querySelectorAll(".inline-table td.is-selected")).toHaveLength(4);
+      await act(async () => swatch.click());
       expect(host!.querySelector(".inline-table-color-menu")).toBeNull();
     };
     await choose("Colore del testo", "Blu scuro");

@@ -54,6 +54,10 @@ export function showTableColorMenu(
   owner.addEventListener("pointerdown", event => {
     if (!popup.contains(event.target as Node) && !button.contains(event.target as Node)) close();
   }, { capture: true, signal: events.signal });
+  popup.addEventListener("pointerdown", event => {
+    // Keep the grid selection until the button's click applies the color.
+    if (event.button === 0 && (event.target as Element).closest("button")) event.preventDefault();
+  }, { signal: events.signal });
   popup.addEventListener("keydown", event => {
     if (event.key !== "Escape") return;
     event.preventDefault();
