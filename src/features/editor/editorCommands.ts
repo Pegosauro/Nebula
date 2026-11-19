@@ -95,8 +95,17 @@ export function editorUiState(view: EditorView): EditorUiState {
   const { from, to, head } = view.state.selection.main;
   const line = view.state.doc.lineAt(head), selected = view.state.sliceDoc(from, to);
   const active: string[] = [];
+  const tree = syntaxTree(view.state);
+  if (selected) {
+    for (let node = tree.resolveInner(from, 1); node; node = node.parent!) {
+      if (to <= node.to && (node.name === "FencedCode" || node.name === "CodeBlock")) {
+        active.push("codeBlock");
+        break;
+      }
+    }
+  }
   const styles: Record<string, string> = { StrongEmphasis: "bold", Strikethrough: "strike", InlineCode: "inlineCode" };
-  for (let node = syntaxTree(view.state).resolveInner(head, -1); node; node = node.parent!) {
+  for (let node = tree.resolveInner(head, -1); node; node = node.parent!) {
     if (styles[node.name]) active.push(styles[node.name]!);
     if (node.name === "Emphasis" && from >= node.from && to <= node.to && (from !== to || (from > node.from && from < node.to))) active.push("italic");
   }

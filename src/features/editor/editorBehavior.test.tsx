@@ -68,6 +68,11 @@ describe("editor continuity", () => {
       const view = EditorView.findFromDOM(host!.querySelector<HTMLElement>(".cm-editor")!)!;
       await act(async () => { api.current!.select(content.length - macro.length, content.length); api.current!.format("codeBlock"); });
       expect(content).toContain("```\n" + macro + "\n```");
+      const codeStart = content.indexOf("Dim n");
+      await act(async () => api.current!.select(codeStart + 5, codeStart));
+      expect(editorUiState(view)).toMatchObject({ selected: "Dim n", active: expect.arrayContaining(["codeBlock"]) });
+      await act(async () => api.current!.select(0, codeStart));
+      expect(editorUiState(view).active).not.toContain("codeBlock");
       await act(async () => buttons()[0]!.click());
       expect(writeText).toHaveBeenLastCalledWith(macro);
 
