@@ -1,6 +1,9 @@
+import { findClusterBreak } from "@codemirror/state";
+import type { PaletteColor } from "../../domain/colorPalette";
+import { showTableColorMenu } from "./tableColorMenu";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { renderMarkdownSafe } from "../../infrastructure/markdown/renderMarkdown";
-import { cellSpan, cellText, changeTableStructure, columnWidth, containsCell, DEFAULT_COLUMN_WIDTH, formatTableCells, MAX_COLUMN_WIDTH, mergeTableLayout, MIN_COLUMN_WIDTH, selectionBounds, type TableCell, type TableLayout } from "../../infrastructure/markdown/tableLayout";
+import { cellFontStyles, cellSpan, cellText, changeTableStructure, columnWidth, containsCell, DEFAULT_COLUMN_WIDTH, formatTableCells, MAX_COLUMN_WIDTH, mergeTableLayout, MIN_COLUMN_WIDTH, selectionBounds, type CellColor, type CellFontStyle, type CellFormat, type TableCell, type TableLayout } from "../../infrastructure/markdown/tableLayout";
 import { parseTsv, serializeTable, serializeTsv, type MarkdownTable } from "./markdownTools";
 
 type Axis = "row" | "column";
@@ -18,6 +21,16 @@ const alignmentIcons: Record<string, string> = {
   left: "M4 5h16M4 10h10M4 15h16M4 20h10", center: "M4 5h16M7 10h10M4 15h16M7 20h10", right: "M4 5h16M10 10h10M4 15h16M10 20h10",
   top: "M4 4h16M8 8h8M8 12h8M8 16h8", middle: "M4 12h3M17 12h3M9 7h6M9 12h6M9 17h6", bottom: "M4 20h16M8 8h8M8 12h8M8 16h8",
 };
+const fontTools: Record<CellFontStyle, readonly [string, string]> = {
+  bold: ["Grassetto", "M6 4h8a4 4 0 0 1 0 8H6m0-8v16h9a4 4 0 0 0 0-8H6"],
+  italic: ["Corsivo", "M19 4H10m4 0-4 16m4 0H5"],
+  underline: ["Sottolineato", "M6 4v7a6 6 0 0 0 12 0V4M4 21h16"],
+  strike: ["Barrato", "M17 5H9a3.5 3.5 0 0 0-1.5 6.7m9 1.3a3.5 3.5 0 0 1-1.5 6.7H6M3 12h18"],
+};
+const colorTools = [
+  ["textColor", "Colore del testo", "M6 16 12 4l6 12m-9-4h6M4 21h16"],
+  ["backgroundColor", "Colore dello sfondo", "m8 3 10 10-6 6a2 2 0 0 1-3 0l-5-5a2 2 0 0 1 0-3l6-6m-6 8h14m2 3v4"],
+] as const;
 function icon(path: string) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("width", "16"); svg.setAttribute("height", "16"); svg.setAttribute("fill", "none"); svg.setAttribute("stroke", "currentColor"); svg.setAttribute("stroke-width", "1.7"); svg.setAttribute("stroke-linecap", "round"); svg.setAttribute("aria-hidden", "true");
@@ -38,6 +51,8 @@ export class InlineTable {
   private body = document.createElement("div");
   private status = document.createElement("span");
   private headerButton: HTMLButtonElement;
+  private colorMenu?: { key: CellColor; close: () => void };
+  private activeColors: Partial<Record<CellColor, PaletteColor>> = {};
   private buttons = new Map<string, HTMLButtonElement>();
   private tableElement!: HTMLTableElement;
   private frame!: HTMLDivElement;
@@ -61,12 +76,27 @@ export class InlineTable {
     const copy = this.tool("copy", "Copia celle", icon("M8 8h12v12H8zM16 8V4H4v12h4"), () => void this.copyCells());
     copy.title = "Copia celle per Excel (Ctrl/⌘ C)";
     copy.setAttribute("aria-keyshortcuts", "Control+C Meta+C");
+    const fontGroup = this.toolGroup("Formattazione del testo delle celle");
+    for (const style of cellFontStyles) {
+      const [label, path] = fontTools[style];
+      this.tool(style, label, icon(path), () => {
+        const pressed = this.buttons.get(style)!.getAttribute("aria-pressed") === "true";
+        this.applyFormat({ [style]: !pressed });
+      }, fontGroup);
+    }
+    const colorGroup = this.toolGroup("Colori delle celle");
+    for (const [key, label, path] of colorTools) {
+      const button = this.tool(key, label, icon(path), () => queueMicrotask(() => this.toggleColorMenu(key)), colorGroup);
+      button.classList.add("inline-table-color-tool");
+      button.setAttribute("aria-haspopup", "dialog");
+      button.setAttribute("aria-expanded", "false");
+    }
     for (const [axis, label, values] of [
       ["horizontal", "Allineamento orizzontale", [["left", "Allinea a sinistra"], ["center", "Allinea al centro"], ["right", "Allinea a destra"]]],
       ["vertical", "Allineamento verticale", [["top", "Allinea in alto"], ["middle", "Allinea a metà altezza"], ["bottom", "Allinea in basso"]]],
     ] as const) {
-      const group = document.createElement("div"); group.className = "inline-table-tool-group"; group.setAttribute("role", "group"); group.setAttribute("aria-label", label); this.toolbar.append(group);
-      for (const [value, name] of values) this.tool(`${axis}-${value}`, name, icon(alignmentIcons[value]!), () => this.write({ ...this.table, layout: formatTableCells(this.layout, this.bounds, { [axis]: value }) }), group);
+      const group = this.toolGroup(label);
+      for (const [value, name] of values) this.tool(`${axis}-${value}`, name, icon(alignmentIcons[value]!), () => this.applyFormat({ [axis]: value }), group);
     }
     this.tool("merge", "Unisci celle", "Unisci", () => {
       const bounds = this.bounds, layout = mergeTableLayout(this.layout, bounds); if (!layout) return;
@@ -105,9 +135,30 @@ export class InlineTable {
   private intersects(s: { row: number; column: number; rows: number; columns: number }) { const b = this.bounds; return s.row <= b.bottom && s.row + s.rows > b.top && s.column <= b.right && s.column + s.columns > b.left; }
   sync(table: MarkdownTable, raw: string) {
     const changed = raw !== this.raw; this.table = table; this.raw = raw;
-    if (changed) { this.editing = undefined; this.resizing = undefined; this.drag = undefined; this.clampSelection(); this.render(); }
+    if (changed) { this.colorMenu?.close(); this.editing = undefined; this.resizing = undefined; this.drag = undefined; this.clampSelection(); this.render(); }
   }
-  destroy() { this.events.abort(); this.observer?.disconnect(); cancelAnimationFrame(this.geometryFrame); this.options.dispose(); }
+  destroy() { this.colorMenu?.close(); this.events.abort(); this.observer?.disconnect(); cancelAnimationFrame(this.geometryFrame); this.options.dispose(); }
+  private toolGroup(label: string) {
+    const group = document.createElement("div");
+    group.className = "inline-table-tool-group";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", label);
+    this.toolbar.append(group);
+    return group;
+  }
+  private applyFormat(format: Omit<CellFormat, keyof TableCell>) {
+    this.write({ ...this.table, layout: formatTableCells(this.layout, this.bounds, format) });
+  }
+  private toggleColorMenu(key: CellColor) {
+    const current = this.colorMenu?.key;
+    this.colorMenu?.close();
+    if (current === key || !this.host.isConnected || !this.selected) return;
+    const close = showTableColorMenu(this.host, this.buttons.get(key)!, this.activeColors[key], color => {
+      this.applyFormat({ [key]: color });
+      this.focusCell();
+    }, () => { this.colorMenu = undefined; });
+    this.colorMenu = { key, close };
+  }
   private tool(id: string, label: string, content: string | SVGSVGElement, action: () => void, parent = this.toolbar) {
     const button = document.createElement("button"); button.type = "button"; button.append(content); button.title = label; button.setAttribute("aria-label", label);
     button.addEventListener("pointerdown", e => e.preventDefault());
@@ -155,16 +206,38 @@ export class InlineTable {
     const activated = this.selected && !this.host.classList.contains("is-active");
     this.host.classList.toggle("is-active", this.selected); this.host.classList.toggle("is-editing", !!this.editing);
     if (activated) this.scheduleGeometry();
+    if (!this.selected) this.colorMenu?.close();
     const bounds = this.bounds, rowCount = bounds.bottom - bounds.top + 1, columnCount = bounds.right - bounds.left + 1, count = rowCount * columnCount;
-    this.status.textContent = this.selected ? this.kind === "row" ? `${rowCount} ${rowCount === 1 ? "riga" : "righe"}` : this.kind === "column" ? `${columnCount} ${columnCount === 1 ? "colonna" : "colonne"}` : count > 1 ? `${count} celle` : `R${this.active.row + 1 - this.firstVisibleRow} · C${this.active.column + 1}` : "Doppio clic per scrivere";
+    this.status.textContent = this.selected ? this.kind === "row" ? `${rowCount} ${rowCount === 1 ? "riga" : "righe"}` : this.kind === "column" ? `${columnCount} ${columnCount === 1 ? "colonna" : "colonne"}` : count > 1 ? `${count} celle` : `R${this.active.row + 1 - this.firstVisibleRow} · C${this.active.column + 1}` : "Seleziona una cella e scrivi";
     const formats = new Map((this.layout.cells ?? []).map(cell => [`${cell.row}:${cell.column}`, cell]));
     const horizontal = new Set<string>(), vertical = new Set<string>(), activeElement = this.cellElement();
+    const fonts = new Map<CellFontStyle, number>();
+    const colors = { textColor: new Set<PaletteColor | undefined>(), backgroundColor: new Set<PaletteColor | undefined>() };
+    let selectedCells = 0;
     for (const cell of this.cells) {
       const r = Number(cell.dataset.row), c = Number(cell.dataset.column), active = cell === activeElement, selected = this.selected && containsCell(bounds, r, c);
       cell.classList.toggle("is-selected", selected); cell.classList.toggle("is-active", this.selected && active);
       cell.classList.toggle("is-delete-preview", this.selected && !!this.preview && (this.preview === "row" ? r >= bounds.top && r <= bounds.bottom : c >= bounds.left && c <= bounds.right));
       cell.setAttribute("aria-selected", String(selected)); cell.tabIndex = active ? 0 : -1;
-      if (selected) { const format = formats.get(`${r}:${c}`); horizontal.add(format?.horizontal ?? this.table.align[c] ?? "left"); vertical.add(format?.vertical ?? "top"); }
+      if (selected) {
+        selectedCells++;
+        const format = formats.get(`${r}:${c}`);
+        horizontal.add(format?.horizontal ?? this.table.align[c] ?? "left");
+        vertical.add(format?.vertical ?? "top");
+        for (const style of cellFontStyles) {
+          if (format?.[style] ?? (style === "bold" && r === 0)) fonts.set(style, (fonts.get(style) ?? 0) + 1);
+        }
+        for (const [key] of colorTools) colors[key].add(format?.[key]);
+      }
+    }
+    for (const style of cellFontStyles) {
+      const styled = fonts.get(style) ?? 0;
+      this.buttons.get(style)!.setAttribute("aria-pressed", styled === 0 ? "false" : styled === selectedCells ? "true" : "mixed");
+    }
+    for (const [key] of colorTools) {
+      const color = colors[key].size === 1 ? colors[key].values().next().value : undefined;
+      this.activeColors[key] = color;
+      this.buttons.get(key)!.style.setProperty("--cell-swatch", color ?? "transparent");
     }
     this.rowHandles.forEach((handle, index) => {
       const row = index + this.firstVisibleRow;
@@ -199,7 +272,7 @@ export class InlineTable {
       for (const cell of Array.from(row.cells)) {
         while (cellSpan(this.layout, r, column).row !== r || cellSpan(this.layout, r, column).column !== column) column++;
         const c = column; column += cell.colSpan; cell.dataset.row = String(r); cell.dataset.column = String(c); this.cells.push(cell);
-        cell.setAttribute("aria-description", "Trascina per selezionare · Doppio clic o Invio per scrivere · Shift+clic per estendere");
+        cell.setAttribute("aria-description", "Scrivi per sostituire · Invio o doppio clic per modificare · Shift+clic per estendere");
         cell.addEventListener("pointerdown", e => {
           if (e.button !== 0 || this.editing?.input.contains(e.target as Node) || (e.target as Element).closest("a,button,input")) return;
           const touchEdit = e.pointerType === "touch" && this.selected && this.first.row === r && this.first.column === c && this.active.row === r && this.active.column === c;
@@ -424,8 +497,13 @@ export class InlineTable {
       return;
     }
     if (e.key === "Enter" || e.key === "F2") { e.preventDefault(); e.stopPropagation(); this.startEdit(); }
-    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); e.stopPropagation(); this.startEdit(e.key); }
-    else if (["Delete", "Backspace"].includes(e.key)) { e.preventDefault(); e.stopPropagation(); this.clear(); }
+    else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); e.stopPropagation(); this.clear(); }
+    else if (this.selected && !e.metaKey && ((!e.ctrlKey && !e.altKey) || e.getModifierState("AltGraph"))) {
+      if (e.key === "Dead" || e.key === "Process") { this.startEdit(); return; }
+      if (e.key && findClusterBreak(e.key, 0) === e.key.length) {
+        e.preventDefault(); e.stopPropagation(); this.startEdit(e.key); return;
+      }
+    }
   }
   private moveTab(back: boolean) {
     const at = this.cells.indexOf(this.cellElement()!), next = this.cells[at + (back ? -1 : 1)];

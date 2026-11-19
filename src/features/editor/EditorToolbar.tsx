@@ -1,4 +1,4 @@
-import { Bold, Italic, Strikethrough, Highlighter, Code2, List, ListOrdered, ListTodo, Quote, Lightbulb, TriangleAlert, Minus, Image, Link2, Plus, Search, CircleHelp, Undo2, Redo2, Maximize2, Minimize2, Table2 } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, Highlighter, Code2, List, ListOrdered, ListTodo, Quote, Lightbulb, TriangleAlert, Minus, Image, Link2, Plus, Search, CircleHelp, Undo2, Redo2, Maximize2, Minimize2, Table2 } from "lucide-react";
 import type { EditorApi, EditorPanel, EditorUiState } from "./editorCommands";
 import type { FormatAction } from "./markdownTools";
 import { useSettingsStore } from "../settings/settingsStore";
@@ -10,6 +10,7 @@ import { CalendarTool } from "./CalendarTool";
 const formats: Array<{ action: FormatAction; label: string; icon: typeof Bold; shortcut?: string }> = [
   { action: "bold", label: "Grassetto", icon: Bold, shortcut: "Ctrl/⌘ B" },
   { action: "italic", label: "Corsivo", icon: Italic, shortcut: "Ctrl/⌘ I" },
+  { action: "underline", label: "Sottolineato", icon: Underline, shortcut: "Ctrl/⌘ U" },
   { action: "strike", label: "Barrato", icon: Strikethrough, shortcut: "Ctrl/⌘ Shift X" },
   { action: "highlight", label: "Evidenziatore", icon: Highlighter, shortcut: "Ctrl/⌘ Shift H" },
   { action: "inlineCode", label: "Codice in linea", icon: Code2 },
@@ -54,7 +55,7 @@ export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, 
         id: String(level), label: `Titolo H${level}`, icon: <HeadingIcon level={level} />,
         run: () => { setHeading(level); applyHeading(level); },
       }))} />}
-    <div className="editor-tools-group">{formats.slice(0, floating ? 4 : 5).map(({ action, label, icon: Icon, shortcut }) => <button type="button" key={action} aria-label={label} title={`${label}${shortcut ? ` (${shortcut})` : ""}`} aria-pressed={state?.active.includes(action) ?? false} onClick={() => api?.format(action)}><Icon size={17} /></button>)}</div>
+    <div className="editor-tools-group">{formats.filter(({ action }) => !floating || action !== "inlineCode").map(({ action, label, icon: Icon, shortcut }) => <button type="button" key={action} aria-label={label} title={`${label}${shortcut ? ` (${shortcut})` : ""}`} aria-pressed={state?.active.includes(action) ?? false} onClick={() => api?.format(action)}><Icon size={17} /></button>)}</div>
     {!floating && <div className="editor-tools-group">
       <ToolbarMenu label="Elenchi, citazioni e avvisi" icon={<List size={19} aria-hidden="true" />}
         items={blocks.map(({ command, Icon }) => ({

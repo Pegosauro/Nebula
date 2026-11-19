@@ -141,6 +141,29 @@ describe("editor continuity", () => {
 });
 
 describe("Markdown editing operations", () => {
+  it("applies and removes underlining across a heading and a paragraph while preserving Markdown structure", () => {
+    const original = "# Titolo\n\nSecondo **paragrafo**";
+    const format = formatEdit(original, 0, original.length, "underline");
+    expect(format.insert).toBe("# <u>Titolo</u>\n\n<u>Secondo **paragrafo**</u>");
+    const clear = formatEdit(format.insert, format.anchor, format.head, "underline");
+    expect(format.insert.slice(0, clear.from) + clear.insert + format.insert.slice(clear.to)).toBe(original);
+    expect(renderMarkdownSafe(format.insert)).toContain("<u>Secondo <strong>paragrafo</strong></u>");
+  });
+  it("previews underlined text and never hides literal tags inside code", async () => {
+    mountRoot();
+    const api = createRef<EditorApi>();
+    const source = "Prima <u>Seconda</u> e `<u>codice</u>`";
+    await act(async () => root!.render(<CodeMirrorEditor path="Underline.md" value={source} visible source={false} apiRef={api}
+      onChange={() => {}} onSave={() => {}} onOpenLink={() => {}} suggestions={[]} onUiChange={() => {}} onPanel={() => {}} onImages={() => {}} />));
+    const view = EditorView.findFromDOM(host!.querySelector<HTMLElement>(".cm-editor")!)!;
+    const start = source.indexOf("Seconda");
+    await act(async () => api.current!.select(start, start + 7));
+    expect(editorUiState(view).active).toContain("underline");
+    expect(host!.querySelector(".live-underline")?.textContent).toBe("Seconda");
+    expect(host!.querySelector(".live-code")?.textContent).toBe("<u>codice</u>");
+    await act(async () => api.current!.format("underline"));
+    expect(view.state.doc.toString()).toBe("Prima Seconda e `<u>codice</u>`");
+  });
   it.each([
     ["ciao ", 0, 5, "*ciao* "],
     [" ciao ", 0, 6, " *ciao* "],

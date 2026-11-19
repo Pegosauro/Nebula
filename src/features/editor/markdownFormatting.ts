@@ -1,3 +1,4 @@
+import { underlineEdit } from "./underlineMarkup";
 import { markdownLanguage } from "@codemirror/lang-markdown";
 import type { FormatAction, TextEdit } from "./markdownTools";
 import { defaultHighlightColor, findHighlights } from "../../domain/markdownHighlight";
@@ -5,6 +6,7 @@ import { defaultHighlightColor, findHighlights } from "../../domain/markdownHigh
 const wrappers: Partial<Record<FormatAction, string>> = { bold: "**", italic: "*", strike: "~~", inlineCode: "`" };
 
 export function formatEdit(doc: string, from: number, to: number, action: FormatAction, toggle = true): TextEdit {
+  if (action === "underline") return underlineEdit(doc, from, to);
   if (action === "italic") return italicEdit(doc, from, to);
   if (action === "highlight") return highlightEdit(doc, from, to);
   let marker = wrappers[action];

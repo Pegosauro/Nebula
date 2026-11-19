@@ -88,7 +88,13 @@ describe("table layouts persisted in Markdown", () => {
     expect(markdownTables(serializeTable(rows, [], formatted))[0]!.layout).toEqual(formatted);
     expect(changeTableStructure(changeTableStructure(formatted, "column", 1, false), "column", 1, true)).toEqual(formatted);
     expect(changeTableStructure(formatted, "row", 1, true).cells).toEqual([{ row: 1, column: 0, horizontal: "right", vertical: "middle" }, { row: 1, column: 1, horizontal: "right", vertical: "middle" }]);
-    for (const cells of [[{ row: 9, column: 0, horizontal: "left" }], [{ row: 1, column: 0, vertical: "url(javascript:x)" }], [{ row: 1, column: 0, horizontal: "center" }, { row: 1, column: 0, horizontal: "right" }]]) expect(validateTableLayout({ spans: [], cells }, 3, 3)).toBeUndefined();
+    for (const cells of [
+      [{ row: 9, column: 0, horizontal: "left" }],
+      [{ row: 1, column: 0, vertical: "url(javascript:x)" }],
+      [{ row: 1, column: 0, textColor: "red; background: url(remote)" }],
+      [{ row: 1, column: 0, bold: "yes" }],
+      [{ row: 1, column: 0, horizontal: "center" }, { row: 1, column: 0, horizontal: "right" }],
+    ]) expect(validateTableLayout({ spans: [], cells }, 3, 3)).toBeUndefined();
   });
   it("renders safe merged content and exact widths without affecting raw HTML tables", () => {
     const html = renderMarkdownSafe('<table data-nebula-table="0"><tr><td>HTML</td></tr></table>\n\n' + serializeTable(rows, [], layout) + '\n\n' + serializeTable([["X", "Y"], ['<img src="x" onerror="alert(1)">', "Z"]], [], { spans: [{ row: 1, column: 0, rows: 1, columns: 2 }] }));
@@ -229,6 +235,59 @@ describe("table editor interactions", () => {
   it("retains quoted tabs and the last blank row when serializing a spreadsheet selection", () => {
     const values = [['Valore\tcon "tab"'], [""]];
     expect(parseTsv(serializeTsv(values))).toEqual(values);
+  });
+  it("applies styles and palette colors to a rectangular selection and persists them in reading mode", async () => {
+    const { content, api } = await live();
+    await pick(1, 0); await pick(2, 1, true);
+    for (const label of ["Grassetto", "Corsivo", "Sottolineato", "Barrato"]) {
+      await act(async () => inlineButton(label).click());
+      expect(inlineButton(label).getAttribute("aria-pressed")).toBe("true");
+    }
+    const choose = async (tool: string, label: string) => {
+      await act(async () => inlineButton(tool).click());
+      const menu = host!.querySelector(".inline-table-color-menu")!;
+      expect(menu.getAttribute("aria-label")).toBe(tool);
+      await act(async () => menu.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click());
+      expect(host!.querySelector(".inline-table-color-menu")).toBeNull();
+    };
+    await choose("Colore del testo", "Blu scuro");
+    await choose("Colore dello sfondo", "Verde chiaro");
+    expect(markdownTables(content())[0]!.rows).toEqual(rows);
+    expect(markdownTables(content())[0]!.layout?.cells).toHaveLength(4);
+    expect(markdownTables(content())[0]!.layout?.cells?.[0]).toEqual({
+      row: 1, column: 0, bold: true, italic: true, underline: true, strike: true, textColor: "#1e3a8a", backgroundColor: "#bbf7d0",
+    });
+    expect(inlineCell(1, 0).style.backgroundColor).toBe("rgb(187, 247, 208)");
+    expect(inlineCell(1, 2).style.backgroundColor).toBe("");
+
+    await act(async () => inlineButton("Colore del testo").click());
+    await act(async () => button("Ripristina colore").click());
+    expect(markdownTables(content())[0]!.layout?.cells?.[0]?.textColor).toBeUndefined();
+    await act(async () => api.current!.undo());
+    expect(markdownTables(content())[0]!.layout?.cells?.[0]?.textColor).toBe("#1e3a8a");
+    await act(async () => root!.render(<MarkdownPreview sourcePath="Inline.md" content={content()} readOnly />));
+    const cell = host!.querySelector<HTMLTableCellElement>("table tbody td")!;
+    expect(cell.style.fontWeight).toBe("700");
+    expect(cell.style.fontStyle).toBe("italic");
+    expect(cell.style.textDecorationLine).toBe("underline line-through");
+    expect(cell.style.color).toBe("rgb(30, 58, 138)");
+    expect(cell.style.backgroundColor).toBe("rgb(187, 247, 208)");
+  });
+  it("overwrites the active cell on the first printable key while preserving its formatting and undo", async () => {
+    const { content, api } = await live(serializeTable(rows, [], { spans: [], cells: [{ row: 1, column: 1, bold: true, backgroundColor: "#bbf7d0" }] }));
+    await pick(1, 0); await pick(1, 1, true);
+    await key(inlineCell(1, 1), "🛠️", { cancelable: true });
+    expect(host!.querySelector<HTMLTextAreaElement>(".inline-table-input")!.value).toBe("🛠️");
+    expect(markdownTables(content())[0]!.rows[1]).toEqual(["Uno", "🛠️", "Tre"]);
+
+    const input = await edit("🛠️ Nuovo"); await key(input, "Enter");
+    expect(markdownTables(content())[0]!.rows[1]![1]).toBe("🛠️ Nuovo");
+    expect(inlineCell(1, 1).style.fontWeight).toBe("700");
+    expect(inlineCell(1, 1).style.backgroundColor).toBe("rgb(187, 247, 208)");
+    await act(async () => api.current!.undo());
+    expect(markdownTables(content())[0]!.rows[1]![1]).toBe("🛠️");
+    await act(async () => api.current!.undo());
+    expect(markdownTables(content())[0]!.rows[1]![1]).toBe("*Due*");
   });
   it("selects rectangular cells by dragging, preserves text selection when editing, and clears only selected contents", async () => {
     const { content, api } = await live(); const before = content();

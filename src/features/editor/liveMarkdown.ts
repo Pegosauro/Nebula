@@ -1,3 +1,4 @@
+import { isInlineTextBlock, underlineSpans } from "./underlineMarkup";
 import { decorateCodeBlock, formulaLayouts } from "./liveCodeBlocks";
 import { deleteAroundHiddenSyntax } from "./hiddenSyntaxEditing";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
@@ -186,6 +187,7 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
   const quoteMarks = new Set<number>();
   const visitedQuotes = new Set<number>();
   const visitedCode = new Set<number>();
+  const visitedTextBlocks = new Set<number>();
   const hide = (from: number, to: number, owner?: { from: number; to: number }) => { if (to > from) decorations.push(Decoration.replace({ nebulaSyntax: true, nebulaOwner: owner && { from: owner.from, to: owner.to } }).range(from, to)); };
   const addMark = (from: number, to: number, className: string, attributes?: Record<string, string>) => { if (to > from) decorations.push(Decoration.mark({ class: className, attributes }).range(from, to)); };
   const tree = syntaxTree(view.state);
@@ -207,6 +209,16 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
           decorateCodeBlock(view, node.node, decorations, active, hide);
         }
         return false;
+      }
+      if (isInlineTextBlock(name) && !visitedTextBlocks.has(node.from)) {
+        visitedTextBlocks.add(node.from);
+        for (const span of underlineSpans(tree, (start, end) => view.state.sliceDoc(start, end), node.from, node.to)) {
+          addMark(span.contentFrom, span.contentTo, "live-underline");
+          if (!active(span.from, span.to)) {
+            hide(span.from, span.contentFrom, span);
+            hide(span.contentTo, span.to, span);
+          }
+        }
       }
       if (name === "StrongEmphasis") addMark(node.from, node.to, "live-strong");
       if (name === "Emphasis") addMark(node.from, node.to, "live-emphasis");

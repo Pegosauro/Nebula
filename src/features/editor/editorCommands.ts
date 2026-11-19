@@ -1,3 +1,4 @@
+import { hasUnderline } from "./underlineMarkup";
 import { syntaxTree } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { redo, undo, redoDepth, undoDepth, isolateHistory } from "@codemirror/commands";
@@ -96,6 +97,7 @@ export function editorUiState(view: EditorView): EditorUiState {
   const line = view.state.doc.lineAt(head), selected = view.state.sliceDoc(from, to);
   const active: string[] = [];
   const tree = syntaxTree(view.state);
+  if (hasUnderline(tree, (start, end) => view.state.sliceDoc(start, end), from, to)) active.push("underline");
   if (selected) {
     for (let node = tree.resolveInner(from, 1); node; node = node.parent!) {
       if (to <= node.to && (node.name === "FencedCode" || node.name === "CodeBlock")) {

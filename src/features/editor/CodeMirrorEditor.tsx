@@ -138,7 +138,7 @@ export default function CodeMirrorEditor(props: Props) {
       keymap.of([
         { key: "Mod-Enter", run: editor => openAt(editor, editor.state.selection.main.head) },
         { key: "Mod-s", run: () => { current.current.onSave(); return true; } },
-        { key: "Mod-b", run: format("bold") }, { key: "Mod-i", run: format("italic") }, { key: "Mod-Shift-x", run: format("strike") },
+        { key: "Mod-b", run: format("bold") }, { key: "Mod-i", run: format("italic") }, { key: "Mod-u", run: format("underline") }, { key: "Mod-Shift-x", run: format("strike") },
         { key: "Mod-Shift-h", run: format("highlight") }, { key: "Mod-Shift-c", run: format("inlineCode") },
         { key: "Mod-k", run: panel("link") }, { key: "Mod-f", run: panel("search") }, { key: "Mod-h", run: panel("search") },
         { key: "Mod-Shift-p", run: panel("insert") }, { key: "F1", run: panel("help") },

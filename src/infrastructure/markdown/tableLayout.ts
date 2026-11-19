@@ -1,8 +1,22 @@
+import { isPaletteColor, type PaletteColor } from "../../domain/colorPalette";
+
 export interface TableCell { row: number; column: number }
 export interface CellSpan extends TableCell { rows: number; columns: number }
 export type HorizontalAlignment = "left" | "center" | "right";
 export type VerticalAlignment = "top" | "middle" | "bottom";
-export interface CellFormat extends TableCell { horizontal?: HorizontalAlignment; vertical?: VerticalAlignment }
+export const cellFontStyles = ["bold", "italic", "underline", "strike"] as const;
+export type CellFontStyle = typeof cellFontStyles[number];
+export type CellColor = "textColor" | "backgroundColor";
+export interface CellFormat extends TableCell {
+  horizontal?: HorizontalAlignment;
+  vertical?: VerticalAlignment;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  textColor?: PaletteColor;
+  backgroundColor?: PaletteColor;
+}
 export interface TableLayout { spans: CellSpan[]; widths?: number[]; cells?: CellFormat[]; headerHidden?: boolean }
 export interface CellBounds { top: number; bottom: number; left: number; right: number }
 export const MIN_COLUMN_WIDTH = 80, MAX_COLUMN_WIDTH = 1200, DEFAULT_COLUMN_WIDTH = 160;
@@ -40,9 +54,22 @@ export function validateTableLayout(value: unknown, rowCount: number, columnCoun
       const cell = value as CellFormat, key = `${cell.row}:${cell.column}`;
       if (!Number.isInteger(cell.row) || !Number.isInteger(cell.column) || cell.row < 0 || cell.row >= rowCount || cell.column < 0 || cell.column >= columnCount || formatted.has(key)) return;
       if (cell.horizontal !== undefined && !["left", "center", "right"].includes(cell.horizontal) || cell.vertical !== undefined && !["top", "middle", "bottom"].includes(cell.vertical)) return;
-      if (cell.horizontal === undefined && cell.vertical === undefined) return;
-      cells.push({ row: cell.row, column: cell.column, ...(cell.horizontal ? { horizontal: cell.horizontal } : {}), ...(cell.vertical ? { vertical: cell.vertical } : {}) });
       formatted.add(key);
+      const format: CellFormat = { row: cell.row, column: cell.column };
+      if (cell.horizontal) format.horizontal = cell.horizontal;
+      if (cell.vertical) format.vertical = cell.vertical;
+      for (const style of cellFontStyles) {
+        if (cell[style] === undefined) continue;
+        if (typeof cell[style] !== "boolean") return;
+        if (cell[style] || (style === "bold" && cell.row === 0)) format[style] = cell[style];
+      }
+      for (const color of ["textColor", "backgroundColor"] as const) {
+        const value = cell[color];
+        if (value === undefined) continue;
+        if (typeof value !== "string" || !isPaletteColor(value)) return;
+        format[color] = value;
+      }
+      if (Object.keys(format).length > 2) cells.push(format);
     }
   }
   return { spans, ...(widths ? { widths } : {}), ...(cells.length ? { cells } : {}), ...(input.headerHidden ? { headerHidden: true } : {}) };
@@ -85,7 +112,7 @@ export function selectionBounds(layout: TableLayout, first: TableCell, last: Tab
   } while (expanded);
   return bounds;
 }
-export function formatTableCells(layout: TableLayout, bounds: CellBounds, format: Pick<CellFormat, "horizontal" | "vertical">): TableLayout {
+export function formatTableCells(layout: TableLayout, bounds: CellBounds, format: Omit<CellFormat, keyof TableCell>): TableLayout {
   const cells = new Map((layout.cells ?? []).map(cell => [`${cell.row}:${cell.column}`, cell]));
   for (let row = bounds.top; row <= bounds.bottom; row++) for (let column = bounds.left; column <= bounds.right; column++) {
     const key = `${row}:${column}`; cells.set(key, { row, column, ...cells.get(key), ...format });

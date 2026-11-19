@@ -1,3 +1,4 @@
+import { textOnColor } from "../../domain/colorPalette";
 import { type TableLayout } from "./tableLayout";
 
 /** Operates only on already sanitized table content and validated layout. */
@@ -7,6 +8,18 @@ export function applyTableLayout(table: HTMLTableElement, layout: TableLayout) {
     const cell = cells[format.row]?.[format.column]; if (!cell) continue;
     if (format.horizontal) cell.style.textAlign = format.horizontal;
     if (format.vertical) cell.style.verticalAlign = format.vertical;
+    if (format.bold !== undefined) cell.style.fontWeight = format.bold ? "700" : "400";
+    if (format.italic) {
+      cell.style.fontStyle = "italic";
+      cell.style.setProperty("font-synthesis", "style");
+    }
+    const decorations = [format.underline ? "underline" : "", format.strike ? "line-through" : ""].filter(Boolean);
+    if (decorations.length) cell.style.textDecorationLine = decorations.join(" ");
+    if (format.backgroundColor) {
+      cell.style.backgroundColor = format.backgroundColor;
+      cell.style.color = textOnColor(format.backgroundColor);
+    }
+    if (format.textColor) cell.style.color = format.textColor;
   }
   for (const span of layout.spans) {
     const anchor = cells[span.row]?.[span.column]; if (!anchor) continue;
