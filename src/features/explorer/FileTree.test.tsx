@@ -74,8 +74,10 @@ it("keeps nested expansion and scroll across refresh, remount and Vault changes"
   const render = async (vaultId: string, revision = 1) => act(async () => root.render(<FileTree entries={structuredClone(tree)} vaultId={vaultId} vaultRevision={revision} onAction={() => {}} />));
   const folder = (name: string) => [...host!.querySelectorAll<HTMLButtonElement>(".tree-row-main")].find(button => button.textContent?.startsWith(name))!;
   await render("vault-one");
+  expect(host.querySelector(".is-click-expansion")).toBeNull();
   await act(async () => folder("Sub").click());
   expect(folder("Sub").getAttribute("aria-expanded")).toBe("true");
+  expect(host.querySelector(".is-click-expansion")?.textContent).toBe("Nota");
   await act(async () => folder("Progetti").click());
   await render("vault-one", 2);
   expect(folder("Progetti").getAttribute("aria-expanded")).toBe("false");
@@ -85,8 +87,10 @@ it("keeps nested expansion and scroll across refresh, remount and Vault changes"
   await render("vault-one", 3);
   expect(host.scrollTop).toBe(220);
   expect(folder("Progetti").getAttribute("aria-expanded")).toBe("false");
+  expect(host.querySelector(".is-click-expansion")).toBeNull();
   await act(async () => folder("Progetti").click());
   expect(folder("Sub").getAttribute("aria-expanded")).toBe("true");
+  expect(host.querySelectorAll(".is-click-expansion")).toHaveLength(1);
   await render("vault-two");
   expect(folder("Progetti").getAttribute("aria-expanded")).toBe("true");
   expect(folder("Sub").getAttribute("aria-expanded")).toBe("false");

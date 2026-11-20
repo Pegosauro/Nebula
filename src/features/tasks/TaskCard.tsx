@@ -1,6 +1,7 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import { CalendarDays, Check, GripVertical, Link2, ListChecks, MessageSquare, MoreHorizontal, Pin } from "lucide-react";
 import { taskQuadrant, type Quadrant, type Task } from "./taskModel";
+import { animateChecklistToggle } from "../../components/ui/checklistMotion";
 
 export const quadrantLabels: Record<Quadrant, string> = {
   do: "Fai subito", plan: "Pianifica", quick: "Gestisci rapidamente", later: "Rimanda",
@@ -45,7 +46,10 @@ export function TaskCard({ task, group, color, today, tomorrow, matrix, selected
       dragStart.current = null;
       onEndDrag();
     }}><GripVertical size={15} /></span>}
-    <button className="task-check" type="button" role="checkbox" aria-checked={task.done} aria-label={`Completata: ${task.title}`} onClick={onToggle}>
+    <button className="task-check" type="button" role="checkbox" aria-checked={task.done} aria-label={`Completata: ${task.title}`} onClick={event => {
+      onToggle();
+      animateChecklistToggle(event.currentTarget, !task.done);
+    }}>
       {task.done && <Check size={16} strokeWidth={2.7} />}
     </button>
     <div className="task-card-content">

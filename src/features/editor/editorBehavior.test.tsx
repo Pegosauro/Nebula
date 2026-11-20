@@ -472,9 +472,27 @@ describe("unified writing surface", () => {
   it("updates a checkbox in the live document and restores it with undo", async () => {
     const content = "Attività\n\n- [ ] Fare";
     const { api, view } = await editor(content);
-    await act(async () => host!.querySelector<HTMLInputElement>(".live-task")!.click());
-    expect(view.state.doc.toString()).toContain("[x] Fare");
-    await act(async () => api.current!.undo()); expect(view.state.doc.toString()).toBe(content);
+    const checkbox = host!.querySelector<HTMLInputElement>(".live-task")!;
+    const cancel = vi.fn();
+    const animate = vi.fn(() => ({ cancel } as unknown as Animation));
+    const motionPreference = { matches: false };
+    checkbox.animate = animate;
+    vi.stubGlobal("matchMedia", vi.fn(() => motionPreference));
+    try {
+      await act(async () => checkbox.click());
+      expect(view.state.doc.toString()).toContain("[x] Fare");
+      expect(host!.querySelector(".live-task")).toBe(checkbox);
+      expect(animate).toHaveBeenCalledOnce();
+
+      motionPreference.matches = true;
+      await act(async () => api.current!.undo());
+      expect(view.state.doc.toString()).toBe(content);
+      expect(checkbox.checked).toBe(false);
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(animate).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

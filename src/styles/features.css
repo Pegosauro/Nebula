@@ -117,6 +117,8 @@
 .tree-row.is-selected { background: var(--accent-soft); color: var(--text-primary); }
 .tree-row.is-selected .tree-icon { color: var(--accent); }
 .tree-chevron { display: grid; place-items: center; color: var(--text-muted); }
+.tree-chevron svg { transition: transform 140ms ease-out; }
+.tree-row-main[aria-expanded="true"] .tree-chevron svg { transform: rotate(90deg); }
 .tree-icon { display: grid; place-items: center; color: var(--text-muted); }
 .tree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tree-count { color: var(--text-muted); font-size: 10px; }
@@ -642,14 +644,17 @@
   animation: nebula-drag-lift 140ms ease-out both;
 }
 .file-tree .is-drag-expansion { animation: tree-branch-open 180ms ease-out both; }
+.file-tree .is-click-expansion { animation: tree-branch-reveal 140ms ease-out; }
+@keyframes tree-branch-reveal { from { opacity: .55; } to { opacity: 1; } }
 @keyframes tree-branch-open { from { opacity: .35; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes tree-item-land {
   from { transform: translateY(-4px) scale(.985); background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent-soft); }
   to { transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tree-row, .tree-root-drop { transition: none; }
-  .tree-row.is-drop-landed, .tree-root-drop, .file-tree .is-drag-expansion { animation: none; }
+  .tree-row, .tree-root-drop, .tree-chevron svg { transition: none; }
+  .tree-row.is-drop-landed, .tree-root-drop, .file-tree .is-drag-expansion,
+  .file-tree .is-click-expansion { animation: none; }
 }
 
 .app-shell:has(> .vault-backup-banner) {

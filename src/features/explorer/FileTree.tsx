@@ -2,7 +2,6 @@ import { configTitle, isConfiguratorPath } from "../configurator/model";
 import { isTreePath, treeTitle } from "../trees/model";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-  ChevronDown,
   ChevronRight,
   File,
   FileText,
@@ -56,6 +55,7 @@ interface TreeNodeProps {
   entry: VaultEntry;
   depth: number;
   expanded: Set<string>;
+  openedByClick?: string;
   toggle: (path: string) => void;
   menuPath?: string;
   setMenuPath: (path?: string) => void;
@@ -64,11 +64,13 @@ interface TreeNodeProps {
   duplicating?: boolean;
 }
 
-function TreeNode({ entry, depth, expanded, toggle, menuPath, setMenuPath, onAction, duplicating, drag }: TreeNodeProps) {
+function TreeNode({ entry, depth, expanded, openedByClick, toggle, menuPath, setMenuPath, onAction, duplicating, drag }: TreeNodeProps) {
   const selectedEntry = useWorkspaceStore((state) => state.selectedEntry);
   const openEntry = useWorkspaceStore((state) => state.openEntry);
   const selectEntry = useWorkspaceStore((state) => state.selectEntry);
   const isDirectory = entry.type === "directory";
+  const children = isDirectory && entry.children ? visibleEntries(entry.children) : undefined;
+  const childCount = children?.length ?? 0;
   const isExpanded = isDirectory && expanded.has(entry.path);
   const isSelected = selectedEntry?.path === entry.path;
   const isSource = drag.feedback?.source === entry.path;
@@ -97,11 +99,11 @@ function TreeNode({ entry, depth, expanded, toggle, menuPath, setMenuPath, onAct
           aria-expanded={isDirectory ? isExpanded : undefined}
         >
           <span className="tree-chevron" aria-hidden="true">
-            {isDirectory ? isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
+            {isDirectory && <ChevronRight size={14} />}
           </span>
           <span className="tree-icon" aria-hidden="true"><EntryIcon entry={entry} expanded={isExpanded} /></span>
           <span className="tree-name">{displayName}</span>
-          {isDirectory && visibleEntries(entry.children ?? []).length ? <span className="tree-count">{visibleEntries(entry.children ?? []).length}</span> : null}
+          {childCount > 0 && <span className="tree-count">{childCount}</span>}
         </button>
         <button
           type="button"
@@ -129,13 +131,13 @@ function TreeNode({ entry, depth, expanded, toggle, menuPath, setMenuPath, onAct
           <button className="is-danger" type="button" role="menuitem" onClick={() => { setMenuPath(undefined); onAction({ type: "delete", entry }); }}><Trash2 size={15} />Elimina</button>
         </div>
       ) : null}
-      {isDirectory && isExpanded && entry.children?.length ? (
-        <ul className={drag.feedback?.expandedOnHover === entry.path ? "is-drag-expansion" : undefined}>
-          {visibleEntries(entry.children).map((child) => (
-            <TreeNode key={child.id} entry={child} depth={depth + 1} expanded={expanded} toggle={toggle} menuPath={menuPath} setMenuPath={setMenuPath} onAction={onAction} duplicating={duplicating} drag={drag} />
+      {isExpanded && children && childCount > 0 && (
+        <ul className={drag.feedback?.expandedOnHover === entry.path ? "is-drag-expansion" : openedByClick === entry.path ? "is-click-expansion" : undefined}>
+          {children.map((child) => (
+            <TreeNode key={child.id} entry={child} depth={depth + 1} expanded={expanded} openedByClick={openedByClick} toggle={toggle} menuPath={menuPath} setMenuPath={setMenuPath} onAction={onAction} duplicating={duplicating} drag={drag} />
           ))}
         </ul>
-      ) : null}
+      )}
     </li>
   );
 }
@@ -149,7 +151,9 @@ function VaultFileTree({ entries, vaultId, onAction, onMove, duplicating }: File
     expanded: entries.filter(entry => entry.type === "directory").map(entry => entry.path), scrollTop: 0,
   });
   const memory = useRef(initial), tree = useRef<HTMLUListElement>(null);
-  const [expanded, setExpanded] = useState(() => new Set(initial.expanded));
+  const [{ expanded, openedByClick }, setExpansion] = useState<{ expanded: Set<string>; openedByClick?: string }>(() => ({
+    expanded: new Set(initial.expanded),
+  }));
   const [menuPath, setMenuPath] = useState<string>();
 
   useLayoutEffect(() => {
@@ -174,16 +178,15 @@ function VaultFileTree({ entries, vaultId, onAction, onMove, duplicating }: File
     return () => window.removeEventListener("click", closeMenu);
   }, []);
 
-  const updateExpansion = (next: Set<string>) => {
+  const updateExpansion = (next: Set<string>, openedByClick?: string) => {
     memory.current = { ...memory.current, expanded: [...next] };
     saveExplorerState(vaultId, memory.current);
-    setExpanded(next);
+    setExpansion({ expanded: next, openedByClick });
   };
   const toggle = (path: string) => {
     const next = new Set(memory.current.expanded);
-    if (next.has(path)) next.delete(path);
-    else next.add(path);
-    updateExpansion(next);
+    if (next.delete(path)) updateExpansion(next);
+    else updateExpansion(next.add(path), path);
   };
   const expand = (path: string) => {
     const next = new Set(memory.current.expanded);
@@ -203,7 +206,7 @@ function VaultFileTree({ entries, vaultId, onAction, onMove, duplicating }: File
   return (
     <ul ref={tree} className={`file-tree${drag.feedback ? " is-dragging" : ""}`} aria-label="Contenuto del Vault">
       {visibleEntries(entries).map((entry) => (
-        <TreeNode key={entry.id} entry={entry} depth={0} expanded={expanded} toggle={toggle} menuPath={menuPath} setMenuPath={setMenuPath} onAction={onAction} duplicating={duplicating} drag={drag} />
+        <TreeNode key={entry.id} entry={entry} depth={0} expanded={expanded} openedByClick={openedByClick} toggle={toggle} menuPath={menuPath} setMenuPath={setMenuPath} onAction={onAction} duplicating={duplicating} drag={drag} />
       ))}
       {drag.feedback && dirname(drag.feedback.source) && <li aria-hidden="true" data-tree-destination=""
         className={`tree-root-drop${drag.feedback.target?.path === "" && drag.feedback.target.allowed ? " is-drop-target" : ""}`}>Sposta nella radice</li>}

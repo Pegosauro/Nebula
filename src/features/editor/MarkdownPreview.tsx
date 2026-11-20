@@ -11,12 +11,13 @@ import { useKnowledgeNavigationStore } from "../knowledge/knowledgeNavigationSto
 import { vaultService } from "../vault/vaultService";
 import { getEditorMemory, rememberEditor, editorCacheGeneration } from "./editorSessionCache";
 import { headingEntries, markdownTables, type MarkdownTable } from "./markdownTools";
+import { animateChecklistToggle } from "../../components/ui/checklistMotion";
 
 export default function MarkdownPreview({ content, sourcePath, onChange, onTable, onTaskToggle, readOnly = false }: { onTaskToggle?: (from: number, checked: boolean, expectedContent: string) => void; readOnly?: boolean; content: string; sourcePath: string; onChange?: (value: string) => void; onTable?: (table: MarkdownTable) => void }) {
   const revision = useKnowledgeStore(state => state.revision), activate = useKnowledgeNavigationStore(state => state.activate);
   const host = useRef<HTMLElement>(null);
   const codeControls = useRef(new WeakSet<Element>());
-  const focusedTask = useRef<number | undefined>(undefined);
+  const focusedTask = useRef<{ index: number; checked: boolean; path: string }>(undefined);
   const vaultRevision = useVaultStore(state=>state.snapshot?.scannedAt);
   const preview = useMemo(() => renderMarkdownSafe(content, navigationKnowledge(), { interactiveCode: true }), [content, revision, vaultRevision]);
   const html = useMemo(() => ({ __html: preview }), [preview]);
@@ -47,9 +48,14 @@ export default function MarkdownPreview({ content, sourcePath, onChange, onTable
       input.dataset.taskIndex = String(index);
       input.setAttribute("aria-label", `${input.checked ? "Segna da fare" : "Completa"}: ${input.closest("li")?.textContent?.trim() ?? "Attività"}`);
     });
-    if (focusedTask.current !== undefined) {
-      element.querySelector<HTMLInputElement>(`input[data-task-index="${focusedTask.current}"]`)?.focus({ preventScroll: true });
+    if (focusedTask.current) {
+      const { index, checked, path } = focusedTask.current;
       focusedTask.current = undefined;
+      if (path === sourcePath) {
+        const input = element.querySelector<HTMLInputElement>(`input[data-task-index="${index}"]`);
+        input?.focus({ preventScroll: true });
+        if (input?.checked === checked) animateChecklistToggle(input, checked);
+      }
     }
     element.querySelectorAll<HTMLTableElement>("table[data-nebula-table]").forEach((table) => {
       const index = Number(table.dataset.nebulaTable);
@@ -60,7 +66,7 @@ export default function MarkdownPreview({ content, sourcePath, onChange, onTable
     element.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6").forEach((heading, index) => {
       if (headings[index]) heading.dataset.headingFrom = String(headings[index].from);
     });
-  }, [preview, tasks, tables, headings, onChange, onTable, onTaskToggle, readOnly]);
+  }, [preview, tasks, tables, headings, onChange, onTable, onTaskToggle, readOnly, sourcePath]);
   useEffect(() => { if (readOnly) host.current?.focus({ preventScroll: true }); }, [readOnly, sourcePath]);
   useEffect(() => {
     let cancelled = false; const urls: string[] = [];
@@ -90,7 +96,7 @@ export default function MarkdownPreview({ content, sourcePath, onChange, onTable
     if (input) {
       const task = tasks[Number(input.dataset.taskIndex)];
       if (task && !input.disabled) {
-        focusedTask.current = Number(input.dataset.taskIndex);
+        focusedTask.current = { index: Number(input.dataset.taskIndex), checked: input.checked, path: sourcePath };
         if (onTaskToggle) onTaskToggle(task.from, input.checked, content);
         else if (!readOnly) onChange?.(content.slice(0, task.from + 1) + (input.checked ? "x" : " ") + content.slice(task.from + 2));
       }

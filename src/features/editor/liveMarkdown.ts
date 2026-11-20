@@ -23,6 +23,7 @@ import { applyTextEdit } from "./editorCommands";
 import { exitQuotedBlock, quoteBlockAt } from "./quoteBlockEditing";
 import { QuoteBlockIcon, quoteBlockMenu } from "./quoteBlockMenu";
 import { HighlightIcon, highlightPalette, openHighlightPalette, type HighlightMarker } from "./highlightPalette";
+import { animateChecklistToggle } from "../../components/ui/checklistMotion";
 
 const inlineTables = new WeakMap<HTMLElement, InlineTable>();
 
@@ -89,12 +90,27 @@ class TableWidget extends WidgetType {
 class TaskWidget extends WidgetType {
   constructor(readonly checked: boolean, readonly from: number, readonly readOnly: boolean) { super(); }
   eq(other: TaskWidget) { return other.checked === this.checked && other.from === this.from && other.readOnly === this.readOnly; }
+  updateDOM(dom: HTMLElement, _view: EditorView, previous: TaskWidget) {
+    if (!(dom instanceof HTMLInputElement) || previous.from !== this.from || previous.readOnly !== this.readOnly) return false;
+    this.updateCheckbox(dom);
+    if (!this.readOnly && previous.checked !== this.checked) animateChecklistToggle(dom, this.checked);
+    return true;
+  }
   toDOM(view: EditorView) {
-    const input = document.createElement("input"); input.type = "checkbox"; input.checked = this.checked; input.disabled = this.readOnly;
-    input.className = "live-task"; input.setAttribute("aria-label", this.checked ? "Segna attività da fare" : "Completa attività");
+    const input = document.createElement("input"); input.type = "checkbox"; input.disabled = this.readOnly;
+    input.className = "live-task";
+    this.updateCheckbox(input);
     input.addEventListener("mousedown", event => event.preventDefault());
-    input.addEventListener("change", () => { if (view.state.readOnly) { input.checked = this.checked; return; } view.dispatch({ changes: { from: this.from + 1, to: this.from + 2, insert: input.checked ? "x" : " " }, userEvent: "input" }); });
+    input.addEventListener("change", () => {
+      const from = this.from + 1, to = this.from + 2;
+      if (view.state.readOnly) { input.checked = view.state.sliceDoc(from, to).toLowerCase() === "x"; return; }
+      view.dispatch({ changes: { from, to, insert: input.checked ? "x" : " " }, userEvent: "input" });
+    });
     return input;
+  }
+  private updateCheckbox(input: HTMLInputElement) {
+    input.checked = this.checked;
+    input.setAttribute("aria-label", this.checked ? "Segna attività da fare" : "Completa attività");
   }
   ignoreEvent() { return true; }
 }
