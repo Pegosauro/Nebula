@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Apri Vault", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Vault pronto" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inizio" })).toBeVisible();
 });
 
 test("captures from different areas into one real sheet, starting blank every time", async ({ page }) => {
@@ -38,7 +38,7 @@ test("captures from different areas into one real sheet, starting blank every ti
 });
 
 test("properties are optional, hideable and persisted in Markdown without changing the body", async ({ page }, testInfo) => {
-  await page.getByRole("button", { name: "Nuovo", exact: true }).last().click();
+  await page.getByRole("button", { name: "Nuova nota", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Nuova nota" });
   await dialog.getByLabel("Nome della nota").fill("Nota libera");
   await dialog.getByRole("button", { name: "Crea nota", exact: true }).click();

@@ -16,11 +16,11 @@ test.beforeEach(async ({ page }) => {
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Apri Vault", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Vault pronto" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inizio" })).toBeVisible();
 });
 
 test("creates a procedure, saves a reusable model, and reopens a derived note without data loss", async ({ page }, testInfo) => {
-  await page.getByRole("button", { name: "Nuovo", exact: true }).last().click();
+  await page.getByRole("button", { name: "Nuova nota", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Nuova nota" });
   await dialog.getByLabel("Modello", { exact: true }).selectOption("procedure");
   await dialog.getByLabel("Nome della nota").fill("Controllo pergola");
@@ -51,7 +51,7 @@ test("creates a procedure, saves a reusable model, and reopens a derived note wi
   expect(await readLocal("Modelli/Controllo personalizzato.md")).toContain("# {{titolo}}");
   expect(await readLocal("Modelli/Controllo personalizzato.md")).toContain("verifica fissaggi");
   await page.getByRole("tab", { name: "Inizio", exact: true }).click();
-  await page.getByRole("button", { name: "Nuovo", exact: true }).last().click();
+  await page.getByRole("button", { name: "Nuova nota", exact: true }).click();
   await dialog.getByLabel("Modello", { exact: true }).selectOption("personal:Modelli/Controllo personalizzato.md");
   await dialog.getByLabel("Nome della nota").fill("Controllo seconda pergola");
   await dialog.getByLabel("Cartella di destinazione").selectOption("Archivio");
@@ -63,14 +63,14 @@ test("creates a procedure, saves a reusable model, and reopens a derived note wi
   expect(copy).not.toContain("{{titolo}}");
   expect(await readLocal("Procedure/Controllo pergola.md")).toContain("# Controllo pergola");
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Vault pronto" })).toBeVisible();
-  await page.getByRole("button", { name: "Nuovo", exact: true }).last().click();
+  await expect(page.getByRole("heading", { name: "Inizio" })).toBeVisible();
+  await page.getByRole("button", { name: "Nuova nota", exact: true }).click();
   await expect(dialog.getByLabel("Modello", { exact: true }).locator("option[value='personal:Modelli/Controllo personalizzato.md']")).toHaveCount(1);
 });
 
 test("does not overwrite a duplicate note and preserves the dialog for correction", async ({ page }) => {
   for (let attempt = 0; attempt < 2; attempt++) {
-    await page.getByRole("button", { name: "Nuovo", exact: true }).last().click();
+    await page.getByRole("button", { name: "Nuova nota", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Nuova nota" });
     await dialog.getByLabel("Nome della nota").fill("Nota identica");
     if (attempt === 1) await dialog.getByLabel("Modello", { exact: true }).selectOption("solution");

@@ -1,45 +1,51 @@
-import { vaultService } from "../vault/vaultService";
-import { FilePlus2, FileText, FolderTree, Link2, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { Plus, Search } from "lucide-react";
+import { useEffect, useState } from "react";
 import { VaultOperationDialog } from "../explorer/VaultOperationDialog";
+import { useSearchStore } from "../search/searchStore";
 import { useVaultStore } from "../vault/vaultStore";
-import { useKnowledgeStore } from "../knowledge/knowledgeStore";
+import { vaultService } from "../vault/vaultService";
+import { HomeQuickNote } from "./HomeQuickNote";
+import { HomeRecent } from "./HomeRecent";
+import { HomeToday } from "./HomeToday";
+import type { VaultSnapshot } from "../../domain/vault";
+import "./home.css";
+
+const welcomedVaults = new Set<string>();
 
 export function VaultHome() {
-  const snapshot = useVaultStore((state) => state.snapshot);
-  const linkCount = useKnowledgeStore((state) => state.linkCount);
+  const snapshot = useVaultStore(state => state.snapshot);
+  const vaultId = useVaultStore(state => state.activeVaultId);
+  return snapshot && vaultId ? <Home key={vaultId} snapshot={snapshot} vaultId={vaultId} /> : null;
+}
+
+function Home({ snapshot, vaultId }: { snapshot: VaultSnapshot; vaultId: string }) {
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState("");
-  if (!snapshot) return null;
+  const [enter] = useState(() => !welcomedVaults.has(vaultId));
 
-  return (
-    <div className="workspace-home">
-      <section className="home-intro">
-        <div className="home-icon" aria-hidden="true">
-          <ShieldCheck size={24} />
-        </div>
-        <p className="workspace-kicker">{snapshot.name}</p>
-        <h1>Vault pronto</h1>
-        <p>
-          {vaultService.isBrowserTestVault() ? "Vault di prova: i file sono nell’archivio locale del browser. Apri Configuratori per la pergola e Strutture per l’albero dimostrativo." : "Nebula lavora direttamente nella cartella locale. Apri le note da File, trova i contenuti con Cerca, gli alberi in Strutture e i progetti in Configuratori."}
-        </p>
-        <div className="home-stats" aria-label="Riepilogo Vault">
-          <span><FileText size={16} /> {snapshot.stats.notes} note</span>
-          <span><FolderTree size={16} /> {snapshot.stats.directories} cartelle</span>
-          <span><Link2 size={16} /> {linkCount} collegamenti</span>
-        </div>
-        <div className="home-create"><button className="button button-primary" type="button" onClick={() => setCreating(true)}><FilePlus2 size={17} />Nuovo</button><span>Nota libera o da modello</span></div>
-        {notice ? <p role="status">{notice}</p> : null}
-      </section>
-      <div className="foundation-path" aria-label="Funzioni disponibili">
-        <span>Vault locale</span>
-        <span>Editor Markdown</span>
-        <span>Wikilink</span>
-        <span>Ricerca</span>
-        <span>Strutture</span>
-        <span>Configuratori</span>
+  useEffect(() => { welcomedVaults.add(vaultId); }, [vaultId]);
+
+  return <div className={`workspace-home${enter ? " has-entrance" : ""}`}>
+    <header className="home-header">
+      <div className="home-heading">
+        <p>{vaultService.isBrowserTestVault() ? "Vault di prova" : snapshot.name}</p>
+        <h1>Inizio</h1>
       </div>
-      {creating ? <VaultOperationDialog request={{ type: "create-note", parentPath: "" }} snapshot={snapshot} onClose={() => setCreating(false)} onCompleted={setNotice} /> : null}
+      <div className="home-header-actions">
+        <button className="button button-secondary home-search" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+O Meta+O" onClick={() => useSearchStore.getState().openQuickSwitcher()}>
+          <Search size={18} aria-hidden="true" /><span>Cerca nel Vault</span><kbd aria-hidden="true">Ctrl / ⌘ + O</kbd>
+        </button>
+        <button className="button button-primary home-new-note" type="button" onClick={() => { setNotice(""); setCreating(true); }}><Plus size={19} aria-hidden="true" />Nuova nota</button>
+      </div>
+    </header>
+    {notice && <p className="home-creation-notice" role="status">{notice}</p>}
+    <div className="home-grid">
+      <div className="home-left">
+        <HomeQuickNote vaultId={vaultId} />
+        <HomeRecent vaultId={vaultId} root={snapshot.root} />
+      </div>
+      <HomeToday vaultId={vaultId} />
     </div>
-  );
+    {creating && <VaultOperationDialog request={{ type: "create-note", parentPath: "" }} snapshot={snapshot} onClose={() => setCreating(false)} onCompleted={setNotice} />}
+  </div>;
 }

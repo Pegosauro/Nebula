@@ -28,7 +28,7 @@ test("continues writing in the backup and reconciles a conflict when the primary
 
   await write(primaryName, "Testo iniziale");
   await page.getByRole("button", { name: "Apri Vault", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Vault pronto" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inizio" })).toBeVisible();
   await page.getByRole("button", { name: "Impostazioni", exact: true }).click();
   await page.getByRole("button", { name: "Configura backup", exact: true }).click();
   await expect(page.getByRole("button", { name: "Aggiorna ora", exact: true })).toBeEnabled();

@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("apre la struttura dimostrativa, propone il codice, blocca il duplicato e protegge la radice", async ({ page }, testInfo) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Apri Vault di prova", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Vault pronto", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inizio", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Strutture", exact: true }).click();
   if (testInfo.project.name === "chromium-desktop") {
     await page.getByLabel("Nome della struttura").fill("Prova");

@@ -6,7 +6,7 @@ mkdirSync("/opt/cursor/artifacts", { recursive: true });
 async function openTenda(page: Page, testInfo: TestInfo) {
   await page.goto("/");
   await page.getByRole("button", { name: "Apri Vault di prova", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Vault pronto", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inizio", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Strutture", exact: true }).click();
   if (testInfo.project.name === "chromium-desktop") {
     await page.getByLabel("Nome della struttura").fill("Prova spostamento");

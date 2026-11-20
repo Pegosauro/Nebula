@@ -19,13 +19,19 @@ export async function saveQuickNote(text: string, date = new Date(), captureId: 
   if (saving) throw new Error("Un appunto è già in corso di salvataggio.");
   const vault = useVaultStore.getState();
   if (vault.status !== "ready" || !vault.snapshot) throw new Error("Collega un Vault per salvare gli appunti veloci.");
+  const vaultId = vaultService.currentVaultId();
+  const verifyVault = () => {
+    if (vaultService.currentVaultId() !== vaultId) throw new Error("Il Vault è cambiato. Riprova nel Vault originale.");
+  };
   saving = true;
   try {
     try { await vaultService.statText(QUICK_NOTES_PATH); }
     catch (caught) {
       if (!(caught instanceof VaultEntryNotFoundError) && !(caught instanceof DOMException && caught.name === "NotFoundError")) throw caught;
+      verifyVault();
       await useVaultStore.getState().createNote("", "Appunti veloci", false, "# Appunti veloci\n");
     }
+    verifyVault();
     await appendDocumentText(QUICK_NOTES_PATH, quickNoteEntry(text, date, captureId), `<!-- nebula-quick-note:${captureId} -->`);
   } catch (caught) { throw new Error(readableFileSystemError(caught)); }
   finally { saving = false; }

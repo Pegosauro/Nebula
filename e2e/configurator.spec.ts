@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("uses the populated demo Vault and preserves a measured BOM after leaving the project", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button",{name:"Apri Vault di prova",exact:true}).click();
-  await expect(page.getByRole("heading",{name:"Vault pronto",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Inizio",exact:true})).toBeVisible();
   await page.getByRole("button",{name:"Configuratori",exact:true}).click();
   await page.getByRole("button",{name:/Pergola dimostrativa/}).first().click();
   await page.getByRole("button",{name:"BOM",exact:true}).click();

@@ -10,7 +10,7 @@ const shot = async (page: import("@playwright/test").Page, name: string) => {
 test("guided component creation covers the three inclusion modes in the browser", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Apri Vault di prova", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Vault pronto", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inizio", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Configuratori", exact: true }).click();
   await page.getByRole("textbox", { name: "Nome del progetto" }).fill("Guida componenti");
   await page.getByRole("checkbox", { name: /Parti da un esempio/ }).check();

@@ -73,14 +73,7 @@ export default function TaskView({ vaultId }: { vaultId: string }) {
   const activeCount = tasks.filter(task => !task.done).length;
   const differ = status === "error" || status === "conflict";
 
-  function changeTask(id: string, update: (current: Task) => Task) {
-    session.change(current => {
-      const task = current.tasks.find(item => item.id === id);
-      if (!task) return current;
-      const next = update(task);
-      return next === task ? current : { ...current, tasks: current.tasks.map(item => item.id === id ? next : item) };
-    });
-  }
+  const changeTask = session.changeTask;
 
   function shift(id: string, target: Quadrant) {
     changeTask(id, task => moveTask(task, target, tomorrow));

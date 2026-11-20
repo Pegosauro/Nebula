@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla";
 import { vaultService } from "../vault/vaultService";
-import { emptyBoard, readTaskBoard, remapTaskNotes, type TaskBoard, type TaskFilter } from "./taskModel";
+import { emptyBoard, readTaskBoard, remapTaskNotes, type Task, type TaskBoard, type TaskFilter } from "./taskModel";
 import { TaskFileConflict } from "./taskFile";
 
 type BoardState = {
@@ -60,13 +60,26 @@ export function createTaskSession(file: TaskFile, collapsed: string[] = []) {
     if (store.getState().status !== "error" && store.getState().status !== "conflict") void save();
   }
 
+  function changeTask(id: string, update: (task: Task) => Task) {
+    let changed = false;
+    change(board => {
+      const task = board.tasks.find(item => item.id === id);
+      if (!task) return board;
+      const edited = update(task);
+      if (edited === task) return board;
+      changed = true;
+      return { ...board, tasks: board.tasks.map(item => item.id === id ? edited : item) };
+    });
+    return changed;
+  }
+
   async function flush() {
     await writing;
     const { board, status } = store.getState();
     return !board || (status !== "error" && status !== "conflict");
   }
 
-  return { store, layout, load, save, change, flush };
+  return { store, layout, load, save, change, changeTask, flush };
 }
 
 const sessions = new Map<string, ReturnType<typeof createTaskSession>>();
