@@ -16,6 +16,7 @@ import { editorUiState, type EditorApi } from "./editorCommands";
 import { findText, markdownTables, parseTsv, serializeTable, headingEntries } from "./markdownTools";
 import { renderMarkdownSafe } from "../../infrastructure/markdown/renderMarkdown";
 import { TablePanel } from "./EditorPanels";
+import { pagePdfContent } from "./exportPagePdf";
 
 let root: Root | undefined, host: HTMLDivElement | undefined;
 beforeAll(() => {
@@ -298,6 +299,43 @@ describe("interactive preview", () => {
 
 
 describe("unified writing surface", () => {
+  it("resizes Markdown images without reloading the widget and deletes the full image from either edge", async () => {
+    mountRoot();
+    const api = createRef<EditorApi>();
+    const marker = '![Schema](https://example.com/schema.png "Dettagli")';
+    const content = `Prima\n\n${marker}\n\nDopo`;
+    const onChange = vi.fn();
+    await act(async () => root!.render(<CodeMirrorEditor path="Schema.md" value={content} visible source={false}
+      onChange={onChange} onSave={() => {}} onOpenLink={() => {}} suggestions={[]} apiRef={api}
+      onUiChange={() => {}} onPanel={() => {}} onImages={() => {}} />));
+    const image = host!.querySelector<HTMLImageElement>(".live-image img")!;
+    const wrap = image.parentElement!;
+    const handles = [...wrap.querySelectorAll<HTMLButtonElement>(".live-image-handle")];
+    expect(handles).toHaveLength(4);
+    vi.spyOn(image, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 192, 120));
+    const press = (target: HTMLElement, key: string) => act(async () => {
+      target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    });
+    await press(handles[2]!, "ArrowRight");
+    const view = EditorView.findFromDOM(host!.querySelector<HTMLElement>(".cm-editor")!)!;
+    const resized = content.replace("Dettagli", "Dettagli | nebula-width=208");
+    expect(view.state.doc.toString()).toBe(resized);
+    expect(host!.querySelector(".live-image img")).toBe(image);
+    expect(pagePdfContent(resized).querySelector("img")?.getAttribute("width")).toBe("208");
+    await press(wrap, "Delete");
+    expect(view.state.doc.toString()).toBe("Prima\n\n\n\nDopo");
+    expect(onChange).toHaveBeenLastCalledWith("Prima\n\n\n\nDopo", ["https://example.com/schema.png"]);
+    await act(async () => api.current!.undo());
+    expect(view.state.doc.toString()).toBe(resized);
+    await act(async () => api.current!.select(resized.indexOf("![")));
+    await press(view.contentDOM, "Delete");
+    expect(view.state.doc.toString()).not.toContain("schema.png");
+    await act(async () => api.current!.undo());
+    await act(async () => api.current!.select(resized.indexOf('\n\nDopo')));
+    await press(view.contentDOM, "Backspace");
+    expect(view.state.doc.toString()).not.toContain("schema.png");
+  });
+
   async function editor(content: string, onTable = vi.fn()) {
     mountRoot(); const api = createRef<EditorApi>(); const change = vi.fn();
     const render = async (source = false) => act(async () => root!.render(<CodeMirrorEditor path="Live.md" value={content} visible source={source} onChange={value => { content = value; change(value); }} onSave={() => {}} onOpenLink={() => {}} suggestions={[]} apiRef={api} onUiChange={() => {}} onPanel={() => {}} onImages={() => {}} onTable={onTable} />));

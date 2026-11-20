@@ -31,6 +31,22 @@ describe("documentStore", () => {
     });
   });
 
+  it("keeps attachment changes in sync with editor undo and redo", async () => {
+    const path = "A/Nota.md", reference = "../attachments/foto.png";
+    const content = `![Foto](${reference})`;
+    vi.spyOn(vaultService, "readText").mockResolvedValue({ path, content, size: content.length, lastModified: 1 });
+    const write = vi.spyOn(vaultService, "writeTextWithImages").mockResolvedValue({ metadata: { size: content.length, lastModified: 2 } });
+    const store = useDocumentStore.getState();
+    await store.open(path);
+    store.updateContent(path, "", [reference]);
+    await store.save(path);
+    store.updateContent(path, content);
+    await store.save(path);
+    store.updateContent(path, "");
+    await store.save(path);
+    expect(write.mock.calls.map(call => call[3].get("attachments/foto.png"))).toEqual([false, true, false]);
+  });
+
   it("keeps the edited buffer dirty when a write fails", async () => {
     vi.spyOn(vaultService, "readText").mockResolvedValue({ path: "Nota.md", content: "originale", size: 9, lastModified: 1 });
     vi.spyOn(vaultService, "writeText").mockRejectedValue(new DOMException("sola lettura", "NoModificationAllowedError"));

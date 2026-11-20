@@ -14,6 +14,7 @@ import { EditorAppearance } from "./EditorAppearance";
 import { NoteLinkPreview } from "./NoteLinkPreview";
 import { EditorToolbar } from "./EditorToolbar";
 import { ImagePanel, InsertPanel, LinkPanel, TablePanel } from "./EditorPanels";
+import { ImageViewer, type ImageToView } from "./ImageViewer";
 import { EditorSearch } from "./EditorSearch";
 import type { EditorApi, EditorPanel, EditorUiState } from "./editorCommands";
 import type { MarkdownTable } from "./markdownTools";
@@ -72,6 +73,7 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
   const [editingTable, setEditingTable] = useState<MarkdownTable>();
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [notice, setNotice] = useState(""), [busy, setBusy] = useState(false);
+  const [viewedImage, setViewedImage] = useState<ImageToView>();
   const [exportingPdf,setExportingPdf] = useState(false);
   const exportPdf = async () => { if (!session || exportingPdf) return; setExportingPdf(true); try { const {exportPagePdf}=await import("./exportPagePdf"); const missing=await exportPagePdf(session.content,path); if(alive.current)setNotice(missing ? `Esportazione preparata: ${missing} immagini non disponibili sono segnalate nel documento. Scegli Salva come PDF nella finestra di stampa.` : "Scegli Salva come PDF nella finestra di stampa."); } catch(e) { if(alive.current)setNotice(e instanceof Error ? e.message : "Esportazione PDF non riuscita."); } finally { if(alive.current)setExportingPdf(false); } };
   const area = useRef<HTMLElement>(null), alive = useRef(true);
@@ -87,7 +89,18 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
     if (newlyCreated) useWorkspaceStore.getState().markCreationHandled(tabId);
     return () => { alive.current = false; };
   }, [path]);
-  const change = useCallback((content: string) => useDocumentStore.getState().updateContent(path, content), [path]);
+  const change = useCallback((content: string, removedImages?: readonly string[]) => useDocumentStore.getState().updateContent(path, content, removedImages), [path]);
+  const openImage = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    const image = target.closest("img") ?? target.closest(".live-image")?.querySelector("img");
+    if (!image) return false;
+    const reference = image.closest<HTMLElement>("[data-image-reference]")?.dataset.imageReference
+      ?? image.closest<HTMLElement>("[data-nebula-image]")?.dataset.nebulaImage
+      ?? image.getAttribute("src");
+    if (!reference) return false;
+    setViewedImage({ reference, alt: image.alt });
+    return true;
+  };
   const toggleTask = useCallback((from: number, checked: boolean, expectedContent: string) => {
     const store = useDocumentStore.getState(), current = store.sessions[path];
     if (!current?.loaded || current.operationLocked || current.status === "conflict" || current.content !== expectedContent) return;
@@ -165,10 +178,19 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
       : session.status === "error" ? <div className="editor-alert" role="alert"><AlertTriangle size={20} /><div><strong>Il testo è ancora nell’editor</strong><p>{session.error}</p></div><button className="button button-secondary" type="button" onClick={() => void useDocumentStore.getState().save(path)}>Riprova</button></div> : null}
     {session.externalReloadedAt && session.status === "saved" && <div className="editor-reloaded" role="status"><RefreshCw size={14} />File aggiornato dalla versione presente sul disco.</div>}
     {notice && <div className="editor-notice" role="status">{busy && <LoaderCircle size={15} className="spin" />}<span>{notice}</span>{!busy && <button type="button" aria-label="Chiudi messaggio" onClick={() => setNotice("")}><X size={14} /></button>}</div>}
-    <div className="editor-surface"><Suspense fallback={<div className="editor-loading"><LoaderCircle className="spin" size={20} /><span>Preparazione documento…</span></div>}>
+    {session.imageWarning && <div className="editor-notice" role="status">{session.imageWarning}</div>}
+    <div className="editor-surface"
+      onDoubleClick={event => {
+        if (event.target instanceof HTMLImageElement && openImage(event.target)) event.preventDefault();
+      }}
+      onKeyDown={event => {
+        if (event.key === "Enter" && event.target instanceof HTMLElement && event.target.matches(".live-image") && openImage(event.target)) event.preventDefault();
+      }}>
+      <Suspense fallback={<div className="editor-loading"><LoaderCircle className="spin" size={20} /><span>Preparazione documento…</span></div>}>
       <div className="editor-write-surface" hidden={locked}><CodeMirrorEditor path={path} showMarkdownAtCursor={showMarkdownAtCursor} value={session.content} source={mode === "source"} visible={!locked} readOnly={locked || !!session.operationLocked} appearanceKey={`${fontSize}:${pageWidth}:${fullWidth}`} apiRef={api} onChange={change} suggestions={suggestions} onSave={() => void useDocumentStore.getState().save(path)} onOpenLink={target => useKnowledgeNavigationStore.getState().activate(path, target)} onUiChange={setUi} onPanel={openPanel} onImages={files => void insertImages(files)} onTable={openTable} /></div>
       {locked && <MarkdownPreview content={session.content} sourcePath={path} readOnly onTaskToggle={session.operationLocked || session.status === "conflict" ? undefined : toggleTask} />}
     </Suspense></div>
+    {viewedImage && <ImageViewer image={viewedImage} sourcePath={path} onClose={() => setViewedImage(undefined)} />}
     {!locked && ui?.selected && ui.x > 0 && !ui.active.includes("codeBlock") && !panel && !search && <div className="floating-format-position" style={{ left: Math.max(8, Math.min(ui.x - 110, window.innerWidth - 246)), top: Math.max(8, ui.y - 46) }}><EditorToolbar api={api.current} state={ui} onPanel={openPanel} onCommand={onCommand} focus={focus} onFocus={() => {}} floating /></div>}
     <NoteLinkPreview sourcePath={path} root={area} />
     <footer className={`editor-statusbar is-${session.status}`}><span role="status">{session.status === "saved" ? <Check size={14} /> : session.status === "saving" ? <LoaderCircle size={14} className="spin" /> : <span className="dirty-dot" />}{statusCopy(session.status)}</span><span>{counts.words} parole · {counts.characters} caratteri</span>{locked ? <span><LockKeyhole size={13} />Testo bloccato · Attività selezionabili</span> : <span>Riga {ui?.line ?? 1}, col {ui?.column ?? 1}</span>}</footer>

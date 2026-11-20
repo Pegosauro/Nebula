@@ -12,6 +12,7 @@ import { vaultService } from "../vault/vaultService";
 import { getEditorMemory, rememberEditor, editorCacheGeneration } from "./editorSessionCache";
 import { headingEntries, markdownTables, type MarkdownTable } from "./markdownTools";
 import { animateChecklistToggle } from "../../components/ui/checklistMotion";
+import { applyImageWidth } from "../../domain/imageWidth";
 
 export default function MarkdownPreview({ content, sourcePath, onChange, onTable, onTaskToggle, readOnly = false }: { onTaskToggle?: (from: number, checked: boolean, expectedContent: string) => void; readOnly?: boolean; content: string; sourcePath: string; onChange?: (value: string) => void; onTable?: (table: MarkdownTable) => void }) {
   const revision = useKnowledgeStore(state => state.revision), activate = useKnowledgeNavigationStore(state => state.activate);
@@ -77,6 +78,7 @@ export default function MarkdownPreview({ content, sourcePath, onChange, onTable
           const blob = await vaultService.readImage(path); if (cancelled) return;
           const url = URL.createObjectURL(blob); urls.push(url);
           const img = document.createElement("img"); img.src = url; img.alt = placeholder.getAttribute("aria-label") ?? ""; img.loading = "lazy";
+          applyImageWidth(img, placeholder.dataset.nebulaImageWidth);
           placeholder.replaceChildren(img); placeholder.classList.add("is-loaded");
         } catch {
           if (!cancelled) { placeholder.textContent = `Immagine non disponibile: ${placeholder.dataset.nebulaImage}`; placeholder.classList.add("image-error"); }

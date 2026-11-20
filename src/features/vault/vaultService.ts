@@ -1,5 +1,6 @@
 import { openTaskFile } from "../tasks/taskFile";
-import { readVaultImage, saveVaultImage } from "../../infrastructure/filesystem/vaultImages";
+import { isVaultAttachment, readVaultImage, saveVaultImage } from "../../infrastructure/filesystem/vaultImages";
+import { imageTrashDirectory, restoreTrashedImage, trashImageIfUnused } from "../../infrastructure/filesystem/imageTrash";
 import type { RecentVault, VaultEntry, VaultPermission, VaultScanProgress, VaultSnapshot } from "../../domain/vault";
 import { BrowserVaultAdapter } from "../../infrastructure/filesystem/browserVaultAdapter";
 import { VaultHandleRepository } from "../../infrastructure/storage/vaultHandleRepository";
@@ -231,8 +232,40 @@ export class VaultService {
     return this.write(handle, () => this.adapter.writeText(handle, path, content, expected));
   }
 
-  readImage(path: string): Promise<Blob> {
-    return readVaultImage(this.requireHandle(), path);
+  async writeTextWithImages(path: string, content: string, expected: ExpectedFileMetadata | undefined,
+    changes: ReadonlyMap<string, boolean>, referencedInDraft: (attachment: string) => boolean,
+  ): Promise<{ metadata: ExpectedFileMetadata; imageWarning?: string }> {
+    const handle = this.requireHandle();
+    const assertActive = () => {
+      if (handle !== this.activeHandle) throw new Error("Il Vault è cambiato. Riprova nella cartella attiva.");
+    };
+    return this.write(handle, async () => {
+      for (const [attachment, kept] of changes) if (kept) await restoreTrashedImage(handle, attachment, assertActive);
+      assertActive();
+      const metadata = await this.adapter.writeText(handle, path, content, expected);
+      let imageWarning: string | undefined;
+      for (const [attachment, kept] of changes) {
+        if (kept) continue;
+        try { await trashImageIfUnused(handle, attachment, () => referencedInDraft(attachment), assertActive); }
+        catch { imageWarning = "Nota salvata. Non è stato possibile spostare un allegato nel cestino."; }
+      }
+      return { metadata, imageWarning };
+    });
+  }
+
+  async readImage(path: string): Promise<Blob> {
+    const handle = this.requireHandle();
+    try { return await readVaultImage(handle, path); }
+    catch (error) {
+      if (!(error instanceof DOMException) || error.name !== "NotFoundError" || !isVaultAttachment(path)) throw error;
+      // Undo can redraw the image before the next document save makes the move
+      // out of the trash. Read the saved copy during that interval.
+      try { return await readVaultImage(handle, `${imageTrashDirectory}/${path}`); }
+      catch (trashError) {
+        if (!(trashError instanceof DOMException) || trashError.name !== "NotFoundError") throw trashError;
+        return readVaultImage(handle, path);
+      }
+    }
   }
 
   saveImage(sourcePath: string, file: File): Promise<string> {

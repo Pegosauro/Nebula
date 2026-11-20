@@ -291,8 +291,61 @@
   .floating-format-position { max-width: calc(100vw - 16px); }
 }
 @media (prefers-reduced-motion: reduce) { .editor-v2 *, .editor-dialog * { scroll-behavior: auto !important; } }
-.live-image { display: inline-block; max-width: 100%; vertical-align: top; color: var(--text-muted); font-size: 13px; }
-.live-image img { max-width: 100%; max-height: 360px; object-fit: contain; border-radius: 8px; }
+.live-image { position: relative; display: inline-block; max-width: 100%; vertical-align: top; color: var(--text-muted); font-size: 13px; }
+.live-image img { display: block; max-width: 100%; height: auto; max-height: 360px; object-fit: contain; border-radius: 8px; }
+.live-image img[width] { max-height: none; }
+.live-image.is-editable:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 9px; }
+.live-image-handle {
+  display: none;
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  z-index: 1;
+  touch-action: none;
+}
+.live-image.is-editable:focus-within .live-image-handle { display: grid; place-items: center; }
+.live-image-handle::before { content: ""; width: 8px; height: 8px; border: 2px solid var(--accent); background: var(--bg-panel); border-radius: 2px; }
+.live-image-handle.is-nw { top: -8px; left: -8px; cursor: nwse-resize; }
+.live-image-handle.is-ne { top: -8px; right: -8px; cursor: nesw-resize; }
+.live-image-handle.is-sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
+.live-image-handle.is-se { bottom: -8px; right: -8px; cursor: nwse-resize; }
+.editor-surface img { cursor: zoom-in; }
+.image-viewer {
+  width: min(94vw, 1200px);
+  height: min(90dvh, 900px);
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-float);
+}
+.image-viewer::backdrop { background: rgb(15 20 31 / .72); }
+.image-viewer-inner { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.image-viewer header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--border);
+}
+.image-viewer header strong { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-inline-start: 6px; }
+.image-viewer header [role="group"] { display: flex; align-items: center; gap: 4px; }
+.image-viewer header .button { min-height: 32px; background: var(--bg-panel); padding: 4px 8px; }
+.image-viewer header .button:hover { background: var(--bg-hover); }
+.image-viewer output { font-variant-numeric: tabular-nums; width: 5ch; text-align: center; font-size: 12px; }
+.image-viewer-stage { overflow: auto; background: var(--bg-app); }
+.image-viewer-content { display: grid; place-items: center; width: max-content; min-width: 100%; min-height: 100%; }
+.image-viewer-content img { display: block; height: auto; max-width: none; user-select: none; }
+.image-viewer-content img.is-zoomed { cursor: grab; touch-action: none; }
+.image-viewer-content img.is-zoomed:active { cursor: grabbing; }
 .live-bullet { color: var(--accent); font-weight: 700; }
 
 /* Scrivi is the document itself; source symbols appear only at the caret. */

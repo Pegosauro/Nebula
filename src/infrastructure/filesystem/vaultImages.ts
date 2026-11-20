@@ -2,6 +2,15 @@ import { dirname, normalizeRelativePath } from "../../domain/path";
 
 export const IMAGE_ACCEPT = "image/png,image/jpeg,image/gif,image/webp,image/avif,image/bmp";
 const types: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", avif: "image/avif", bmp: "image/bmp" };
+export function isVaultAttachment(path: string): boolean {
+  return /^attachments\/.+/i.test(path) && Object.hasOwn(types, path.split(".").at(-1)!.toLowerCase());
+}
+export function imageAttachmentPath(sourcePath: string, reference: string): string | undefined {
+  try {
+    const path = resolveImagePath(sourcePath, reference);
+    return isVaultAttachment(path) ? path : undefined;
+  } catch { return undefined; }
+}
 export function resolveImagePath(sourcePath: string, reference: string): string {
   const decoded = decodeURIComponent(reference);
   if (/^[a-z][a-z\d+.-]*:|^\/\//i.test(decoded)) throw new Error("Percorso immagine non valido.");

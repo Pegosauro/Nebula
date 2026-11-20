@@ -79,7 +79,7 @@ async function resolveDirectory(
   return current;
 }
 
-async function buffersEqual(left: ArrayBuffer, right: ArrayBuffer): Promise<boolean> {
+export async function buffersEqual(left: ArrayBuffer, right: ArrayBuffer): Promise<boolean> {
   if (left.byteLength !== right.byteLength) return false;
   const a = new Uint8Array(left);
   const b = new Uint8Array(right);
@@ -89,7 +89,7 @@ async function buffersEqual(left: ArrayBuffer, right: ArrayBuffer): Promise<bool
   return true;
 }
 
-async function copyFile(
+export async function copyFile(
   source: FileSystemFileHandle,
   destination: FileSystemDirectoryHandle,
   name: string,

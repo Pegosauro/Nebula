@@ -4,6 +4,8 @@ import { isPathInside } from "../../domain/path";
 import { findVaultEntry, type VaultSnapshot } from "../../domain/vault";
 import { readableFileSystemError } from "../../infrastructure/filesystem/filesystemErrors";
 import { ExternalFileConflictError } from "../../infrastructure/filesystem/vaultFileOperations";
+import { referencesImageFile } from "../../infrastructure/filesystem/imageTrash";
+import { imageAttachmentPath } from "../../infrastructure/filesystem/vaultImages";
 import { useKnowledgeStore } from "../knowledge/knowledgeStore";
 import { vaultService } from "../vault/vaultService";
 
@@ -21,12 +23,14 @@ export interface DocumentSession {
   savedAt?: number;
   externalReloadedAt?: number;
   operationLocked?: boolean;
+  imageEdits?: ReadonlyMap<string, boolean | null>;
+  imageWarning?: string;
 }
 
 interface DocumentState {
   sessions: Record<string, DocumentSession>;
   open: (path: string) => Promise<void>;
-  updateContent: (path: string, content: string) => void;
+  updateContent: (path: string, content: string, removedImages?: readonly string[]) => void;
   save: (path: string) => Promise<void>;
   forceSave: (path: string) => Promise<void>;
   reloadFromDisk: (path: string) => Promise<void>;
@@ -42,6 +46,11 @@ const autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const loadPromises = new Map<string, Promise<void>>();
 const loadTokens = new Map<string, object>();
 const savePromises = new Map<string, Promise<void>>();
+
+function hasPendingImages(images: DocumentSession["imageEdits"]): boolean {
+  for (const saved of images?.values() ?? []) if (saved === null) return true;
+  return false;
+}
 
 function clearAutosave(path: string): void {
   const timer = autosaveTimers.get(path);
@@ -73,18 +82,34 @@ function updateSession(path: string, updater: (session: DocumentSession) => Docu
 async function performSave(path: string, force: boolean): Promise<void> {
   clearAutosave(path);
   const before = useDocumentStore.getState().sessions[path];
-  if (!before || (!force && before.status === "conflict") || !before.loaded || before.status === "loading" || (!force && before.content === before.savedContent)) return;
+  if (!before || (!force && before.status === "conflict") || !before.loaded || before.status === "loading") return;
   const contentToSave = before.content;
+  const images = new Map<string, boolean>();
+  for (const [attachment, lastSaved] of before.imageEdits ?? []) {
+    const referenced = referencesImageFile(contentToSave, attachment);
+    if (referenced !== lastSaved) images.set(attachment, referenced);
+  }
+  if (!force && before.content === before.savedContent && !images.size) return;
+  const vaultId = vaultService.currentVaultId();
   updateSession(path, (session) => ({ ...session, status: "saving", error: undefined }));
 
   try {
-    const metadata = await vaultService.writeText(
-      path,
-      contentToSave,
-      force ? undefined : { size: before.size, lastModified: before.lastModified },
-    );
+    const expected = force ? undefined : { size: before.size, lastModified: before.lastModified };
+    const { metadata, imageWarning } = images.size
+      ? await vaultService.writeTextWithImages(path, contentToSave, expected, images, attachment => (
+        vaultId === vaultService.currentVaultId() && Object.values(useDocumentStore.getState().sessions)
+          .some(session => session.loaded && referencesImageFile(session.content, attachment))
+      ))
+      : { metadata: await vaultService.writeText(path, contentToSave, expected), imageWarning: undefined };
+    if (vaultId !== vaultService.currentVaultId()) return;
     updateSession(path, (current) => {
-      const changedDuringSave = current.content !== contentToSave;
+      let imageEdits = current.imageEdits;
+      if (images.size && imageEdits) {
+        const applied = new Map(imageEdits);
+        for (const [attachment, referenced] of images) applied.set(attachment, referenced);
+        imageEdits = applied;
+      }
+      const changedDuringSave = current.content !== contentToSave || hasPendingImages(imageEdits);
       return {
         ...current,
         savedContent: contentToSave,
@@ -93,12 +118,15 @@ async function performSave(path: string, force: boolean): Promise<void> {
         status: changedDuringSave ? "dirty" : "saved",
         error: undefined,
         savedAt: Date.now(),
+        imageEdits,
+        imageWarning: images.size ? imageWarning : current.imageWarning,
       };
     });
     const current = useDocumentStore.getState().sessions[path];
     if (current?.status === "dirty") scheduleAutosave(path);
     void useKnowledgeStore.getState().indexSavedDocument(path, contentToSave, metadata);
   } catch (error) {
+    if (vaultId !== vaultService.currentVaultId()) return;
     const conflict = error instanceof ExternalFileConflictError;
     updateSession(path, (current) => ({
       ...current,
@@ -159,15 +187,24 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     loadPromises.set(path, load);
     return load;
   },
-  updateContent: (path, content) => {
+  updateContent: (path, content, removedImages) => {
     set((state) => {
       const session = state.sessions[path];
       if (!session || session.operationLocked || !session.loaded || session.status === "loading" || session.content === content) return state;
-      const dirty = content !== session.savedContent;
+      let imageEdits = session.imageEdits;
+      if (removedImages?.length) {
+        const changes = new Map(imageEdits);
+        for (const reference of removedImages) {
+          const attachment = imageAttachmentPath(path, reference);
+          if (attachment) changes.set(attachment, null);
+        }
+        if (changes.size) imageEdits = changes;
+      }
+      const dirty = content !== session.savedContent || hasPendingImages(imageEdits);
       return {
         sessions: {
           ...state.sessions,
-          [path]: { ...session, content, status: session.status === "conflict" ? "conflict" : dirty ? "dirty" : "saved", error: session.status === "conflict" ? session.error : undefined },
+          [path]: { ...session, content, imageEdits, status: session.status === "conflict" ? "conflict" : dirty ? "dirty" : "saved", error: session.status === "conflict" ? session.error : undefined },
         },
       };
     });
@@ -179,7 +216,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     if (get().sessions[path]?.operationLocked) return;
     const existing = savePromises.get(path);
     if (existing) return existing;
-    const save = performSave(path, false).finally(() => savePromises.delete(path));
+    const save = performSave(path, false).finally(() => { if (savePromises.get(path) === save) savePromises.delete(path); });
     savePromises.set(path, save);
     return save;
   },
@@ -187,7 +224,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     if (get().sessions[path]?.operationLocked) return;
     const existing = savePromises.get(path);
     if (existing) await existing;
-    const save = performSave(path, true).finally(() => savePromises.delete(path));
+    const save = performSave(path, true).finally(() => { if (savePromises.get(path) === save) savePromises.delete(path); });
     savePromises.set(path, save);
     return save;
   },
@@ -242,13 +279,13 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   flushPaths: async (basePath) => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const paths = Object.values(get().sessions)
-        .filter((session) => isPathInside(session.path, basePath) && session.content !== session.savedContent)
+        .filter((session) => isPathInside(session.path, basePath) && (session.content !== session.savedContent || hasPendingImages(session.imageEdits)))
         .map((session) => session.path);
       if (!paths.length) return true;
       await Promise.all(paths.map((path) => get().save(path)));
     }
     return !Object.values(get().sessions).some((session) =>
-      isPathInside(session.path, basePath) && session.content !== session.savedContent,
+      isPathInside(session.path, basePath) && (session.content !== session.savedContent || hasPendingImages(session.imageEdits)),
     );
   },
   remapPaths: (oldPath, newPath, snapshot) => {

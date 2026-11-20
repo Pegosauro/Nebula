@@ -24,6 +24,8 @@ import { exitQuotedBlock, quoteBlockAt } from "./quoteBlockEditing";
 import { QuoteBlockIcon, quoteBlockMenu } from "./quoteBlockMenu";
 import { HighlightIcon, highlightPalette, openHighlightPalette, type HighlightMarker } from "./highlightPalette";
 import { animateChecklistToggle } from "../../components/ui/checklistMotion";
+import { applyImageWidth } from "../../domain/imageWidth";
+import { bindImageEditing, editorImage, removeImageAtSelection } from "./editorImageEditing";
 
 const inlineTables = new WeakMap<HTMLElement, InlineTable>();
 
@@ -70,7 +72,7 @@ class TableWidget extends WidgetType {
     const decorate = (host: HTMLElement) => {
       this.images.forEach(image => image.destroy()); this.images = [];
       host.querySelectorAll<HTMLElement>("[data-nebula-image]").forEach(placeholder => {
-        const widget = new ImageWidget(this.sourcePath, placeholder.dataset.nebulaImage!, placeholder.getAttribute("aria-label") ?? "");
+        const widget = new ImageWidget(this.sourcePath, placeholder.dataset.nebulaImage!, placeholder.getAttribute("aria-label") ?? "", placeholder.dataset.nebulaImageWidth);
         this.images.push(widget); placeholder.replaceWith(widget.toDOM(view));
       });
     };
@@ -115,27 +117,40 @@ class TaskWidget extends WidgetType {
   ignoreEvent() { return true; }
 }
 class ImageWidget extends WidgetType {
-  private url?: string;
-  private disposed = false;
-  constructor(readonly sourcePath: string, readonly reference: string, readonly alt: string) { super(); }
-  eq(other: ImageWidget) { return other.reference === this.reference && other.sourcePath === this.sourcePath && other.alt === this.alt; }
+  private resource = { disposed: false, url: undefined as string | undefined };
+  constructor(readonly sourcePath: string, readonly reference: string, readonly alt: string, readonly width?: string | number, readonly editable = false) { super(); }
+  eq(other: ImageWidget) { return other.reference === this.reference && other.sourcePath === this.sourcePath && other.alt === this.alt && other.width === this.width && other.editable === this.editable; }
+  updateDOM(dom: HTMLElement, view: EditorView, previous: ImageWidget) {
+    if (previous.sourcePath !== this.sourcePath || previous.reference !== this.reference || previous.alt !== this.alt || previous.editable !== this.editable) return false;
+    const image = dom.querySelector("img");
+    if (!image) return false;
+    this.resource = previous.resource;
+    if (this.width === undefined) image.removeAttribute("width"); else applyImageWidth(image, this.width);
+    view.requestMeasure();
+    return true;
+  }
   toDOM(view: EditorView) {
     const wrap = document.createElement("span"); wrap.className = "live-image";
+    wrap.dataset.imageReference = this.reference;
     const image = document.createElement("img"); image.alt = this.alt; image.referrerPolicy = "no-referrer";
-    image.addEventListener("load", () => { if (!this.disposed) view.requestMeasure(); });
+    applyImageWidth(image, this.width);
+    const resource = this.resource;
+    image.addEventListener("load", () => { if (!resource.disposed) view.requestMeasure(); });
     image.addEventListener("error", () => { wrap.textContent = `Immagine non disponibile: ${this.alt || this.reference}`; });
     if (/^https?:\/\//i.test(this.reference)) image.src = this.reference;
     else void (async () => {
       try {
         const blob = await vaultService.readImage(resolveImagePath(this.sourcePath, this.reference));
-        if (this.disposed) return;
-        this.url = URL.createObjectURL(blob); image.src = this.url;
-      } catch { if (!this.disposed) wrap.textContent = `Immagine non disponibile: ${this.alt || this.reference}`; }
+        if (resource.disposed) return;
+        resource.url = URL.createObjectURL(blob); image.src = resource.url;
+      } catch { if (!resource.disposed) wrap.textContent = `Immagine non disponibile: ${this.alt || this.reference}`; }
     })();
-    wrap.append(image); return wrap;
+    wrap.append(image);
+    if (this.editable) bindImageEditing(view, wrap, image);
+    return wrap;
   }
-  destroy() { this.disposed = true; if (this.url) URL.revokeObjectURL(this.url); }
-  ignoreEvent() { return false; }
+  destroy() { this.resource.disposed = true; if (this.resource.url) URL.revokeObjectURL(this.resource.url); }
+  ignoreEvent() { return this.editable; }
 }
 class BulletWidget extends WidgetType {
   toDOM() { const span = document.createElement("span"); span.className = "live-bullet"; span.textContent = "•"; return span; }
@@ -282,11 +297,10 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
           if (marks.length >= 2) { hide(marks[0]!.from, marks[0]!.to, node); hide(marks[1]!.from, node.to, node); }
         }
       }
-      if (name === "Image" && !active(node.from, node.to)) {
-        const raw = view.state.sliceDoc(node.from, node.to);
-        const match = /^!\[([^\]\n]*)\]\((?:<([^>]+)>|([^\s)]+))(?:\s+"[^"]*")?\)$/.exec(raw);
-        if (match && !raw.includes("\n")) {
-          decorations.push(Decoration.replace({ widget: new ImageWidget(sourcePath, match[2] || match[3] || "", match[1] || "") }).range(node.from, node.to));
+      if (name === "Image" && !active(node.from + 1, node.to - 1)) {
+        const image = editorImage(view.state, node.node);
+        if (image) {
+          decorations.push(Decoration.replace({ nebulaSyntax: true, widget: new ImageWidget(sourcePath, image.reference, image.alt, image.width, !view.state.readOnly) }).range(node.from, node.to));
           return false;
         }
       }
@@ -437,6 +451,7 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
   }, { decorations: value => value.decorations, provide: plugin => EditorView.atomicRanges.of(view => view.plugin(plugin)?.syntax ?? Decoration.none) });
   const erase = (forward: boolean, word = false) => (view: EditorView) => {
     if (expandCodeBeforeDeleting(view, forward)) return true;
+    if (!word && removeImageAtSelection(view, forward)) return true;
     const plugin = view.plugin(inline);
     if (!forward && !word && !view.state.readOnly && !view.composing && view.state.selection.ranges.length === 1) {
       const { empty, head } = view.state.selection.main;

@@ -5,6 +5,7 @@ import { VaultService } from "../../features/vault/vaultService";
 import { VaultHandleRepository } from "../storage/vaultHandleRepository";
 import { BrowserVaultAdapter } from "./browserVaultAdapter";
 import { VaultBackupFiles, type VaultBackupRecord } from "./vaultBackup";
+import { imageTrashDirectory } from "./imageTrash";
 
 class FileHandle {
   readonly kind = "file" as const;
@@ -89,6 +90,48 @@ async function read(directory: Directory, name: string) {
 }
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+it("moves an attachment after saving its last removal and restores the original bytes on undo", async () => {
+  const primary = new Directory("Vault"), repository = new VaultHandleRepository();
+  const connection = { id: "vault-id", handle: primary.handle };
+  vi.stubGlobal("navigator", {});
+  vi.spyOn(repository, "getConnection").mockResolvedValue(connection);
+  vi.spyOn(repository, "remember").mockResolvedValue([{ ...connection, name: primary.name, lastOpenedAt: 1 }]);
+  vi.spyOn(repository, "getBackup").mockResolvedValue(undefined);
+  const attachments = await primary.getDirectoryHandle("attachments", { create: true });
+  await write(attachments, "Schema è.png", "image bytes");
+  const path = "attachments/Schema è.png", content = "![Schema](attachments/Schema%20%C3%A8.png)";
+  await write(primary, "Nota.md", content);
+  await write(primary, "Altra.md", '[schema]: <attachments/schema%20%C3%A8.png>');
+  const service = new VaultService(new BrowserVaultAdapter(), repository);
+  await service.probeSaved();
+  await service.resumeSaved();
+  const current = await service.statText("Nota.md");
+  await service.writeTextWithImages("Nota.md", "", current, new Map([[path, false]]), () => false);
+  expect(await read(attachments, "Schema è.png")).toBe("image bytes");
+  await write(primary, "Altra.md", "testo senza immagine");
+  await service.writeTextWithImages("Nota.md", "", await service.statText("Nota.md"), new Map([[path, false]]), () => true);
+  expect(await read(attachments, "Schema è.png")).toBe("image bytes");
+  await expect(service.writeTextWithImages("Nota.md", "", current, new Map([[path, false]]), () => false)).rejects.toThrow("modificato");
+  expect(await read(attachments, "Schema è.png")).toBe("image bytes");
+  await service.writeTextWithImages("Nota.md", "", await service.statText("Nota.md"), new Map([[path, false]]), () => false);
+  expect(attachments.children.has("Schema è.png")).toBe(false);
+  expect(await (await service.readImage(path)).text()).toBe("image bytes");
+  const trash = await imageTrashDirectory.split("/").reduce(async (parent, name) => (await parent).getDirectoryHandle(name), Promise.resolve(primary));
+  const trashed = await trash.getDirectoryHandle("attachments");
+  expect(await read(trashed, "Schema è.png")).toBe("image bytes");
+  await write(attachments, "Schema è.png", "new file");
+  const restore = () => service.statText("Nota.md").then(metadata =>
+    service.writeTextWithImages("Nota.md", content, metadata, new Map([[path, true]]), () => true));
+  await expect(restore()).rejects.toThrow("ancora nel cestino");
+  expect(await read(attachments, "Schema è.png")).toBe("new file");
+  expect(await read(trashed, "Schema è.png")).toBe("image bytes");
+  await attachments.removeEntry("Schema è.png");
+  await restore();
+  expect(await read(attachments, "Schema è.png")).toBe("image bytes");
+  expect(trashed.children.has("Schema è.png")).toBe(false);
+  expect(await read(primary, "Nota.md")).toBe(content);
+});
 
 describe("optional Vault backup", () => {
   it("copies attachments, hidden task data and empty folders, rejects overlapping or occupied targets", async () => {

@@ -4,6 +4,7 @@ import { vaultService } from "../vault/vaultService";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import highlightStyles from "../../styles/highlight-colors.css?inline";
 import quoteBlockStyles from "../../styles/quote-blocks.css?inline";
+import { applyImageWidth } from "../../domain/imageWidth";
 
 export const pdfStyles = `
 @page { size: A4; margin: 18mm 16mm; }
@@ -53,7 +54,7 @@ export async function exportPagePdf(content: string, sourcePath: string): Promis
       try {
         const blob=await vaultService.readImage(resolveImagePath(sourcePath,placeholder.dataset.nebulaImage!));
         const url=URL.createObjectURL(blob);urls.push(url);
-        const img=doc.createElement("img");img.alt=placeholder.getAttribute("aria-label") ?? "";img.src=url;placeholder.replaceWith(img);
+        const img=doc.createElement("img");img.alt=placeholder.getAttribute("aria-label") ?? "";applyImageWidth(img, placeholder.dataset.nebulaImageWidth);img.src=url;placeholder.replaceWith(img);
       }catch {warnings++;placeholder.textContent=`Immagine non disponibile: ${placeholder.dataset.nebulaImage}`;placeholder.className="image-error";}
     }));
     await Promise.all([...article.querySelectorAll<HTMLImageElement>("img")].map(img=>new Promise<void>(resolve=>{

@@ -18,10 +18,11 @@ import { resolveImagePath } from "../../infrastructure/filesystem/vaultImages";
 import { renderedLinkHref } from "./noteLinkTarget";
 import { insertCommands } from "./insertCommands";
 import { documentText } from "./markdownAnalysis";
+import { removedImage } from "./editorImageEditing";
 
 interface Props {
   path: string; value: string; source: boolean; visible: boolean; readOnly?: boolean; appearanceKey?: string; showMarkdownAtCursor?: boolean;
-  onChange: (value: string) => void; onSave: () => void; onOpenLink: (target: string) => void;
+  onChange: (value: string, removedImages?: readonly string[]) => void; onSave: () => void; onOpenLink: (target: string) => void;
   suggestions: KnowledgeSuggestion[]; apiRef: RefObject<EditorApi | null>;
   onUiChange: (state: EditorUiState) => void; onPanel: (panel: EditorPanel) => void;
   onTable?: (table: MarkdownTable) => void;
@@ -202,7 +203,9 @@ export default function CodeMirrorEditor(props: Props) {
       EditorView.updateListener.of(update => {
         if (update.docChanged && !syncing.current) {
           lastValue.current = documentText(update.state.doc);
-          current.current.onChange(lastValue.current);
+          const removals = update.transactions.map(transaction => transaction.annotation(removedImage)).filter(reference => reference !== undefined);
+          if (removals.length) current.current.onChange(lastValue.current, removals);
+          else current.current.onChange(lastValue.current);
         }
         if (update.docChanged || update.selectionSet) notify(update.view);
       }),

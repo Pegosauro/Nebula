@@ -11,6 +11,7 @@ import { resolveKnowledgeTarget } from "../../domain/resolveKnowledge";
 import { parseWikilinks } from "./parseKnowledge";
 import { isPaletteColor } from "../../domain/colorPalette";
 import { highlightPattern, splitHighlight } from "../../domain/markdownHighlight";
+import { imageWidth } from "../../domain/imageWidth";
 
 function escapeHtml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -85,10 +86,11 @@ parser.use({
       const key = (token as Tokens.Checkbox & { nebulaKey?: string }).nebulaKey;
       return `<input type="checkbox"${key ? ` data-nebula-task="${key}"` : ""} disabled${token.checked ? " checked" : ""}>`;
     },
-    image({ href, text }) {
-      if (/^https?:\/\//i.test(href)) return `<img src="${escapeHtml(href)}" alt="${escapeHtml(text)}" loading="lazy" referrerpolicy="no-referrer">`;
+    image({ href, text, title }) {
+      const width = imageWidth(title);
+      if (/^https?:\/\//i.test(href)) return `<img src="${escapeHtml(href)}" alt="${escapeHtml(text)}"${width ? ` width="${width}"` : ""} loading="lazy" referrerpolicy="no-referrer">`;
       if (/^[a-z][a-z\d+.-]*:|^\/\//i.test(href)) return `<span class="image-error">Immagine non supportata</span>`;
-      return `<span class="local-image" data-nebula-image="${escapeHtml(href)}" role="img" aria-label="${escapeHtml(text || "Immagine")}">Caricamento immagine…</span>`;
+      return `<span class="local-image" data-nebula-image="${escapeHtml(href)}"${width ? ` data-nebula-image-width="${width}"` : ""} role="img" aria-label="${escapeHtml(text || "Immagine")}">Caricamento immagine…</span>`;
     },
   },
 });
@@ -146,7 +148,9 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
     if (!/^https?:\/\//i.test(src)) {
       if (src && !/^[a-z][a-z\d+.-]*:|^\/\//i.test(src)) {
         const placeholder = document.createElement("span"); placeholder.className = "local-image";
-        placeholder.dataset.nebulaImage = src; placeholder.setAttribute("role", "img"); placeholder.setAttribute("aria-label", img.alt || "Immagine"); placeholder.textContent = "Caricamento immagine…"; img.replaceWith(placeholder);
+        placeholder.dataset.nebulaImage = src; placeholder.setAttribute("role", "img"); placeholder.setAttribute("aria-label", img.alt || "Immagine"); placeholder.textContent = "Caricamento immagine…";
+        if (/^[1-9]\d{0,3}$/.test(img.getAttribute("width") ?? "")) placeholder.dataset.nebulaImageWidth = img.getAttribute("width")!;
+        img.replaceWith(placeholder);
       } else img.remove();
     } else { img.loading = "lazy"; img.referrerPolicy = "no-referrer"; }
   }
