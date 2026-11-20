@@ -11,6 +11,7 @@ import { WorkspaceContent } from "../workspace/WorkspaceContent";
 import { KnowledgeNavigationDialog } from "../knowledge/KnowledgeNavigationDialog";
 import { useWorkspaceStore } from "../workspace/workspaceStore";
 import { QuickSwitcher } from "../search/QuickSwitcher";
+import { VaultBackupBanner, VaultBackupReviewDialog } from "../vault/VaultBackupControls";
 
 export function AppShell() {
   const { showSidebar, showContext } = useShellPanels();
@@ -22,6 +23,7 @@ export function AppShell() {
   return (
     <div className={`app-shell ${navigationExpanded ? "has-expanded-navigation" : ""} ${showSidebar ? "has-sidebar" : ""} ${showContext ? "has-context" : ""}`}>
       <AppHeader />
+      <VaultBackupBanner />
       <div className="shell-main">
         <ActivityRail />
         {showSidebar ? <ActivityPanel /> : null}
@@ -40,6 +42,7 @@ export function AppShell() {
       <UpdateBanner />
       <KnowledgeNavigationDialog />
       <QuickSwitcher />
+      <VaultBackupReviewDialog />
     </div>
   );
 }

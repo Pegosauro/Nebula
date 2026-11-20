@@ -1,4 +1,4 @@
-import { updateLinkedTaskPaths } from "../tasks/taskSession";
+import { flushTaskSession, reloadTaskSession, updateLinkedTaskPaths } from "../tasks/taskSession";
 import { useConfiguratorStore } from "../configurator/configuratorStore";
 import { useTreeStore } from "../trees/treeStore";
 import { create } from "zustand";
@@ -9,6 +9,8 @@ import { useKnowledgeStore } from "../knowledge/knowledgeStore";
 import { useWorkspaceStore } from "../workspace/workspaceStore";
 import { useSearchStore } from "../search/searchStore";
 import { vaultService } from "./vaultService";
+import type { VaultBackupStatus } from "./vaultBackupManager";
+import type { VaultBackupChoice, VaultBackupReview } from "../../infrastructure/filesystem/vaultBackup";
 
 export type VaultStatus =
   | "idle"
@@ -29,6 +31,17 @@ interface VaultState {
   recentVaults: RecentVault[];
   progress?: VaultScanProgress;
   error?: string;
+  backup?: VaultBackupStatus;
+  backupBusy: boolean;
+  backupError?: string;
+  backupReview?: VaultBackupReview;
+  configureBackup: () => Promise<void>;
+  disableBackup: () => Promise<void>;
+  syncBackup: () => Promise<void>;
+  openBackup: () => Promise<void>;
+  reviewBackup: () => Promise<void>;
+  dismissBackupReview: () => void;
+  applyBackup: (choices: ReadonlyMap<string, VaultBackupChoice>) => Promise<void>;
   initialize: () => Promise<void>;
   chooseVault: () => Promise<void>;
   openTestVault: () => Promise<void>;
@@ -52,6 +65,38 @@ const readableError = readableFileSystemError;
 export const useVaultStore = create<VaultState>((set, get) => {
   const setProgress = (progress: VaultScanProgress) => set({ status: "scanning", progress, error: undefined });
 
+  const flushDocuments = async () => {
+    const documents = useDocumentStore.getState();
+    for (const path of Object.keys(documents.sessions)) {
+      if (!await documents.flushPaths(path)) throw new Error("Salva o risolvi i conflitti delle note prima di cambiare cartella.");
+    }
+    if (!await useConfiguratorStore.getState().flush() || !await useTreeStore.getState().flush() || !await flushTaskSession(get().activeVaultId)) {
+      throw new Error("Salva o risolvi i conflitti di configuratori, strutture e task prima di cambiare cartella.");
+    }
+  };
+
+  const backupAction = async (action: () => Promise<void>) => {
+    if (get().backupBusy) return;
+    set({ backupBusy: true, backupError: undefined });
+    try { await action(); }
+    catch (error) { set({ backupError: readableError(error) || undefined }); }
+    finally { set({ backupBusy: false }); }
+  };
+
+  const replaceActiveSnapshot = (snapshot: VaultSnapshot, savedVaultName?: string) => {
+    useConfiguratorStore.getState().reset();
+    useTreeStore.getState().reset();
+    useDocumentStore.getState().reset();
+    useKnowledgeStore.getState().reset();
+    useSearchStore.getState().reset();
+    useWorkspaceStore.getState().resetDocuments();
+    if (useWorkspaceStore.getState().activity !== "settings") useWorkspaceStore.getState().setActivity("files");
+    const activeVaultId = service.currentVaultId();
+    set({ status: "ready", snapshot, activeVaultId, savedVaultName, progress: undefined, error: undefined });
+    reloadTaskSession(activeVaultId);
+    void useKnowledgeStore.getState().rebuild(snapshot);
+  };
+
   const loadSaved = async (): Promise<void> => {
     const snapshot = await service.resumeSaved(setProgress);
     set({
@@ -69,7 +114,7 @@ export const useVaultStore = create<VaultState>((set, get) => {
   };
 
   const completeMutation = (snapshot: VaultSnapshot) => {
-    set({ status: "ready", snapshot, activeVaultId: service.currentVaultId(), savedVaultName: snapshot.name, progress: undefined, error: undefined });
+    set({ status: "ready", snapshot, activeVaultId: service.currentVaultId(), savedVaultName: get().backup?.usingBackup ? get().savedVaultName : snapshot.name, progress: undefined, error: undefined });
   };
 
   const syncKnowledgeAfterMutation = (
@@ -93,6 +138,38 @@ export const useVaultStore = create<VaultState>((set, get) => {
     initialized: false,
     status: "idle",
     recentVaults: [],
+    backupBusy: false,
+    configureBackup: () => backupAction(() => service.configureBackup()),
+    disableBackup: () => backupAction(() => service.disableBackup()),
+    syncBackup: () => backupAction(async () => {
+      if (get().backup?.pending) await service.authorizeBackup();
+      else await service.syncBackup();
+    }),
+    openBackup: () => backupAction(async () => {
+      const current = get();
+      if (current.status === "ready" || current.status === "opening" || current.status === "scanning") return;
+      // Permission is requested from the click, before asynchronous saves or directory reads.
+      if (current.snapshot) {
+        await service.authorizeBackup();
+        await flushDocuments();
+      }
+      const snapshot = await service.openBackup();
+      replaceActiveSnapshot(snapshot, current.savedVaultName);
+    }),
+    reviewBackup: () => backupAction(async () => {
+      await service.authorizePrimary();
+      await flushDocuments();
+      set({ backupReview: await service.reviewBackup() });
+    }),
+    dismissBackupReview: () => { if (!get().backupBusy) set({ backupReview: undefined, backupError: undefined }); },
+    applyBackup: (choices) => backupAction(async () => {
+      const review = get().backupReview;
+      if (!review) return;
+      await flushDocuments();
+      const snapshot = await service.applyBackup(review, choices);
+      replaceActiveSnapshot(snapshot, snapshot.name);
+      set({ backupReview: undefined });
+    }),
     initialize: async () => {
       if (get().initialized) return;
       set({ initialized: true, status: "restoring", error: undefined });
@@ -104,11 +181,13 @@ export const useVaultStore = create<VaultState>((set, get) => {
 
       try {
         const recentVaults = await service.recentVaults();
+        set({ recentVaults });
         const probe = await service.probeSaved();
         if (!probe.exists) {
           set({ status: service.isSupported() ? "idle" : "unsupported", recentVaults });
           return;
         }
+        set({ savedVaultName: probe.name });
         if (probe.permission === "granted") {
           await loadSaved();
           return;
@@ -120,11 +199,11 @@ export const useVaultStore = create<VaultState>((set, get) => {
           error: probe.permission === "denied" ? "L'accesso al Vault è stato revocato." : undefined,
         });
       } catch (error) {
-        set({ status: "error", error: readableError(error) });
+        set({ status: get().backup ? "needs-permission" : "error", error: readableError(error), progress: undefined });
       }
     },
     openTestVault: async () => {
-      if (["opening", "scanning", "restoring"].includes(get().status)) return;
+      if (get().backupBusy || ["opening", "scanning", "restoring"].includes(get().status)) return;
       const previous = get();
       set({ status: "opening", error: undefined });
       try {
@@ -142,6 +221,10 @@ export const useVaultStore = create<VaultState>((set, get) => {
       } catch (error) { set({ status: previous.snapshot ? "ready" : "error", snapshot: previous.snapshot, error: readableError(error), progress: undefined }); }
     },
     chooseVault: async () => {
+      if (get().backupBusy) return;
+      if (get().backup?.usingBackup) {
+        try { await flushDocuments(); } catch (error) { set({ error: readableError(error) }); return; }
+      }
       if (!await useConfiguratorStore.getState().flush()) { set({error:"Salva o risolvi i conflitti dei configuratori prima di cambiare Vault."}); return; }
       if (!await useTreeStore.getState().flush()) { set({error:"Salva o risolvi i conflitti delle strutture prima di cambiare Vault."}); return; }
       const previous = get();
@@ -177,6 +260,8 @@ export const useVaultStore = create<VaultState>((set, get) => {
       }
     },
     reconnect: async () => {
+      if (get().backupBusy) return;
+      if (get().backup?.usingBackup) return get().reviewBackup();
       set({ status: "opening", error: undefined });
       try {
         const snapshot = await service.reconnectSaved(setProgress);
@@ -195,6 +280,10 @@ export const useVaultStore = create<VaultState>((set, get) => {
       }
     },
     openRecent: async (id) => {
+      if (get().backupBusy) return;
+      if (get().backup?.usingBackup) {
+        try { await flushDocuments(); } catch (error) { set({ error: readableError(error) }); return; }
+      }
       if (!await useConfiguratorStore.getState().flush()) { set({error:"Salva o risolvi i conflitti dei configuratori prima di cambiare Vault."}); return; }
       if (!await useTreeStore.getState().flush()) { set({error:"Salva o risolvi i conflitti delle strutture prima di cambiare Vault."}); return; }
       useConfiguratorStore.getState().reset();
@@ -202,6 +291,9 @@ export const useVaultStore = create<VaultState>((set, get) => {
       set({ status: "opening", error: undefined, progress: undefined });
       try {
         const probe = await service.selectRecent(id);
+        set({ savedVaultName: probe.name, snapshot: undefined, activeVaultId: undefined });
+        useWorkspaceStore.getState().resetDocuments();
+        useDocumentStore.getState().reset();
         if (probe.permission !== "granted") {
           set({
             status: "needs-permission",
@@ -210,25 +302,28 @@ export const useVaultStore = create<VaultState>((set, get) => {
           });
           return;
         }
-        useWorkspaceStore.getState().resetDocuments();
-        useDocumentStore.getState().reset();
         await loadSaved();
         useWorkspaceStore.getState().setActivity("files");
       } catch (error) {
-        set({ status: "error", error: readableError(error) });
+        set({ status: get().backup ? "needs-permission" : "error", error: readableError(error), progress: undefined });
       }
     },
     refresh: async () => {
-      if (!get().snapshot) return;
+      if (!get().snapshot || get().backupBusy) return;
       try {
-        const snapshot = await service.resumeSaved(setProgress);
+        const snapshot = await service.refreshActive(setProgress);
         set({ status: "ready", snapshot, activeVaultId: service.currentVaultId(), progress: undefined, error: undefined });
+        service.scheduleBackup();
         void useKnowledgeStore.getState().rebuild(snapshot);
       } catch (error) {
-        set({ status: "error", error: readableError(error), progress: undefined });
+        set({ status: get().backup ? "needs-permission" : "error", error: readableError(error), progress: undefined });
       }
     },
     disconnect: async () => {
+      if (get().backupBusy) return;
+      if (get().backup?.usingBackup) {
+        try { await flushDocuments(); } catch (error) { set({ error: readableError(error) }); return; }
+      }
       if (!await useConfiguratorStore.getState().flush()) { set({error:"Salva o risolvi i conflitti dei configuratori prima di disconnettere il Vault."}); return; }
       if (!await useTreeStore.getState().flush()) { set({error:"Salva o risolvi i conflitti delle strutture prima di disconnettere il Vault."}); return; }
       useConfiguratorStore.getState().reset();
@@ -351,3 +446,5 @@ export const useVaultStore = create<VaultState>((set, get) => {
     clearError: () => set({ error: undefined }),
   };
 });
+
+service.observeBackup(backup => useVaultStore.setState({ backup }));

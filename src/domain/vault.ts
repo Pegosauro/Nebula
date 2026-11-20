@@ -39,12 +39,15 @@ export interface RecentVault {
 
 export type VaultPermission = "granted" | "prompt" | "denied";
 
+export const VAULT_BACKUP_HISTORY = ".nebula-backup-history";
+
 export const DEFAULT_IGNORED_DIRECTORIES = new Set([
   ".git",
   ".nebula",
   ".obsidian",
   ".trash",
   "node_modules",
+  VAULT_BACKUP_HISTORY,
 ]);
 
 export function findVaultEntry(entries: VaultEntry[], path: string): VaultEntry | undefined {

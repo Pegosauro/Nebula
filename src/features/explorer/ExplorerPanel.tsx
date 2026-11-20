@@ -11,6 +11,7 @@ import { useWorkspaceStore } from "../workspace/workspaceStore";
 
 export function ExplorerPanel() {
   const status = useVaultStore((state) => state.status);
+  const backupBusy = useVaultStore(state => state.backupBusy);
   const activeVaultId = useVaultStore(state => state.activeVaultId);
   const snapshot = useVaultStore((state) => state.snapshot);
   const savedVaultName = useVaultStore((state) => state.savedVaultName);
@@ -56,7 +57,7 @@ export function ExplorerPanel() {
       setMoving(false);
     }
   };
-  const loading = moving || status === "opening" || status === "restoring" || status === "scanning";
+  const loading = backupBusy || moving || status === "opening" || status === "restoring" || status === "scanning";
   const creationParent = selectedEntry?.type === "directory"
     ? selectedEntry.path
     : selectedEntry?.path ? dirname(selectedEntry.path) : "";
@@ -99,7 +100,7 @@ export function ExplorerPanel() {
       {snapshot ? (
         snapshot.root.length ? (
           <div className="explorer-scroll">
-            <FileTree vaultId={activeVaultId} entries={snapshot.root} vaultRevision={snapshot.scannedAt} duplicating={duplicating} onMove={moving || duplicating || request ? undefined : move} onAction={next => { void action(next); }} />
+            <FileTree vaultId={activeVaultId} entries={snapshot.root} vaultRevision={snapshot.scannedAt} duplicating={duplicating} onMove={loading || duplicating || request ? undefined : move} onAction={next => { if (!backupBusy) void action(next); }} />
           </div>
         ) : (
           <div className="panel-empty compact-empty">

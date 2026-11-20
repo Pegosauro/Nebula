@@ -1,4 +1,5 @@
 import { runHandleTransaction } from "./nebulaDb";
+import type { VaultBackupRecord } from "../filesystem/vaultBackup";
 
 const CURRENT_VAULT_KEY = "current";
 const RECENT_VAULTS_KEY = "recent-vaults";
@@ -12,20 +13,25 @@ export interface StoredRecentVault {
 }
 
 export class VaultHandleRepository {
-  get(): Promise<FileSystemDirectoryHandle | undefined> {
-    return runHandleTransaction("readonly", (store) => store.get(CURRENT_VAULT_KEY));
+  async get(): Promise<FileSystemDirectoryHandle | undefined> {
+    return (await this.getConnection())?.handle;
+  }
+
+  async getConnection(): Promise<{ handle: FileSystemDirectoryHandle; id?: string } | undefined> {
+    const current = await runHandleTransaction<FileSystemDirectoryHandle | { handle: FileSystemDirectoryHandle; id?: string } | undefined>("readonly", store => store.get(CURRENT_VAULT_KEY));
+    return current && ("handle" in current ? current : { handle: current });
   }
 
   async set(handle: FileSystemDirectoryHandle): Promise<StoredRecentVault> {
-    await this.setCurrent(handle);
     const recent = await this.remember(handle);
     const current = recent[0];
     if (!current) throw new Error("Impossibile memorizzare il Vault.");
+    await this.setCurrent(handle, current.id);
     return current;
   }
 
-  async setCurrent(handle: FileSystemDirectoryHandle): Promise<void> {
-    await runHandleTransaction("readwrite", (store) => store.put(handle, CURRENT_VAULT_KEY));
+  async setCurrent(handle: FileSystemDirectoryHandle, id?: string): Promise<void> {
+    await runHandleTransaction("readwrite", (store) => store.put({ handle, id }, CURRENT_VAULT_KEY));
   }
 
   async clear(): Promise<void> {
@@ -39,14 +45,14 @@ export class VaultHandleRepository {
     )) ?? [];
   }
 
-  async remember(handle: FileSystemDirectoryHandle): Promise<StoredRecentVault[]> {
+  async remember(handle: FileSystemDirectoryHandle, knownId?: string): Promise<StoredRecentVault[]> {
     const recent = await this.getRecent();
     let matchingIndex = -1;
     for (let index = 0; index < recent.length; index += 1) {
       const stored = recent[index];
       if (!stored) continue;
       try {
-        if (typeof handle.isSameEntry === "function" && await handle.isSameEntry(stored.handle)) {
+        if (knownId ? stored.id === knownId : typeof handle.isSameEntry === "function" && await handle.isSameEntry(stored.handle)) {
           matchingIndex = index;
           break;
         }
@@ -57,7 +63,7 @@ export class VaultHandleRepository {
 
     const existing = matchingIndex >= 0 ? recent[matchingIndex] : undefined;
     const item: StoredRecentVault = {
-      id: existing?.id ?? crypto.randomUUID(),
+      id: knownId ?? existing?.id ?? crypto.randomUUID(),
       name: handle.name,
       handle,
       lastOpenedAt: Date.now(),
@@ -70,5 +76,17 @@ export class VaultHandleRepository {
 
   async getRecentById(id: string): Promise<StoredRecentVault | undefined> {
     return (await this.getRecent()).find((item) => item.id === id);
+  }
+
+  getBackup(id: string): Promise<VaultBackupRecord | undefined> {
+    return runHandleTransaction("readonly", store => store.get(`backup:${id}`));
+  }
+
+  async setBackup(id: string, record: VaultBackupRecord): Promise<void> {
+    await runHandleTransaction("readwrite", store => store.put(record, `backup:${id}`));
+  }
+
+  async removeBackup(id: string): Promise<void> {
+    await runHandleTransaction("readwrite", store => store.delete(`backup:${id}`));
   }
 }

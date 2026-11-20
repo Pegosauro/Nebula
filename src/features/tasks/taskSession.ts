@@ -60,10 +60,24 @@ export function createTaskSession(file: TaskFile, collapsed: string[] = []) {
     if (store.getState().status !== "error" && store.getState().status !== "conflict") void save();
   }
 
-  return { store, layout, load, save, change };
+  async function flush() {
+    await writing;
+    const { board, status } = store.getState();
+    return !board || (status !== "error" && status !== "conflict");
+  }
+
+  return { store, layout, load, save, change, flush };
 }
 
 const sessions = new Map<string, ReturnType<typeof createTaskSession>>();
+
+export async function flushTaskSession(id?: string) {
+  return !id || await sessions.get(id)?.flush() !== false;
+}
+
+export function reloadTaskSession(id?: string) {
+  if (id) void sessions.get(id)?.load();
+}
 
 export function taskSession(vaultId: string) {
   let session = sessions.get(vaultId);

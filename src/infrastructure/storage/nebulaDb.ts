@@ -36,7 +36,7 @@ export async function runHandleTransaction<T>(
   return new Promise<T>((resolve, reject) => {
     const transaction = database.transaction(HANDLE_STORE, mode);
     const request = operation(transaction.objectStore(HANDLE_STORE));
-    request.onsuccess = () => resolve(request.result);
+    transaction.oncomplete = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("Operazione locale non riuscita."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Operazione locale interrotta."));
   });

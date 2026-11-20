@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { ColorPalette } from "../../components/ui/ColorPalette";
 import { useVaultStore } from "../vault/vaultStore";
+import { VaultBackupSettings } from "../vault/VaultBackupControls";
 import { AppWindow, Download, Info, LayoutPanelLeft, MonitorCog, Moon, Sun } from "lucide-react";
 import { usePwaStore } from "../pwa/pwaStore";
 import { defaultAccent, useSettingsStore, type ThemeChoice, type UiDensity } from "./settingsStore";
@@ -18,7 +19,7 @@ const densities: Array<{ id: UiDensity; label: string }> = [
 
 export function SettingsView() {
   const vaultError = useVaultStore(state => state.error);
-  const testVaultBusy = useVaultStore(state => state.status === "opening" || state.status === "scanning" || state.status === "restoring");
+  const testVaultBusy = useVaultStore(state => state.backupBusy || state.status === "opening" || state.status === "scanning" || state.status === "restoring");
   const navigationExpanded = useSettingsStore(state => state.navigationExpanded);
   const setNavigationExpanded = useSettingsStore(state => state.setNavigationExpanded);
   const showProperties = useSettingsStore(state => state.showNotePropertiesByDefault);
@@ -46,7 +47,7 @@ export function SettingsView() {
     <div className="settings-view">
       <header className="settings-title">
         <h1>Impostazioni</h1>
-        <p>Preferenze locali di Nebula. Il Vault non viene modificato.</p>
+        <p>Preferenze locali di Nebula.</p>
       </header>
 
       <section className="settings-section">
@@ -109,6 +110,7 @@ export function SettingsView() {
         </label>
       </section>
 
+      <VaultBackupSettings />
       <section className="settings-section"><div className="settings-section-title"><AppWindow size={19}/><div><h2>Vault di prova</h2><p>Note e configuratori dimostrativi, separati dai file personali.</p></div></div><div className="setting-row"><div><strong>Esempi popolati</strong><span>Le modifiche alla prova restano nell’archivio locale del browser.</span></div><button className="button button-secondary" disabled={testVaultBusy} onClick={() => void useVaultStore.getState().openTestVault()}>{testVaultBusy ? "Apertura…" : "Apri Vault di prova"}</button></div>{vaultError && <p className="config-error" role="alert">{vaultError}</p>}<a className="config-text-button" href={`${import.meta.env.BASE_URL}samples/Nebula-Vault-Test.zip`} download>Scarica il Vault ZIP</a></section>
       <section className="settings-section">
         <div className="settings-section-title">
