@@ -5,10 +5,11 @@
 .editor-v2 .editor-save { padding: 0 10px; }
 .editor-write-surface { height: 100%; min-height: 0; }
 .editor-write-surface[hidden] { display: none; }
-.editor-toolbar { flex: none; display: flex; gap: 6px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--border); background: var(--bg-panel); overflow-x: auto; scrollbar-width: thin; }
+.editor-toolbar { flex: none; display: flex; gap: 2px; align-items: flex-start; padding: 7px 12px; border-bottom: 1px solid var(--border); background: var(--bg-panel); }
+.editor-toolbar-scroll { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; overflow-x: auto; scrollbar-width: thin; }
 .editor-toolbar button, .selection-format-bar button, .editor-search button, .table-tools button, .editor-notice button { flex: none; min-width: 34px; height: 34px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 13px; white-space: nowrap; }
 .editor-toolbar button:hover:not(:disabled), .selection-format-bar button:hover, .editor-search button:hover:not(:disabled), .table-tools button:hover:not(:disabled) { background: var(--accent-soft); color: var(--text-primary); }
-.editor-toolbar button[aria-pressed="true"], .selection-format-bar button[aria-pressed="true"], .table-tools button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); }
+.editor-toolbar button[aria-pressed="true"], .editor-toolbar .editor-details-toggle[aria-expanded="true"], .selection-format-bar button[aria-pressed="true"], .table-tools button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); }
 .editor-toolbar button:disabled, .table-tools button:disabled, .editor-search button:disabled { opacity: .35; cursor: default; }
 :is(.editor-toolbar, .selection-format-bar, .editor-toolbar-menu) button svg {
   color: light-dark(#000, var(--text-primary));

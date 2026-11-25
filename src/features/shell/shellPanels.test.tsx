@@ -43,9 +43,9 @@ describe("contextual shell", () => {
     for (const label of ["Grafo", "Lavagne"]) expect(host.querySelector(`button[aria-label="${label}"]`)).toBeNull();
     expect(host.querySelector('.rail-expand')).not.toBeNull();
   });
-  it("reopens document details from the edge and keeps the header free of panel toggles", async () => {
+  it("reopens details for non-note documents from the edge and keeps the header free of panel toggles", async () => {
     useVaultStore.setState({ status: "ready" });
-    useWorkspaceStore.setState({ activity: "files", sidebarOpen: false, contextPanelOpen: false, activeTabId: "A.md", tabs: [{ id: "A.md", kind: "document", title: "A", path: "A.md" }] });
+    useWorkspaceStore.setState({ activity: "files", sidebarOpen: false, contextPanelOpen: false, activeTabId: "A.pdf", tabs: [{ id: "A.pdf", kind: "document", title: "A.pdf", path: "A.pdf", extension: ".pdf" }] });
     const host = await mount(<><AppHeader /><ContextPanelOpener /><ActivityRail /></>);
     expect(host.querySelectorAll(".header-actions button")).toHaveLength(3);
     await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Apri pannello destro"]')!.click());

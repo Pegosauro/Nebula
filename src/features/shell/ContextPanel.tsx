@@ -90,7 +90,7 @@ export function ContextPanel() {
   };
 
   return (
-    <aside className="context-panel" aria-label="Pannello contestuale">
+    <aside id="document-context-panel" className="context-panel" aria-label="Pannello contestuale">
       <div className="context-tabs" role="tablist" aria-label="Dettagli documento">
         {tabs.map(({ id, label, icon: Icon }) => {
           const count = id === "backlinks" ? knowledgeDocument?.incoming.length : id === "outgoing" ? knowledgeDocument?.outgoing.length : undefined;

@@ -1,7 +1,7 @@
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { useQuickNoteUiStore } from "../notes/quickNoteUiStore";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { AlertTriangle, Check, Files, FileText, LoaderCircle, RefreshCw, Save, TriangleAlert, Undo2, Code2, Pencil, X, LockKeyhole, LockKeyholeOpen, Maximize2, Minimize2, SlidersHorizontal, NotebookPen, Download, ListTodo } from "lucide-react";
+import { AlertTriangle, Check, Files, FileText, LoaderCircle, RefreshCw, Save, TriangleAlert, Undo2, Code2, Pencil, X, LockKeyhole, LockKeyholeOpen, Maximize2, Minimize2, SlidersHorizontal, NotebookPen, Download, ListTodo, PanelRight } from "lucide-react";
 import { dirname, withoutMarkdownExtension } from "../../domain/path";
 import { useWorkspaceStore } from "../workspace/workspaceStore";
 import { useTaskNavigation } from "../tasks/taskNavigation";
@@ -70,6 +70,8 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
   const api = useRef<EditorApi | null>(null);
   const [ui, setUi] = useState<EditorUiState>();
   const [panel, setPanel] = useState<EditorPanel | null>(null), [search, setSearch] = useState(false), [focus, setFocus] = useState(false);
+  const contextOpen = useWorkspaceStore(state => state.contextPanelOpen);
+  const detailsOpen = contextOpen && !focus;
   const [editingTable, setEditingTable] = useState<MarkdownTable>();
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [notice, setNotice] = useState(""), [busy, setBusy] = useState(false);
@@ -153,6 +155,13 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
   const counts = useDocumentStats(path, session?.content);
   if (!session || session.status === "loading") return <div className="editor-loading"><LoaderCircle className="spin" size={24} /><span>Apertura di {title}…</span></div>;
   if (!session.loaded) return <div className="editor-fatal" role="alert"><AlertTriangle size={26} /><h1>Impossibile aprire la nota</h1><p>{session.error}</p><button type="button" className="button button-secondary" onClick={() => void useDocumentStore.getState().open(path)}>Riprova</button></div>;
+  const detailsButton = <button type="button" className={locked ? "button button-secondary" : "editor-details-toggle"}
+    aria-label="Dettagli" aria-expanded={detailsOpen} aria-controls={detailsOpen ? "document-context-panel" : undefined}
+    title={detailsOpen ? "Chiudi dettagli" : "Apri dettagli (Ctrl/⌘ Alt I)"}
+    onClick={() => {
+      setFocus(false);
+      useWorkspaceStore.getState().setContextPanelOpen(!detailsOpen);
+    }}><PanelRight size={17} aria-hidden="true" /></button>;
   return <section ref={area} style={{ "--note-font-size": `${fontSize / 16}rem`, "--note-width": fullWidth ? "100%" : `${pageWidth}px` } as CSSProperties} className={`markdown-editor editor-v2 ${locked ? "is-locked" : ""} ${focus ? "editor-focus" : ""}`} aria-label={`Editor ${title}`} onKeyDown={event => {
     if (event.key === "Escape" && focus && !panel) { event.stopPropagation(); setFocus(false); }
     if (event.key === "s" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); if (!session.operationLocked && session.status !== "conflict") void useDocumentStore.getState().save(path); }
@@ -167,12 +176,13 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
         <button className="button button-secondary editor-template" type="button" disabled={busy} aria-label="Salva come modello" title="Salva questa nota come modello personale" onClick={() => setSavingTemplate(true)}><Files size={17} /><span>Modello</span></button>
         <button className={`button button-secondary editor-lock ${locked ? "is-active" : ""}`} type="button" disabled={busy} aria-pressed={locked} aria-label={locked ? "Sblocca pagina" : "Blocca pagina"} title={locked ? "Sblocca per modificare" : "Blocca in sola lettura"} onClick={toggleLock}>{locked ? <LockKeyhole size={17} /> : <LockKeyholeOpen size={17} />}<span>{locked ? "Sola lettura" : "Blocca"}</span></button>
         {locked && <button className="button button-secondary" type="button" aria-label={focus ? "Esci da Concentrazione" : "Concentrazione"} onClick={() => setFocus(value => !value)}>{focus ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>}
+        {locked && detailsButton}
         <button className="button button-secondary editor-save" type="button" disabled={locked || session.status === "saving" || session.status === "saved" || session.status === "conflict"} onClick={() => void useDocumentStore.getState().save(path)} aria-label="Salva nota" title="Salva (Ctrl/⌘ S)">{session.status === "saving" ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />}</button>
       </div>
     </header>
     {propertiesVisible && <NotePropertiesPanel content={session.content} readOnly={locked || !!session.operationLocked} onChange={change} onHide={() => toggleProperties(false)} />}
     {path === QUICK_NOTES_PATH && <QuickNoteOrganizer content={session.content} disabled={!!session.operationLocked || session.status === "conflict"} onCompleted={setNotice} />}
-    {!locked && <EditorToolbar api={api.current} state={ui} onPanel={openPanel} onCommand={onCommand} focus={focus} onFocus={() => setFocus(value => !value)} />}
+    {!locked && <EditorToolbar api={api.current} state={ui} onPanel={openPanel} onCommand={onCommand} focus={focus} onFocus={() => setFocus(value => !value)} details={detailsButton} />}
     {!locked && search && <EditorSearch content={session.content} api={api.current} onClose={() => { setSearch(false); api.current?.focus(); }} />}
     {session.status === "conflict" ? <div className="editor-alert is-conflict" role="alert"><TriangleAlert size={20} /><div><strong>Il file è cambiato anche fuori da Nebula</strong><p>{session.error}</p></div><button className="button button-secondary" type="button" disabled={locked} onClick={() => void useDocumentStore.getState().reloadFromDisk(path)}><Undo2 size={15} />Ricarica da disco</button><button className="button button-primary" type="button" disabled={locked} onClick={() => void useDocumentStore.getState().forceSave(path)}><Save size={15} />Mantieni Nebula</button></div>
       : session.status === "error" ? <div className="editor-alert" role="alert"><AlertTriangle size={20} /><div><strong>Il testo è ancora nell’editor</strong><p>{session.error}</p></div><button className="button button-secondary" type="button" onClick={() => void useDocumentStore.getState().save(path)}>Riprova</button></div> : null}

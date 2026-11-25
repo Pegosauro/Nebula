@@ -12,5 +12,6 @@ export function useShellPanels() {
   const treeDocument = !!tab?.path && isTreePath(tab.path);
   const documentVisible = !treeDocument && (activity === "files" || activity === "search" || activity === "configurators" && !!tab?.path && isConfiguratorPath(tab.path));
   const canShowContext = ready && (documentVisible && tab?.kind === "document");
-  return { canShowSidebar, canShowContext, showSidebar: canShowSidebar && sidebarOpen, showContext: canShowContext && contextOpen };
+  const isNoteEditor = canShowContext && tab?.extension === ".md";
+  return { canShowSidebar, canShowContext, isNoteEditor, showSidebar: canShowSidebar && sidebarOpen, showContext: canShowContext && contextOpen };
 }
