@@ -1,3 +1,4 @@
+import { usePopupSelection } from "../../components/ui/popupDismissal";
 import { isConfiguratorPath, configTitle, parseConfigurator } from "../configurator/model";
 import { useConfiguratorStore } from "../configurator/configuratorStore";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
@@ -15,6 +16,7 @@ type Preview = { title: string; path?: string; content?: string; message?: strin
 export function NoteLinkPreview({ sourcePath, root }: { sourcePath: string; root: RefObject<HTMLElement | null> }) {
   const [preview, setPreview] = useState<Preview>();
   const card = useRef<HTMLDivElement>(null), keep = useRef<() => void>(() => {}), leave = useRef<() => void>(() => {});
+  const selecting = usePopupSelection(card, Boolean(preview));
   const id = useId();
   const draft = useDocumentStore(state => preview?.path ? state.sessions[preview.path] : undefined);
   const revision = useKnowledgeStore(state => state.revision);
@@ -39,7 +41,10 @@ export function NoteLinkPreview({ sourcePath, root }: { sourcePath: string; root
       if (anchor?.getAttribute("aria-describedby") === id) anchor.removeAttribute("aria-describedby");
       restoreTitle(); anchor = undefined; setPreview(undefined);
     };
-    const exit = () => { clearTimeout(enterTimer); cancelExit(); exitTimer = setTimeout(clear, 180); };
+    const exit = () => {
+      clearTimeout(enterTimer); cancelExit();
+      if (!selecting()) exitTimer = setTimeout(() => { if (!selecting()) clear(); }, 180);
+    };
     keep.current = cancelExit; leave.current = exit;
     const show = (element: HTMLElement) => {
       const target = noteLinkTarget(element, sourcePath); if (!target) { clear(); return; }
@@ -74,7 +79,7 @@ export function NoteLinkPreview({ sourcePath, root }: { sourcePath: string; root
       }, 350);
     };
     const over = (event: Event) => {
-      if (event instanceof PointerEvent && event.pointerType === "touch") return;
+      if (selecting() || event instanceof PointerEvent && (event.pointerType === "touch" || event.buttons)) return;
       const element = event.target instanceof Element && !event.target.closest("[data-text-comment]") ? event.target.closest<HTMLElement>(noteLinkSelector) : null;
       if (element && host.contains(element)) show(element);
     };
@@ -83,7 +88,7 @@ export function NoteLinkPreview({ sourcePath, root }: { sourcePath: string; root
       if (related && (anchor?.contains(related) || card.current?.contains(related))) return;
       exit();
     };
-    const scroll = (event: Event) => { if (!card.current?.contains(event.target as Node)) clear(); };
+    const scroll = (event: Event) => { if (!selecting() && !card.current?.contains(event.target as Node)) clear(); };
     const key = (event: KeyboardEvent) => { if (event.key === "Escape" && anchor) { event.stopPropagation(); clear(); } };
     const pointer = (event: PointerEvent) => { if (!card.current?.contains(event.target as Node)) clear(); };
     host.addEventListener("pointerover", over); host.addEventListener("pointerout", out);
@@ -99,7 +104,7 @@ export function NoteLinkPreview({ sourcePath, root }: { sourcePath: string; root
       window.removeEventListener("scroll", scroll, true); window.removeEventListener("resize", clear);
       window.removeEventListener("keydown", key, true); window.removeEventListener("pointerdown", pointer);
     };
-  }, [sourcePath, root, id]);
+  }, [sourcePath, root, id, selecting]);
   if (!preview) return null;
   return createPortal(<div ref={card} id={id} className="note-link-preview" role="tooltip" style={{ left: preview.left, top: preview.top, maxHeight: preview.maxHeight, transform: preview.above ? "translateY(-100%)" : undefined }} onPointerEnter={() => keep.current()} onPointerLeave={() => leave.current()}>
     <header><FileText size={16} /><div><strong>{preview.title}</strong>{preview.path && <small>{withoutMarkdownExtension(preview.path)}</small>}</div></header>

@@ -2,6 +2,7 @@
 
 ## In sviluppo
 
+- La selezione del testo resta disponibile quando il puntatore viene rilasciato fuori dalla finestra. Correzione applicata ai dialog dell’editor, ai commenti e alle anteprime di note, immagini e regole.
 - Commenti alle note Markdown: seleziona un passaggio e scegli «Aggiungi commento». La sottolineatura puntinata apre un fumetto al passaggio del mouse o con un tap.
 - Il contatore nel piè di pagina apre i commenti della nota, compresi quelli da ricollegare. Le annotazioni restano nel file Markdown e seguono il testo mentre scrivi.
 

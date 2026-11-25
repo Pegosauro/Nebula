@@ -1,3 +1,4 @@
+import { usePopupSelection } from "../../components/ui/popupDismissal";
 import { MessageSquare, Pencil } from "lucide-react";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
@@ -13,6 +14,7 @@ export function TextCommentBalloon({ root, comments, onEdit }: {
 }) {
   const [anchor, setAnchor] = useState<Anchor>();
   const card = useRef<HTMLDivElement>(null);
+  const selecting = usePopupSelection(card, Boolean(anchor));
   const active = useRef<Anchor>(undefined);
   const dismiss = useRef(() => {});
   const keepOpen = useRef(() => {});
@@ -39,7 +41,7 @@ export function TextCommentBalloon({ root, comments, onEdit }: {
       clearTimeout(enterTimer);
       pending = undefined;
       clearTimeout(exitTimer);
-      if (!active.current?.pinned) exitTimer = setTimeout(close, 155);
+      if (!active.current?.pinned && !selecting()) exitTimer = setTimeout(() => { if (!selecting()) close(); }, 155);
     };
     function target(event: Event) {
       const element = event.target instanceof Element ? event.target.closest<HTMLElement>(selector) : null;
@@ -56,7 +58,7 @@ export function TextCommentBalloon({ root, comments, onEdit }: {
       setAnchor(next);
     }
     function over(event: PointerEvent) {
-      if (event.pointerType === "touch" || event.buttons || active.current?.pinned) return;
+      if (event.pointerType === "touch" || event.buttons || active.current?.pinned || selecting()) return;
       const element = target(event);
       if (!element) return;
       clearTimeout(exitTimer);
@@ -73,10 +75,10 @@ export function TextCommentBalloon({ root, comments, onEdit }: {
     }
     function focus(event: FocusEvent) {
       const element = target(event);
-      if (element?.matches(":focus-visible") && !active.current?.touch) show(element, true);
+      if (element?.matches(":focus-visible") && !active.current?.touch && !selecting()) show(element, true);
     }
     function blur(event: FocusEvent) {
-      if (target(event) && event.relatedTarget instanceof Node && !card.current?.contains(event.relatedTarget)) close();
+      if (!selecting() && target(event) && event.relatedTarget instanceof Node && !card.current?.contains(event.relatedTarget)) close();
     }
     function key(event: KeyboardEvent) {
       if (event.key !== "Escape" || !active.current) return;
@@ -100,7 +102,7 @@ export function TextCommentBalloon({ root, comments, onEdit }: {
       else show(start.element, true, true, event.clientX, event.clientY);
     }
     function scroll(event: Event) {
-      if (!card.current?.contains(event.target as Node)) close();
+      if (!selecting() && !card.current?.contains(event.target as Node)) close();
     }
 
     host.addEventListener("pointerover", over);
@@ -124,7 +126,7 @@ export function TextCommentBalloon({ root, comments, onEdit }: {
       window.removeEventListener("resize", close);
       window.removeEventListener("keydown", key, true);
     };
-  }, [root, comments, id]);
+  }, [root, comments, id, selecting]);
 
   const comment = anchor && comments.find(item => item.id === anchor.id);
   if (!comment || !anchor) return null;

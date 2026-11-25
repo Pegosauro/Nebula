@@ -1,3 +1,4 @@
+import { useBackdropDismiss } from "../../components/ui/popupDismissal";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Minus, Plus, X } from "lucide-react";
 import { resolveImagePath } from "../../infrastructure/filesystem/vaultImages";
@@ -88,10 +89,11 @@ export function ImageViewer({ image, sourcePath, onClose }: { image: ImageToView
     return () => viewport.removeEventListener("wheel", wheel);
   }, [fitWidth, scale]);
 
+  const backdrop = useBackdropDismiss(dialog, close);
   const name = image.alt || "Immagine";
   return <dialog ref={dialog} className="image-viewer" aria-label={`Anteprima immagine · ${name}`}
     onCancel={event => { event.preventDefault(); close(); }}
-    onClick={event => { if (event.target === event.currentTarget) close(); }}
+    {...backdrop}
     onKeyDown={event => {
       if (event.key === "+" || event.key === "=") { event.preventDefault(); zoom(1.25); }
       if (event.key === "-") { event.preventDefault(); zoom(1 / 1.25); }
