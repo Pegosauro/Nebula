@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { splitTextComments } from "../../domain/textComments";
 import { withoutFrontmatter } from "../../domain/noteProperties";
 import { useSettledValue } from "../../hooks/useSettledValue";
 
@@ -9,7 +10,7 @@ export function useDocumentStats(path: string | undefined, content = "") {
   return useMemo(() => {
     const key = path ?? "", cached = stats.get(key);
     if (cached?.source === settled) return cached;
-    const body = withoutFrontmatter(settled);
+    const body = withoutFrontmatter(splitTextComments(settled).body);
     let words = 0;
     for (const _match of body.matchAll(/\S+/gu)) words++;
     const result = { source: settled, words, characters: body.length };

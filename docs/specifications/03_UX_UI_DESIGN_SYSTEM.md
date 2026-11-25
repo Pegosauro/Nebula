@@ -56,6 +56,7 @@ Mostra contenuto relativo alla vista corrente:
 - Lavagna: libreria, proprietà selezione, link a note.
 
 Il pannello destro può essere chiuso completamente.
+Nelle note Markdown, il pulsante **Dettagli** è all’estremità destra della barra dell’editor e, in sola lettura, nei comandi della nota. La guida dell’editor si apre con **F1**.
 
 ## Palette proposta
 

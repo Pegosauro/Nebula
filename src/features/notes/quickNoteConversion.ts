@@ -1,4 +1,5 @@
 import { markdownLanguage } from "@codemirror/lang-markdown";
+import { splitTextComments } from "../../domain/textComments";
 import { maskFrontmatter } from "../../domain/noteProperties";
 import { BUILTIN_TEMPLATES, instantiateTemplate } from "../templates/noteTemplates";
 import { preparePersonalTemplate } from "../templates/preparePersonalTemplate";
@@ -9,6 +10,7 @@ export interface QuickNoteCapture { id: string; timestamp: string; text: string 
 // Captures use timestamp headings. Explicit IDs also delimit new captures after
 // an unfinished code fence; legacy timestamp-looking examples in code are ignored.
 export function quickNoteCaptures(content: string): QuickNoteCapture[] {
+  content = splitTextComments(content).body;
   const headings = new Set<number>();
   markdownLanguage.parser.parse(maskFrontmatter(content)).iterate({ enter(node) {
     if (node.name === "ATXHeading2") headings.add(node.from);

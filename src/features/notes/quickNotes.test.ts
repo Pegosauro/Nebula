@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { anchorTextComment, joinTextComments, splitTextComments } from "../../domain/textComments";
 import { appendDocumentText, useDocumentStore } from "../editor/documentStore";
 import { vaultService } from "../vault/vaultService";
 import { useVaultStore } from "../vault/vaultStore";
@@ -31,6 +32,19 @@ describe("quick notes", () => {
     expect(disk.match(/## 01\/10\/2026 · 09:05:07/g)).toHaveLength(2);
     expect(useWorkspaceStore.getState().activity).toBe("settings"); expect(useWorkspaceStore.getState().tabs).toHaveLength(1);
     expect(useDocumentStore.getState().sessions[QUICK_NOTES_PATH]?.content).toBe(disk);
+  });
+  it("keeps the text-comment trailer after a new capture", async () => {
+    const quote = "Appunto precedente", from = disk.indexOf(quote);
+    const comment = { id: crypto.randomUUID(), text: "Da verificare", ...anchorTextComment(disk, from, from + quote.length) };
+    disk = joinTextComments(disk, [comment]);
+
+    await saveQuickNote("Nuova cattura");
+
+    const saved = splitTextComments(disk);
+    expect(saved.comments[0]).toMatchObject({ id: comment.id, from, quote });
+    expect(saved.body).toContain("Nuova cattura");
+    expect(saved.body).not.toContain("nebula-text-comments");
+    expect(disk.indexOf("Nuova cattura")).toBeLessThan(disk.indexOf("nebula-text-comments"));
   });
   it("creates a real Markdown sheet on the first capture", async () => {
     vi.mocked(vaultService.statText).mockRejectedValueOnce(new VaultEntryNotFoundError(QUICK_NOTES_PATH));

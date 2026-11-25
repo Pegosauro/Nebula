@@ -1,5 +1,10 @@
 # Changelog
 
+## In sviluppo
+
+- Commenti alle note Markdown: seleziona un passaggio e scegli «Aggiungi commento». La sottolineatura puntinata apre un fumetto al passaggio del mouse o con un tap.
+- Il contatore nel piè di pagina apre i commenti della nota, compresi quelli da ricollegare. Le annotazioni restano nel file Markdown e seguono il testo mentre scrivi.
+
 ## 0.47.0 — Duplica nodo o ramo
 
 - Nuovo comando «Duplica nodo…» nella barra dell’albero e nel menu del nodo: copia il solo nodo oppure tutti i discendenti, mantenendo nomi, categorie, note, tabelle e caratteristiche.

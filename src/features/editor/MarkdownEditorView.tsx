@@ -1,7 +1,7 @@
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { useQuickNoteUiStore } from "../notes/quickNoteUiStore";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { AlertTriangle, Check, Files, FileText, LoaderCircle, RefreshCw, Save, TriangleAlert, Undo2, Code2, Pencil, X, LockKeyhole, LockKeyholeOpen, Maximize2, Minimize2, SlidersHorizontal, NotebookPen, Download, ListTodo } from "lucide-react";
+import { AlertTriangle, Check, Files, FileText, LoaderCircle, RefreshCw, Save, TriangleAlert, Undo2, Code2, Pencil, X, LockKeyhole, LockKeyholeOpen, Maximize2, Minimize2, SlidersHorizontal, NotebookPen, Download, ListTodo, PanelRight, MessageSquare } from "lucide-react";
 import { dirname, withoutMarkdownExtension } from "../../domain/path";
 import { useWorkspaceStore } from "../workspace/workspaceStore";
 import { useTaskNavigation } from "../tasks/taskNavigation";
@@ -30,6 +30,9 @@ import CodeMirrorEditor from "./CodeMirrorEditor";
 import { SaveTemplateDialog } from "../templates/SaveTemplateDialog";
 import { QuickNoteOrganizer } from "../notes/QuickNoteOrganizer";
 import { QUICK_NOTES_PATH } from "../notes/quickNotes";
+import { splitTextComments, validCommentRange, type TextComment } from "../../domain/textComments";
+import { TextCommentBalloon } from "./TextCommentBalloon";
+import { TextCommentDialog } from "./TextCommentDialog";
 import { NoteTitle } from "./NoteTitle";
 
 const MarkdownPreview = lazy(() => import("./MarkdownPreview"));
@@ -70,6 +73,26 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
   const api = useRef<EditorApi | null>(null);
   const [ui, setUi] = useState<EditorUiState>();
   const [panel, setPanel] = useState<EditorPanel | null>(null), [search, setSearch] = useState(false), [focus, setFocus] = useState(false);
+  const contextOpen = useWorkspaceStore(state => state.contextPanelOpen);
+  const { body, comments } = useMemo(() => splitTextComments(session?.content ?? ""), [session?.content]);
+  const [commentDialog, setCommentDialog] = useState<{ initial: "list" | "new" | TextComment; selection?: ReturnType<EditorApi["getSelection"]> }>();
+  const canEditComments = !locked && !session?.operationLocked && session?.status !== "conflict";
+  const openComments = (initial: "list" | "new" | TextComment) => {
+    const selection = canEditComments ? api.current?.getSelection() : undefined;
+    if (initial === "new" && (!selection || !validCommentRange(body, selection.from, selection.to))) {
+      const atCursor = selection && comments.find(comment => comment.from !== null
+        && selection.from >= comment.from && selection.from < comment.from + comment.quote.length);
+      if (atCursor) setCommentDialog({ initial: atCursor });
+      else if (comments.length) setCommentDialog({ initial: "list" });
+      return;
+    }
+    setCommentDialog({ initial, selection: selection?.text.trim() ? selection : undefined });
+  };
+  const closeComments = () => {
+    setCommentDialog(undefined);
+    if (!locked) requestAnimationFrame(() => api.current?.focus());
+  };
+  const detailsOpen = contextOpen && !focus;
   const [editingTable, setEditingTable] = useState<MarkdownTable>();
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [notice, setNotice] = useState(""), [busy, setBusy] = useState(false);
@@ -81,7 +104,7 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
     if (busy) return;
     const next = !locked;
     rememberEditor(path, { locked: next }, epoch.current);
-    setPanel(null); setSearch(false); setLocked(next);
+    setPanel(null); setSearch(false); setCommentDialog(undefined); setLocked(next);
   };
   const setMode = (next: EditorMode) => { if (locked) return; rememberEditor(path, { mode: next }, epoch.current); setModeState(next); };
   useEffect(() => {
@@ -153,6 +176,13 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
   const counts = useDocumentStats(path, session?.content);
   if (!session || session.status === "loading") return <div className="editor-loading"><LoaderCircle className="spin" size={24} /><span>Apertura di {title}…</span></div>;
   if (!session.loaded) return <div className="editor-fatal" role="alert"><AlertTriangle size={26} /><h1>Impossibile aprire la nota</h1><p>{session.error}</p><button type="button" className="button button-secondary" onClick={() => void useDocumentStore.getState().open(path)}>Riprova</button></div>;
+  const detailsButton = <button type="button" className={locked ? "button button-secondary" : "editor-details-toggle"}
+    aria-label="Dettagli" aria-expanded={detailsOpen} aria-controls={detailsOpen ? "document-context-panel" : undefined}
+    title={detailsOpen ? "Chiudi dettagli" : "Apri dettagli (Ctrl/⌘ Alt I)"}
+    onClick={() => {
+      setFocus(false);
+      useWorkspaceStore.getState().setContextPanelOpen(!detailsOpen);
+    }}><PanelRight size={17} aria-hidden="true" /></button>;
   return <section ref={area} style={{ "--note-font-size": `${fontSize / 16}rem`, "--note-width": fullWidth ? "100%" : `${pageWidth}px` } as CSSProperties} className={`markdown-editor editor-v2 ${locked ? "is-locked" : ""} ${focus ? "editor-focus" : ""}`} aria-label={`Editor ${title}`} onKeyDown={event => {
     if (event.key === "Escape" && focus && !panel) { event.stopPropagation(); setFocus(false); }
     if (event.key === "s" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); if (!session.operationLocked && session.status !== "conflict") void useDocumentStore.getState().save(path); }
@@ -167,13 +197,14 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
         <button className="button button-secondary editor-template" type="button" disabled={busy} aria-label="Salva come modello" title="Salva questa nota come modello personale" onClick={() => setSavingTemplate(true)}><Files size={17} /><span>Modello</span></button>
         <button className={`button button-secondary editor-lock ${locked ? "is-active" : ""}`} type="button" disabled={busy} aria-pressed={locked} aria-label={locked ? "Sblocca pagina" : "Blocca pagina"} title={locked ? "Sblocca per modificare" : "Blocca in sola lettura"} onClick={toggleLock}>{locked ? <LockKeyhole size={17} /> : <LockKeyholeOpen size={17} />}<span>{locked ? "Sola lettura" : "Blocca"}</span></button>
         {locked && <button className="button button-secondary" type="button" aria-label={focus ? "Esci da Concentrazione" : "Concentrazione"} onClick={() => setFocus(value => !value)}>{focus ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>}
+        {locked && detailsButton}
         <button className="button button-secondary editor-save" type="button" disabled={locked || session.status === "saving" || session.status === "saved" || session.status === "conflict"} onClick={() => void useDocumentStore.getState().save(path)} aria-label="Salva nota" title="Salva (Ctrl/⌘ S)">{session.status === "saving" ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />}</button>
       </div>
     </header>
     {propertiesVisible && <NotePropertiesPanel content={session.content} readOnly={locked || !!session.operationLocked} onChange={change} onHide={() => toggleProperties(false)} />}
     {path === QUICK_NOTES_PATH && <QuickNoteOrganizer content={session.content} disabled={!!session.operationLocked || session.status === "conflict"} onCompleted={setNotice} />}
-    {!locked && <EditorToolbar api={api.current} state={ui} onPanel={openPanel} onCommand={onCommand} focus={focus} onFocus={() => setFocus(value => !value)} />}
-    {!locked && search && <EditorSearch content={session.content} api={api.current} onClose={() => { setSearch(false); api.current?.focus(); }} />}
+    {!locked && <EditorToolbar api={api.current} state={ui} onPanel={openPanel} onCommand={onCommand} focus={focus} onFocus={() => setFocus(value => !value)} details={detailsButton} />}
+    {!locked && search && <EditorSearch content={body.replace(/\r\n?/g, "\n")} api={api.current} onClose={() => { setSearch(false); api.current?.focus(); }} />}
     {session.status === "conflict" ? <div className="editor-alert is-conflict" role="alert"><TriangleAlert size={20} /><div><strong>Il file è cambiato anche fuori da Nebula</strong><p>{session.error}</p></div><button className="button button-secondary" type="button" disabled={locked} onClick={() => void useDocumentStore.getState().reloadFromDisk(path)}><Undo2 size={15} />Ricarica da disco</button><button className="button button-primary" type="button" disabled={locked} onClick={() => void useDocumentStore.getState().forceSave(path)}><Save size={15} />Mantieni Nebula</button></div>
       : session.status === "error" ? <div className="editor-alert" role="alert"><AlertTriangle size={20} /><div><strong>Il testo è ancora nell’editor</strong><p>{session.error}</p></div><button className="button button-secondary" type="button" onClick={() => void useDocumentStore.getState().save(path)}>Riprova</button></div> : null}
     {session.externalReloadedAt && session.status === "saved" && <div className="editor-reloaded" role="status"><RefreshCw size={14} />File aggiornato dalla versione presente sul disco.</div>}
@@ -187,13 +218,25 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
         if (event.key === "Enter" && event.target instanceof HTMLElement && event.target.matches(".live-image") && openImage(event.target)) event.preventDefault();
       }}>
       <Suspense fallback={<div className="editor-loading"><LoaderCircle className="spin" size={20} /><span>Preparazione documento…</span></div>}>
-      <div className="editor-write-surface" hidden={locked}><CodeMirrorEditor path={path} showMarkdownAtCursor={showMarkdownAtCursor} value={session.content} source={mode === "source"} visible={!locked} readOnly={locked || !!session.operationLocked} appearanceKey={`${fontSize}:${pageWidth}:${fullWidth}`} apiRef={api} onChange={change} suggestions={suggestions} onSave={() => void useDocumentStore.getState().save(path)} onOpenLink={target => useKnowledgeNavigationStore.getState().activate(path, target)} onUiChange={setUi} onPanel={openPanel} onImages={files => void insertImages(files)} onTable={openTable} /></div>
-      {locked && <MarkdownPreview content={session.content} sourcePath={path} readOnly onTaskToggle={session.operationLocked || session.status === "conflict" ? undefined : toggleTask} />}
+      <div className="editor-write-surface" hidden={locked}><CodeMirrorEditor path={path} showMarkdownAtCursor={showMarkdownAtCursor} value={session.content} source={mode === "source"} visible={!locked} readOnly={locked || !!session.operationLocked} appearanceKey={`${fontSize}:${pageWidth}:${fullWidth}`} apiRef={api} onChange={change} suggestions={suggestions} onSave={() => void useDocumentStore.getState().save(path)} onOpenLink={target => useKnowledgeNavigationStore.getState().activate(path, target)} onUiChange={setUi} onPanel={openPanel} onImages={files => void insertImages(files)} onTable={openTable} onComments={() => openComments("new")} /></div>
+      {locked && <MarkdownPreview content={session.content} sourcePath={path} comments={comments} readOnly onTaskToggle={session.operationLocked || session.status === "conflict" ? undefined : toggleTask} />}
     </Suspense></div>
     {viewedImage && <ImageViewer image={viewedImage} sourcePath={path} onClose={() => setViewedImage(undefined)} />}
-    {!locked && ui?.selected && ui.x > 0 && !ui.active.includes("codeBlock") && !panel && !search && <div className="floating-format-position" style={{ left: Math.max(8, Math.min(ui.x - 110, window.innerWidth - 246)), top: Math.max(8, ui.y - 46) }}><EditorToolbar api={api.current} state={ui} onPanel={openPanel} onCommand={onCommand} focus={focus} onFocus={() => {}} floating /></div>}
+    {!locked && ui?.selected && ui.x > 0 && !ui.active.includes("codeBlock") && !panel && !search && !commentDialog && <div className="floating-format-position" style={{ left: Math.max(8, Math.min(ui.x - 110, window.innerWidth - (canEditComments ? 274 : 246))), top: Math.max(8, ui.y - 46) }}><EditorToolbar api={api.current} state={ui} onPanel={openPanel} onCommand={onCommand} focus={focus} onFocus={() => {}} onComment={canEditComments ? () => openComments("new") : undefined} floating /></div>}
     <NoteLinkPreview sourcePath={path} root={area} />
-    <footer className={`editor-statusbar is-${session.status}`}><span role="status">{session.status === "saved" ? <Check size={14} /> : session.status === "saving" ? <LoaderCircle size={14} className="spin" /> : <span className="dirty-dot" />}{statusCopy(session.status)}</span><span>{counts.words} parole · {counts.characters} caratteri</span>{locked ? <span><LockKeyhole size={13} />Testo bloccato · Attività selezionabili</span> : <span>Riga {ui?.line ?? 1}, col {ui?.column ?? 1}</span>}</footer>
+    {!commentDialog && <TextCommentBalloon root={area} comments={comments} onEdit={canEditComments ? id => {
+      const comment = comments.find(item => item.id === id);
+      if (comment) openComments(comment);
+    } : undefined} />}
+    {commentDialog && <TextCommentDialog comments={comments} initial={commentDialog.initial} selection={commentDialog.selection}
+      editable={canEditComments} onClose={closeComments} onSave={(id, text, selection) => canEditComments && !!api.current?.editComment(id, text, selection)}
+      onJump={locked ? undefined : comment => {
+        const from = comment.from;
+        if (from === null) return;
+        api.current?.select(from, from + comment.quote.length, false);
+        closeComments();
+      }} />}
+    <footer className={`editor-statusbar is-${session.status}`}><span role="status">{session.status === "saved" ? <Check size={14} /> : session.status === "saving" ? <LoaderCircle size={14} className="spin" /> : <span className="dirty-dot" />}{statusCopy(session.status)}</span><span>{counts.words} parole · {counts.characters} caratteri</span>{comments.length > 0 && <button type="button" className="text-comment-list-trigger" title="Commenti della nota" onClick={() => openComments("list")}><MessageSquare size={14} aria-hidden="true" />{comments.length} {comments.length === 1 ? "commento" : "commenti"}</button>}{locked ? <span><LockKeyhole size={13} />Testo bloccato · Attività selezionabili</span> : <span>Riga {ui?.line ?? 1}, col {ui?.column ?? 1}</span>}</footer>
     {(panel === "insert" || panel === "help") && <InsertPanel help={panel === "help"} onCommand={onCommand} onClose={closePanel} />}
     {panel === "link" && <LinkPanel suggestions={suggestions} selectedText={api.current?.getSelection().text ?? ""} onInsert={text => { api.current?.insert(text); closePanel(); }} onClose={closePanel} onCreate={async name => {
       return useVaultStore.getState().createNote(dirname(path), name, false);

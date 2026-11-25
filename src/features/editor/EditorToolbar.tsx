@@ -1,4 +1,5 @@
-import { Bold, Italic, Underline, Strikethrough, Highlighter, Code2, List, ListOrdered, ListTodo, Quote, Lightbulb, TriangleAlert, Minus, Image, Link2, Plus, Search, CircleHelp, Undo2, Redo2, Maximize2, Minimize2, Table2 } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, Highlighter, Code2, List, ListOrdered, ListTodo, Quote, Lightbulb, TriangleAlert, Minus, Image, Link2, Plus, Search, Undo2, Redo2, Maximize2, Minimize2, Table2, MessageSquarePlus } from "lucide-react";
+import type { ReactNode } from "react";
 import type { EditorApi, EditorPanel, EditorUiState } from "./editorCommands";
 import type { FormatAction } from "./markdownTools";
 import { useSettingsStore } from "../settings/settingsStore";
@@ -38,13 +39,15 @@ interface Props {
   onCommand: (command: InsertCommand) => void;
   focus: boolean;
   onFocus: () => void;
+  details?: ReactNode;
+  onComment?: () => void;
   floating?: boolean;
 }
-export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, floating = false }: Props) {
+export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, details, onComment, floating = false }: Props) {
   const heading = useSettingsStore(state => state.editorHeadingLevel);
   const setHeading = useSettingsStore(state => state.setEditorHeadingLevel);
   const applyHeading = (level: number) => api?.format(`h${level}` as FormatAction, false);
-  return <div className={floating ? "selection-format-bar" : "editor-toolbar"} role="toolbar" aria-label={floating ? "Formatta selezione" : "Formattazione nota"} onMouseDown={event => { if ((event.target as HTMLElement).closest("button")) event.preventDefault(); }}>
+  const tools = <>
     {!floating && <div className="editor-tools-group">
       <button type="button" title="Annulla (Ctrl/⌘ Z)" aria-label="Annulla" disabled={!state?.canUndo} onClick={() => api?.undo()}><Undo2 size={17} /></button>
       <button type="button" title="Ripristina (Ctrl/⌘ Shift Z)" aria-label="Ripristina" disabled={!state?.canRedo} onClick={() => api?.redo()}><Redo2 size={17} /></button>
@@ -63,6 +66,7 @@ export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, 
         }))} />
     </div>}
     <button type="button" title="Collegamento (Ctrl/⌘ K)" aria-label="Inserisci collegamento" onClick={() => onPanel("link")}><Link2 size={17} /></button>
+    {floating && onComment && <button type="button" aria-label="Aggiungi commento" title="Aggiungi commento (Ctrl/⌘ Alt M)" onClick={onComment}><MessageSquarePlus size={17} aria-hidden="true" /></button>}
     {!floating && <>
       <button type="button" title="Inserisci tabella" aria-label="Tabella" onClick={() => onCommand(table)}><Table2 size={17} /></button>
       <button type="button" className="editor-toolbar-direct" title="Inserisci separatore" aria-label="Separatore" onClick={() => onCommand(divider)}><Minus size={19} aria-hidden="true" /></button>
@@ -72,8 +76,10 @@ export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, 
       <div className="editor-tools-group editor-tools-tail">
         <button type="button" aria-label="Trova e sostituisci" title="Trova e sostituisci (Ctrl/⌘ F)" onClick={() => onPanel("search")}><Search size={17} /></button>
         <button type="button" aria-label={focus ? "Esci da Concentrazione" : "Concentrazione"} title={focus ? "Esci da Concentrazione (Esc)" : "Concentrazione"} onClick={onFocus}>{focus ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>
-        <button type="button" aria-label="Guida editor" title="Guida editor (F1)" onClick={() => onPanel("help")}><CircleHelp size={17} /></button>
       </div>
     </>}
+  </>;
+  return <div className={floating ? "selection-format-bar" : "editor-toolbar"} role="toolbar" aria-label={floating ? "Formatta selezione" : "Formattazione nota"} onMouseDown={event => { if ((event.target as HTMLElement).closest("button")) event.preventDefault(); }}>
+    {floating ? tools : <><div className="editor-toolbar-scroll">{tools}</div>{details}</>}
   </div>;
 }

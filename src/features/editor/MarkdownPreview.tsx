@@ -1,3 +1,5 @@
+import { splitTextComments, type TextComment } from "../../domain/textComments";
+import { decorateRenderedComments } from "./renderedTextComments";
 import { attachCodePreview } from "./codeBlockControls";
 import { navigationKnowledge } from "../configurator/navigationKnowledge";
 import { useVaultStore } from "../vault/vaultStore";
@@ -14,17 +16,22 @@ import { headingEntries, markdownTables, type MarkdownTable } from "./markdownTo
 import { animateChecklistToggle } from "../../components/ui/checklistMotion";
 import { applyImageWidth } from "../../domain/imageWidth";
 
-export default function MarkdownPreview({ content, sourcePath, onChange, onTable, onTaskToggle, readOnly = false }: { onTaskToggle?: (from: number, checked: boolean, expectedContent: string) => void; readOnly?: boolean; content: string; sourcePath: string; onChange?: (value: string) => void; onTable?: (table: MarkdownTable) => void }) {
+export default function MarkdownPreview({ content, sourcePath, onChange, onTable, onTaskToggle, comments, readOnly = false }: { onTaskToggle?: (from: number, checked: boolean, expectedContent: string) => void; readOnly?: boolean; comments?: readonly TextComment[]; content: string; sourcePath: string; onChange?: (value: string) => void; onTable?: (table: MarkdownTable) => void }) {
   const revision = useKnowledgeStore(state => state.revision), activate = useKnowledgeNavigationStore(state => state.activate);
   const host = useRef<HTMLElement>(null);
   const codeControls = useRef(new WeakSet<Element>());
   const focusedTask = useRef<{ index: number; checked: boolean; path: string }>(undefined);
   const vaultRevision = useVaultStore(state=>state.snapshot?.scannedAt);
-  const preview = useMemo(() => renderMarkdownSafe(content, navigationKnowledge(), { interactiveCode: true }), [content, revision, vaultRevision]);
+  const body = useMemo(() => splitTextComments(content).body, [content]);
+  const preview = useMemo(() => {
+    const knowledge = navigationKnowledge();
+    const rendered = renderMarkdownSafe(body, knowledge, { interactiveCode: true });
+    return comments?.length ? decorateRenderedComments(rendered, body, comments, quote => renderMarkdownSafe(quote, knowledge, { omitMedia: true })) : rendered;
+  }, [body, comments, revision, vaultRevision]);
   const html = useMemo(() => ({ __html: preview }), [preview]);
-  const tasks = useMemo(() => taskMarkers(content), [content]);
-  const tables = useMemo(() => markdownTables(content), [content]);
-  const headings = useMemo(() => headingEntries(content), [content]);
+  const tasks = useMemo(() => taskMarkers(body), [body]);
+  const tables = useMemo(() => markdownTables(body), [body]);
+  const headings = useMemo(() => headingEntries(body), [body]);
   useEffect(() => {
     const element = host.current; if (!element) return;
     const epoch = editorCacheGeneration(); element.scrollTop = getEditorMemory(sourcePath)?.previewScroll ?? 0;
@@ -92,7 +99,7 @@ export default function MarkdownPreview({ content, sourcePath, onChange, onTable
       event.preventDefault(); const selection = window.getSelection(), range = document.createRange();
       range.selectNodeContents(host.current!.firstElementChild ?? host.current!); selection?.removeAllRanges(); selection?.addRange(range);
     }
-  }} className={`markdown-preview ${content.trim() ? "" : "is-empty"}`} onClick={event => {
+  }} className={`markdown-preview ${body.trim() ? "" : "is-empty"}`} onClick={event => {
     const target = event.target as HTMLElement;
     const input = target.closest<HTMLInputElement>("input[data-task-index]");
     if (input) {
@@ -119,6 +126,6 @@ export default function MarkdownPreview({ content, sourcePath, onChange, onTable
       try { activate(sourcePath, resolveImagePath(sourcePath, href.split("#")[0]!).replace(/\.md$/i, "")); } catch { /* invalid local path */ }
     }
   }}>
-    {content.trim() ? <div dangerouslySetInnerHTML={html} /> : <><Eye size={28} /><strong>Niente da visualizzare</strong><span>Inizia a scrivere per vedere la nota.</span></>}
+    {body.trim() ? <div dangerouslySetInnerHTML={html} /> : <><Eye size={28} /><strong>Niente da visualizzare</strong><span>Inizia a scrivere per vedere la nota.</span></>}
   </article>;
 }

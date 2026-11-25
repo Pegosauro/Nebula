@@ -14,6 +14,44 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Inizio" })).toBeVisible();
 });
 
+test("opens note details from the editor toolbar and while reading", async ({ page }) => {
+  await page.getByRole("button", { name: "Nuova nota", exact: true }).click();
+  const create = page.getByRole("dialog", { name: "Nuova nota" });
+  await create.getByLabel("Nome della nota").fill("Nota con dettagli");
+  await create.getByRole("button", { name: "Crea nota", exact: true }).click();
+
+  const toolbar = page.getByRole("toolbar", { name: "Formattazione nota" });
+  const details = toolbar.getByRole("button", { name: "Dettagli", exact: true });
+  const context = page.getByRole("complementary", { name: "Pannello contestuale" });
+  await expect(details).toBeInViewport();
+  await expect(toolbar.getByRole("button", { name: "Guida editor" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Apri pannello destro" })).toHaveCount(0);
+
+  if (await details.getAttribute("aria-expanded") === "true") {
+    await context.getByRole("button", { name: "Chiudi pannello contestuale" }).click();
+  }
+  await page.getByRole("textbox", { name: "Testo della nota" }).press("F1");
+  const help = page.getByRole("dialog", { name: "Guida dell’editor" });
+  await expect(help).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(help).toHaveCount(0);
+
+  await details.click();
+  await expect(details).toHaveAttribute("aria-expanded", "true");
+  await expect(context.getByRole("heading", { name: "Indice della nota" })).toBeVisible();
+  await context.getByRole("button", { name: "Chiudi pannello contestuale" }).click();
+  await expect(details).toHaveAttribute("aria-expanded", "false");
+
+  await page.getByRole("button", { name: "Blocca pagina" }).click();
+  await expect(toolbar).toHaveCount(0);
+  const readingDetails = page.getByRole("button", { name: "Dettagli", exact: true });
+  await readingDetails.click();
+  await expect(context).toBeVisible();
+  await context.getByRole("button", { name: "Chiudi pannello contestuale" }).click();
+  await page.keyboard.press("Control+Alt+i");
+  await expect(context).toBeVisible();
+});
+
 test("captures from different areas into one real sheet, starting blank every time", async ({ page }) => {
   for (const [area, text] of [["Impostazioni", "Primo appunto"], ["Configuratori", "Secondo appunto"], ["Recenti", "Terzo appunto"]]) {
     await page.getByRole("button", { name: area, exact: true }).click();

@@ -121,3 +121,10 @@ Quando si rinomina una nota:
 Il parser link/tag deve essere indipendente dal renderer HTML, così ricerca, grafo e backlink possono essere aggiornati senza renderizzare ogni nota.
 
 Preferire esecuzione in Web Worker per Vault grandi.
+
+
+## Commenti ancorati al testo
+
+I commenti si salvano nello stesso file della nota, in un blocco HTML finale `nebula-text-comments:v1`. Il payload contiene un ID, il commento e il testo selezionato, con la posizione e il contesto a sinistra e a destra. L’editor tiene il blocco separato dal contenuto modificabile e dall’anteprima.
+
+Le modifiche in Nebula aggiornano la posizione tramite le transazioni di CodeMirror, incluso Annulla/Ripristina. Alla riapertura, la citazione e il contesto consentono di ritrovare il passaggio. Se il testo è stato eliminato o il contesto è ambiguo, il commento resta nell’elenco della nota, da cui può essere ricollegato a una nuova selezione.
