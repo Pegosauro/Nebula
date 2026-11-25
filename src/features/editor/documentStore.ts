@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { clearEditorMemories, remapEditorMemories, removeEditorMemories } from "./editorSessionCache";
+import { joinTextComments, splitTextComments } from "../../domain/textComments";
 import { isPathInside } from "../../domain/path";
 import { findVaultEntry, type VaultSnapshot } from "../../domain/vault";
 import { readableFileSystemError } from "../../infrastructure/filesystem/filesystemErrors";
@@ -351,8 +352,10 @@ export function appendDocumentText(path: string, suffix: string, captureMarker?:
         void useKnowledgeStore.getState().indexSavedDocument(path, disk.content, disk);
         return;
       }
-      const newline = disk.content.includes("\r\n") ? "\r\n" : "\n";
-      const content = disk.content + (disk.content.endsWith(newline + newline) ? "" : disk.content.endsWith(newline) ? newline : newline + newline) + suffix.replace(/\r?\n/g, newline);
+      const { body, comments } = splitTextComments(disk.content);
+      const newline = body.includes("\r\n") ? "\r\n" : "\n";
+      const separator = body.endsWith(newline + newline) ? "" : body.endsWith(newline) ? newline : newline + newline;
+      const content = joinTextComments(body + separator + suffix.replace(/\r?\n/g, newline), comments);
       const metadata = await vaultService.writeText(path, content, { size: disk.size, lastModified: disk.lastModified });
       if (vaultService.currentVaultId() === vaultId) {
         updateSession(path, session => ({ ...session, content, savedContent: content, ...metadata, status: "saved", error: undefined, savedAt: Date.now() }));

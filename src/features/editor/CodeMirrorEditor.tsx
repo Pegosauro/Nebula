@@ -5,7 +5,7 @@ import { autocompletion, closeCompletion, type CompletionContext, type Completio
 import { history, historyKeymap, defaultKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxTree, bracketMatching, defaultHighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
-import { Compartment, EditorState, StateEffect } from "@codemirror/state";
+import { Compartment, EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { drawSelection, dropCursor, EditorView, highlightSpecialChars, keymap, lineNumbers, placeholder } from "@codemirror/view";
 import type { KnowledgeSuggestion } from "../../domain/knowledge";
 import { withoutMarkdownExtension } from "../../domain/path";
@@ -18,6 +18,8 @@ import { resolveImagePath } from "../../infrastructure/filesystem/vaultImages";
 import { renderedLinkHref } from "./noteLinkTarget";
 import { insertCommands } from "./insertCommands";
 import { documentText } from "./markdownAnalysis";
+import { joinTextComments, splitTextComments } from "../../domain/textComments";
+import { setTextComments, textCommentHistory, textComments } from "./textCommentState";
 import { removedImage } from "./editorImageEditing";
 
 interface Props {
@@ -25,6 +27,7 @@ interface Props {
   onChange: (value: string, removedImages?: readonly string[]) => void; onSave: () => void; onOpenLink: (target: string) => void;
   suggestions: KnowledgeSuggestion[]; apiRef: RefObject<EditorApi | null>;
   onUiChange: (state: EditorUiState) => void; onPanel: (panel: EditorPanel) => void;
+  onComments?: () => void;
   onTable?: (table: MarkdownTable) => void;
   onImages: (files: File[]) => void;
 }
@@ -131,7 +134,7 @@ export default function CodeMirrorEditor(props: Props) {
         return protectedChange ? { changes, userEvent: "input" } : transaction;
       }),
       EditorState.transactionFilter.of(transaction => transaction.startState.readOnly && transaction.docChanged && !syncing.current ? [] : transaction),
-      highlightSpecialChars(), history(), drawSelection(), dropCursor(), EditorState.allowMultipleSelections.of(true), indentOnInput(),
+      highlightSpecialChars(), history(), textComments, textCommentHistory, drawSelection(), dropCursor(), EditorState.allowMultipleSelections.of(true), indentOnInput(),
       markdown({ base: markdownLanguage }),
       autocompletion({ override: [complete], activateOnTyping: true }), EditorState.tabSize.of(2), EditorView.lineWrapping,
       EditorView.contentAttributes.of({ "aria-label": "Testo della nota", "aria-multiline": "true", role: "textbox", spellcheck: "true" }),
@@ -142,6 +145,7 @@ export default function CodeMirrorEditor(props: Props) {
         { key: "Mod-b", run: format("bold") }, { key: "Mod-i", run: format("italic") }, { key: "Mod-u", run: format("underline") }, { key: "Mod-Shift-x", run: format("strike") },
         { key: "Mod-Shift-h", run: format("highlight") }, { key: "Mod-Shift-c", run: format("inlineCode") },
         { key: "Mod-k", run: panel("link") }, { key: "Mod-f", run: panel("search") }, { key: "Mod-h", run: panel("search") },
+        { key: "Mod-Alt-m", run: () => { current.current.onComments?.(); return !!current.current.onComments; } },
         { key: "Mod-Shift-p", run: panel("insert") }, { key: "F1", run: panel("help") },
         ...[1,2,3,4,5,6].map(n => ({ key: `Mod-Alt-${n}`, run: format(`h${n}` as FormatAction) })),
         indentWithTab, ...defaultKeymap, ...historyKeymap,
@@ -201,20 +205,32 @@ export default function CodeMirrorEditor(props: Props) {
         scroll(_event, view) { if (current.current.visible) scrolling.current = view.scrollDOM.scrollTop; if (view.state.selection.main.empty) return; current.current.onUiChange(editorUiState(view)); },
       }),
       EditorView.updateListener.of(update => {
-        if (update.docChanged && !syncing.current) {
-          lastValue.current = documentText(update.state.doc);
+        const comments = update.state.field(textComments);
+        const commentsChanged = comments !== update.startState.field(textComments);
+        if ((update.docChanged || commentsChanged) && !syncing.current) {
+          const body = update.docChanged ? documentText(update.state.doc) : splitTextComments(lastValue.current).body;
+          lastValue.current = joinTextComments(body, comments);
           const removals = update.transactions.map(transaction => transaction.annotation(removedImage)).filter(reference => reference !== undefined);
           if (removals.length) current.current.onChange(lastValue.current, removals);
           else current.current.onChange(lastValue.current);
         }
-        if (update.docChanged || update.selectionSet) notify(update.view);
+        if (update.docChanged || update.selectionSet || commentsChanged) notify(update.view);
       }),
     ];
     const memory = getEditorMemory(path);
-    let state = memory?.state?.update({ effects: StateEffect.reconfigure.of(extensions) }).state ?? EditorState.create({ doc: props.value, extensions });
+    const { body, comments } = splitTextComments(props.value);
     // CodeMirror offsets use one character per newline, including for CRLF files.
-    const normalizedValue = props.value.replace(/\r\n?/g, "\n");
-    if (documentText(state.doc) !== normalizedValue) state = state.update({ changes: minimalChange(documentText(state.doc), normalizedValue), filter: false }).state;
+    const normalizedValue = body.replace(/\r\n?/g, "\n");
+    let state = memory?.state?.update({ effects: StateEffect.reconfigure.of(extensions) }).state ?? EditorState.create({ doc: normalizedValue, extensions });
+    const previousBody = documentText(state.doc);
+    if (previousBody !== normalizedValue || JSON.stringify(state.field(textComments)) !== JSON.stringify(comments)) {
+      state = state.update({
+        changes: minimalChange(previousBody, normalizedValue),
+        effects: setTextComments.of(comments),
+        annotations: Transaction.addToHistory.of(false),
+        filter: false,
+      }).state;
+    }
     const bodyStart = props.source ? 0 : frontmatterRange(documentText(state.doc))?.end ?? 0;
     if (state.selection.main.head < bodyStart) state = state.update({ selection: { anchor: bodyStart } }).state;
     const view = new EditorView({ parent: host.current, state }); viewRef.current = view;
@@ -231,7 +247,11 @@ export default function CodeMirrorEditor(props: Props) {
     const view = viewRef.current; if (!view || lastValue.current === props.value) return;
     lastValue.current = props.value;
     syncing.current = true;
-    view.dispatch({ changes: minimalChange(documentText(view.state.doc), props.value.replace(/\r\n?/g, "\n")) });
+    const { body, comments } = splitTextComments(props.value);
+    view.dispatch({
+      changes: minimalChange(documentText(view.state.doc), body.replace(/\r\n?/g, "\n")),
+      ...(JSON.stringify(view.state.field(textComments)) !== JSON.stringify(comments) ? { effects: setTextComments.of(comments) } : {}),
+    });
     syncing.current = false;
   }, [props.value]);
   useEffect(() => {

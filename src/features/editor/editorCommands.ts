@@ -1,3 +1,4 @@
+import { editTextComment } from "./textCommentState";
 import { hasUnderline } from "./underlineMarkup";
 import { syntaxTree } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
@@ -19,6 +20,7 @@ export interface EditorApi {
   undo(): void;
   redo(): void;
   focus(): void;
+  editComment(id: string | undefined, text: string | null, selection?: { from: number; to: number; text: string }): boolean;
   getSelection(): { from: number; to: number; text: string };
 }
 export function applyTextEdit(view: EditorView, edit: TextEdit) {
@@ -89,6 +91,7 @@ export function createEditorApi(view: EditorView): EditorApi {
       if (focus) view.focus();
     },
     undo: () => { if (view.state.readOnly) return; undo(view); view.focus(); }, redo: () => { if (view.state.readOnly) return; redo(view); view.focus(); }, focus: () => view.focus(),
+    editComment: (id, text, selection) => editTextComment(view, id, text, selection),
     getSelection: () => { const { from, to } = view.state.selection.main; return { from, to, text: view.state.sliceDoc(from, to) }; },
   };
 }

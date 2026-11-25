@@ -213,7 +213,7 @@
 .editor-panel-tabs button { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 14px; background: var(--bg-app); color: var(--text-secondary); cursor: pointer; }
 .editor-panel-tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); border-color: var(--accent); }
 .editor-field { display: flex; flex-direction: column; gap: 7px; padding: 10px 20px; font-size: 13px; color: var(--text-secondary); flex: none; }
-.editor-field input, .editor-search input:not([type="checkbox"]) { width: 100%; min-width: 0; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--bg-app); color: var(--text-primary); font-size: 14px; padding: 10px; }
+.editor-field input, .editor-field textarea, .editor-search input:not([type="checkbox"]) { width: 100%; min-width: 0; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--bg-app); color: var(--text-primary); font-size: 14px; padding: 10px; }
 .note-picker-results { overflow: auto; padding: 8px 12px 16px; min-height: 100px; }
 .note-picker-results button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px; border: 0; background: transparent; border-radius: 6px; color: var(--text-primary); text-align: left; cursor: pointer; }
 .note-picker-results button:hover { background: var(--accent-soft); }
@@ -824,4 +824,89 @@
 @media (prefers-reduced-motion: reduce) {
   .inline-table :is(th,td).is-axis-source { transition: none; }
   .inline-table :is(th,td).is-axis-landed { animation: none; }
+}
+
+.text-comment-anchor {
+  text-decoration: underline dotted var(--accent-hover) 2px;
+  text-underline-offset: .24em;
+}
+.text-comment-anchor:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+.text-comment-balloon {
+  position: fixed;
+  z-index: 101;
+  color: var(--text-primary);
+  --comment-travel: 4px;
+}
+.text-comment-balloon.is-above { transform: translateY(-100%); }
+.text-comment-balloon.is-below { --comment-travel: -4px; }
+.text-comment-balloon-content {
+  position: relative;
+  z-index: 1;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-float);
+}
+.text-comment-balloon::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: calc(var(--comment-tail-x) - 5px);
+  width: 10px;
+  height: 10px;
+  background: var(--bg-elevated);
+  border: solid color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.text-comment-balloon.is-above::after { bottom: -5px; border-width: 0 1px 1px 0; }
+.text-comment-balloon.is-below::after { top: -5px; border-width: 1px 0 0 1px; }
+.text-comment-balloon header { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.text-comment-balloon header > svg { flex: none; color: var(--accent-hover); }
+.text-comment-balloon header button, .text-comment-list-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+}
+.text-comment-balloon header button { margin-inline-start: auto; padding: 4px; }
+.text-comment-balloon header button:hover, .text-comment-list-trigger:hover { background: var(--accent-soft); color: var(--text-primary); }
+.text-comment-balloon p, .text-comment-list p { margin: 6px 0 0; font-size: 14px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.text-comment-list-trigger { padding: 3px 6px; white-space: nowrap; }
+.editor-statusbar .text-comment-list-trigger svg { color: currentColor; }
+.text-comment-list {
+  margin: 0;
+  padding: 14px 20px;
+  max-height: min(56vh, 520px);
+  overflow: auto;
+  list-style: none;
+}
+.text-comment-list li + li { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.text-comment-quote, .text-comment-list blockquote {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-inline-start: 2px solid var(--accent);
+  color: var(--text-secondary);
+  max-height: 7em;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.text-comment-quote { margin: 12px 20px 0; }
+.editor-field textarea { min-height: 6em; resize: vertical; font-family: inherit; }
+.text-comment-list small { display: block; margin-top: 6px; color: var(--text-muted); }
+.text-comment-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  .text-comment-balloon { animation: text-comment-enter 160ms cubic-bezier(.2,.75,.3,1) both; }
+}
+@keyframes text-comment-enter {
+  from { opacity: 0; translate: 0 var(--comment-travel); scale: .98; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
 }

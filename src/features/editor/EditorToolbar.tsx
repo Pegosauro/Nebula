@@ -1,4 +1,4 @@
-import { Bold, Italic, Underline, Strikethrough, Highlighter, Code2, List, ListOrdered, ListTodo, Quote, Lightbulb, TriangleAlert, Minus, Image, Link2, Plus, Search, Undo2, Redo2, Maximize2, Minimize2, Table2 } from "lucide-react";
+import { Bold, Italic, Underline, Strikethrough, Highlighter, Code2, List, ListOrdered, ListTodo, Quote, Lightbulb, TriangleAlert, Minus, Image, Link2, Plus, Search, Undo2, Redo2, Maximize2, Minimize2, Table2, MessageSquarePlus } from "lucide-react";
 import type { ReactNode } from "react";
 import type { EditorApi, EditorPanel, EditorUiState } from "./editorCommands";
 import type { FormatAction } from "./markdownTools";
@@ -40,9 +40,10 @@ interface Props {
   focus: boolean;
   onFocus: () => void;
   details?: ReactNode;
+  onComment?: () => void;
   floating?: boolean;
 }
-export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, details, floating = false }: Props) {
+export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, details, onComment, floating = false }: Props) {
   const heading = useSettingsStore(state => state.editorHeadingLevel);
   const setHeading = useSettingsStore(state => state.setEditorHeadingLevel);
   const applyHeading = (level: number) => api?.format(`h${level}` as FormatAction, false);
@@ -65,6 +66,7 @@ export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, 
         }))} />
     </div>}
     <button type="button" title="Collegamento (Ctrl/⌘ K)" aria-label="Inserisci collegamento" onClick={() => onPanel("link")}><Link2 size={17} /></button>
+    {floating && onComment && <button type="button" aria-label="Aggiungi commento" title="Aggiungi commento (Ctrl/⌘ Alt M)" onClick={onComment}><MessageSquarePlus size={17} aria-hidden="true" /></button>}
     {!floating && <>
       <button type="button" title="Inserisci tabella" aria-label="Tabella" onClick={() => onCommand(table)}><Table2 size={17} /></button>
       <button type="button" className="editor-toolbar-direct" title="Inserisci separatore" aria-label="Separatore" onClick={() => onCommand(divider)}><Minus size={19} aria-hidden="true" /></button>

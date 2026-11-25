@@ -75,7 +75,7 @@ export function NoteLinkPreview({ sourcePath, root }: { sourcePath: string; root
     };
     const over = (event: Event) => {
       if (event instanceof PointerEvent && event.pointerType === "touch") return;
-      const element = event.target instanceof Element ? event.target.closest<HTMLElement>(noteLinkSelector) : null;
+      const element = event.target instanceof Element && !event.target.closest("[data-text-comment]") ? event.target.closest<HTMLElement>(noteLinkSelector) : null;
       if (element && host.contains(element)) show(element);
     };
     const out = (event: Event) => {

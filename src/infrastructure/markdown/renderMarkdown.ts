@@ -1,3 +1,4 @@
+import { splitTextComments } from "../../domain/textComments";
 import { fencedPayload } from "../../domain/codeBlock";
 import { calloutTag, quoteBlockGlyph, quoteKind } from "./quoteBlocks";
 import { maskInternalNoteMarkers } from "./internalNoteMarkers";
@@ -95,7 +96,7 @@ parser.use({
   },
 });
 export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexData, options?: { omitMedia?: boolean; interactiveCode?: boolean }): string {
-  source = maskInternalNoteMarkers(withoutFrontmatter(source));
+  source = maskInternalNoteMarkers(withoutFrontmatter(splitTextComments(source).body));
   const tables = source.includes("<!-- nebula-table:") ? markdownTables(source) : [];
   const tokens = parser.lexer(knowledge ? renderWikilinks(source, knowledge) : source);
   const tablePrefix = `${crypto.randomUUID()}:`;
@@ -114,7 +115,7 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
   const rendered = parser.parser(tokens);
   const safe = DOMPurify.sanitize(rendered, {
     FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form", "svg", "math", ...(options?.omitMedia ? ["img", "video", "audio", "source"] : [])],
-    FORBID_ATTR: ["style", "srcdoc", "srcset", "contenteditable", "data-task-index"],
+    FORBID_ATTR: ["style", "srcdoc", "srcset", "contenteditable", "data-task-index", "data-text-comment", "data-text-comment-focus"],
     ADD_ATTR: ["data-nebula-target", "data-nebula-image", "data-nebula-task", "data-nebula-table", "data-nebula-code", "referrerpolicy"],
   });
   const container = document.createElement("div"); container.innerHTML = safe;

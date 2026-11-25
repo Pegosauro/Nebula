@@ -1,3 +1,4 @@
+import { splitTextComments } from "./textComments";
 import { withoutFrontmatter } from "./noteProperties";
 import { basename, dirname, withoutMarkdownExtension } from "./path";
 import type { KnowledgeSourceDocument, ParsedKnowledgeDocument } from "./knowledge";
@@ -108,21 +109,22 @@ function fuzzySubsequenceScore(value: string, query: string): number {
 export function buildSearchDocument(source: KnowledgeSourceDocument, parsed?: ParsedKnowledgeDocument): SearchDocument {
   const base = noteBasename(source.path);
   const aliases = parsed?.aliases ?? parseFrontmatterAliases(source.content);
-  const tags = extractTags(source.content);
-  const title = extractTitle(source.content, base);
+  const { body } = splitTextComments(source.content);
+  const tags = extractTags(body);
+  const title = extractTitle(body, base);
   return {
     path: source.path,
     title,
     basename: base,
     aliases,
     tags,
-    content: source.content,
+    content: body,
     foldedTitle: fold(title),
     foldedBasename: fold(base),
     foldedPath: fold(source.path.replace(/\.md$/iu, "")),
     foldedAliases: aliases.map(fold),
     foldedTags: tags.map(fold),
-    foldedContent: fold(source.content),
+    foldedContent: fold(body),
     modifiedAt: source.lastModified,
   };
 }
