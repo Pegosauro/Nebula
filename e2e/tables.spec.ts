@@ -17,7 +17,48 @@ test.beforeEach(async ({ page }) => {
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Apri Vault", exact: true }).click();
-  await page.getByRole("button", { name: "Dati progetto", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Inizio", exact: true })).toBeVisible();
+  const explorer = page.getByRole("region", { name: "Explorer" });
+  if (!await explorer.isVisible()) await page.getByRole("button", { name: "File", exact: true }).click();
+  await explorer.getByRole("button", { name: "Dati progetto", exact: true }).click();
+  const scrim = page.getByRole("button", { name: "Chiudi pannello sinistro", exact: true });
+  if (await scrim.isVisible()) await scrim.click();
+});
+
+test("keeps cells compact at the note font size in writing, editing and reading", async ({ page }) => {
+  const cell = page.locator(".live-table tbody td").first();
+  const header = page.locator(".live-table thead th").first();
+  const body = page.getByText("Fine della nota", { exact: true });
+  await expect(body).toHaveCSS("font-size", "17px");
+  await expect(cell).toHaveCSS("font-size", "17px");
+  await expect(header).toHaveCSS("font-size", "17px");
+  const defaultHeight = (await cell.boundingBox())!.height;
+  expect(defaultHeight).toBeLessThan(36);
+
+  await cell.dblclick();
+  const input = cell.getByRole("textbox");
+  await expect(input).toHaveCSS("font-size", "17px");
+  expect((await cell.boundingBox())!.height).toBeLessThanOrEqual(defaultHeight + 2);
+  await input.fill("Uno\nDue\nTre");
+  await expect.poll(async () => (await cell.boundingBox())!.height).toBeGreaterThan(defaultHeight + 25);
+  await input.press("Escape");
+  await expect(cell).toHaveText("Uno");
+
+  await page.getByRole("button", { name: "Aspetto della pagina", exact: true }).click();
+  const size = page.getByRole("slider", { name: "Dimensione del testo" });
+  await size.press("End");
+  await page.getByRole("button", { name: "Chiudi aspetto pagina" }).click();
+  await expect(body).toHaveCSS("font-size", "24px");
+  await expect(cell).toHaveCSS("font-size", "24px");
+  expect((await cell.boundingBox())!.height).toBeGreaterThan(defaultHeight);
+
+  await page.getByRole("button", { name: "Blocca pagina", exact: true }).click();
+  const preview = page.getByRole("article", { name: "Nota in sola lettura" });
+  await expect(preview.getByText("Fine della nota")).toHaveCSS("font-size", "24px");
+  await expect(preview.locator("thead th").first()).toHaveCSS("font-size", "24px");
+  const readingCell = preview.locator("tbody td").first();
+  await expect(readingCell).toHaveCSS("font-size", "24px");
+  expect((await readingCell.boundingBox())!.height).toBeLessThan(45);
 });
 
 test("hides attachments, saves merged resized cells, and keeps writing centered like reading", async ({ page }, testInfo) => {

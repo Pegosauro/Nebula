@@ -478,13 +478,13 @@
 }
 .inline-table table { width: 100%; }
 .inline-table table:not(.has-column-widths) { table-layout: fixed; }
-.inline-table :is(th,td)[data-row] { position: relative; min-height: 40px; height: 40px; cursor: cell; outline: none; user-select: none; }
+.inline-table :is(th,td)[data-row] { position: relative; cursor: cell; outline: none; user-select: none; }
 .inline-table :is(th,td)[data-row]:hover, .inline-table :is(th,td).is-selected { background-image: linear-gradient(var(--accent-soft), var(--accent-soft)); }
 .inline-table :is(th,td).is-active { box-shadow: inset 0 0 0 2px var(--accent); }
 .inline-table :is(th,td)[data-row]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .inline-table :is(th,td).is-delete-preview { background-image: linear-gradient(color-mix(in srgb, var(--danger, #d74757) 16%, transparent), color-mix(in srgb, var(--danger, #d74757) 16%, transparent)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger, #d74757) 55%, transparent); }
 .editor-v2 .inline-table :is(th,td):has(.inline-table-input) { padding: 0; }
-.inline-table textarea.inline-table-input { display: block; resize: none; box-sizing: border-box; width: 100%; min-width: 0; min-height: 42px; margin: 0; padding: 9px 11px; border: 0; border-radius: 0; outline: 2px solid var(--accent); outline-offset: -2px; background: transparent; color: inherit; font: inherit; line-height: inherit; cursor: text; user-select: text; overflow: hidden; }
+.inline-table textarea.inline-table-input { display: block; resize: none; box-sizing: border-box; width: 100%; min-width: 0; margin: 0; padding: var(--note-cell-padding-block, 4px) var(--note-cell-padding-inline, 13px); border: 0; border-radius: 0; outline: 2px solid var(--accent); outline-offset: -2px; background: transparent; color: inherit; font: inherit; line-height: inherit; cursor: text; user-select: text; overflow: hidden; }
 .inline-table-ruler { position: absolute; bottom: 100%; left: var(--table-gutter); right: var(--table-gutter); display: flex; height: var(--table-ruler); }
 .inline-table-ruler > div { position: relative; min-width: 0; }
 .inline-table-controls :is(.inline-table-row-handle,.inline-table-column-handle,.inline-table-corner,.inline-table-add) { display: flex; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); cursor: pointer; font: inherit; font-size: 16px; line-height: 1; opacity: 0; }
@@ -510,6 +510,9 @@
   --note-font: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif;
   --note-width: 780px;
   --note-line-height: 1.62;
+  --note-cell-line-height: 1.35;
+  --note-cell-padding-block: 4px;
+  --note-cell-padding-inline: 13px;
   --note-link: var(--accent-hover);
 }
 .editor-v2 .codemirror-host .is-live,
@@ -573,8 +576,15 @@
 .editor-v2 .markdown-preview :is(ul,ol) { padding-left: 1.5em; }
 .editor-v2 .markdown-preview li::marker { color: var(--text-secondary); }
 .editor-v2 .markdown-preview li + li { margin-top: 5px; }
-.editor-v2 .markdown-preview table { border-radius: 8px; font-size: .9375rem; line-height: 1.8; }
-.editor-v2 .markdown-preview :is(th,td) { padding: 10px 13px; }
+.editor-v2 .markdown-preview table {
+  border-radius: 8px;
+  font-size: var(--note-font-size, 1.0625rem);
+  line-height: var(--note-cell-line-height);
+}
+.editor-v2 .markdown-preview :is(th,td) {
+  height: calc(1lh + 2 * var(--note-cell-padding-block) + 1px);
+  padding: var(--note-cell-padding-block) var(--note-cell-padding-inline);
+}
 .markdown-preview :is(th,td)[align="left"] { text-align: left; }
 .markdown-preview :is(th,td)[align="center"] { text-align: center; }
 .markdown-preview :is(th,td)[align="right"] { text-align: right; }
