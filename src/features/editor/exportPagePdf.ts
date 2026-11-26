@@ -11,6 +11,12 @@ export const pdfStyles = `
 * { box-sizing: border-box; } html { color-scheme: light; }
 body { margin: 0; color: #20242c; background: white; font: 11pt/1.55 system-ui, sans-serif; overflow-wrap: anywhere; }
 h1,h2,h3,h4,h5,h6 { line-height: 1.25; break-after: avoid; margin: 1em 0 .5em; }
+@media print {
+  /* Require content before the break, and keep consecutive rules on the preceding page. */
+  .pdf-content > :not(hr) ~ h2,
+  .pdf-content > :not(hr) ~ hr + :not(hr) { break-before: page; }
+  .pdf-content > h1 + h2 { break-before: auto; }
+}
 p,li { orphans: 3; widows: 3; } img { max-width: 100%; height: auto; max-height: 245mm; object-fit: contain; break-inside: avoid; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f2f3f5; padding: 10pt; border: 1px solid #ddd; }
 code { font-family: ui-monospace, monospace; font-size: .9em; } blockquote { margin: 12pt 0; border-left: 3px solid #8b5cf6; padding: 6pt 12pt; background: #f6f4fb; }
@@ -24,7 +30,7 @@ ${quoteBlockStyles}
 
 export function pagePdfContent(content: string): HTMLElement {
   const article=document.createElement("article");
-  const body=document.createElement("div");body.innerHTML=renderMarkdownSafe(content,navigationKnowledge());
+  const body=document.createElement("div");body.className="pdf-content";body.innerHTML=renderMarkdownSafe(content,navigationKnowledge());
   for(const table of body.querySelectorAll<HTMLTableElement>("table")) {
     table.style.width="100%";
     const cols=[...table.querySelectorAll<HTMLTableColElement>("col")];

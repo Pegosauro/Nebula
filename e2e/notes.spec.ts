@@ -52,6 +52,43 @@ test("opens note details from the editor toolbar and while reading", async ({ pa
   await expect(context).toBeVisible();
 });
 
+test("starts PDF pages at H2 headings and after separators while keeping H1 and H2 together", async ({ page }) => {
+  await page.getByRole("button", { name: "Nuova nota", exact: true }).click();
+  const create = page.getByRole("dialog", { name: "Nuova nota" });
+  await create.getByLabel("Nome della nota").fill("Impaginazione della nota");
+  await create.getByRole("button", { name: "Crea nota", exact: true }).click();
+  await page.getByRole("button", { name: "Sorgente", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "Testo della nota" });
+  await editor.press("Control+a");
+  await page.keyboard.insertText([
+    "***", "## Apertura", "Testo introduttivo", "# Capitolo", "\n\n## Sottotitolo",
+    "Testo del capitolo", "## Sezione", "Testo della sezione", "---", "---",
+    "Dopo il separatore", "---", "## Sezione dopo il separatore", "Fine", "---",
+  ].join("\n\n"));
+
+  await page.evaluate(() => {
+    const observePrintFrame = new MutationObserver(() => {
+      const printFrame = document.querySelector<HTMLIFrameElement>('iframe[title="Esportazione pagina PDF"]');
+      if (!printFrame?.contentWindow) return;
+      printFrame.contentWindow.print = () => {};
+      observePrintFrame.disconnect();
+    });
+    observePrintFrame.observe(document.body, { childList: true });
+  });
+  await page.getByRole("button", { name: "Esporta pagina in PDF" }).click();
+  await expect(page.getByText("Scegli Salva come PDF nella finestra di stampa.")).toBeVisible();
+  await page.emulateMedia({ media: "print" });
+  const pdf = page.frameLocator('iframe[title="Esportazione pagina PDF"]');
+  for (const title of ["Apertura", "Sottotitolo"]) {
+    await expect(pdf.getByRole("heading", { name: title, exact: true })).toHaveCSS("break-before", "auto");
+  }
+  for (const title of ["Sezione", "Sezione dopo il separatore"]) {
+    await expect(pdf.getByRole("heading", { name: title, exact: true })).toHaveCSS("break-before", "page");
+  }
+  await expect(pdf.getByText("Dopo il separatore", { exact: true })).toHaveCSS("break-before", "page");
+  await expect(pdf.getByRole("separator")).toHaveCount(5);
+});
+
 test("captures from different areas into one real sheet, starting blank every time", async ({ page }) => {
   for (const [area, text] of [["Impostazioni", "Primo appunto"], ["Configuratori", "Secondo appunto"], ["Recenti", "Terzo appunto"]]) {
     await page.getByRole("button", { name: area, exact: true }).click();
