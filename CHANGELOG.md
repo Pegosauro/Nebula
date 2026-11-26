@@ -2,7 +2,7 @@
 
 ## In sviluppo
 
-- Una nota può diventare la nota di apertura della cartella padre dalle sue Proprietà. Il nome della cartella apre la nota e la freccia gestisce l’elenco.
+- Una nota può diventare la nota di apertura della cartella padre dalle sue Proprietà. Il nome della cartella espande o comprime l’elenco e apre la nota quando lo espandi. L’icona del collegamento compare al passaggio del mouse.
 - I pulsanti di testo possono usare 20 icone. Il selettore si apre con un clic sull’icona attuale e mostra la scelta in anteprima prima del salvataggio.
 - La stampa PDF omette l’indirizzo automatico in fondo alle pagine nei browser Chromium aggiornati.
 - Nella stampa PDF i separatori diventano salti pagina invisibili.
