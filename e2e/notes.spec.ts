@@ -79,6 +79,9 @@ test("starts PDF pages at H2 headings and after hidden separators while keeping 
   await expect(page.getByText("Scegli Salva come PDF nella finestra di stampa.")).toBeVisible();
   await page.emulateMedia({ media: "print" });
   const pdf = page.frameLocator('iframe[title="Esportazione pagina PDF"]');
+  const printContent = pdf.locator(".pdf-content");
+  await expect(printContent).toHaveCSS("box-decoration-break", "clone");
+  expect(await printContent.evaluate(element => parseFloat(getComputedStyle(element).paddingBottom))).toBeCloseTo(18 * 96 / 25.4, 1);
   for (const title of ["Apertura", "Sottotitolo"]) {
     await expect(pdf.getByRole("heading", { name: title, exact: true })).toHaveCSS("break-before", "auto");
   }
