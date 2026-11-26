@@ -2,6 +2,8 @@
 
 ## In sviluppo
 
+- I link a siti esterni su una riga a sé diventano schede con icona e colore personalizzabili. Il tasto destro apre la modifica anche per i link inseriti nel testo.
+
 - Il PDF avvia una nuova pagina prima degli H2, tranne a inizio documento o subito dopo un H1, e sposta il contenuto dopo un separatore alla pagina successiva.
 - Le tabelle delle note seguono la dimensione del testo della pagina e usano righe più compatte in scrittura e lettura. Le celle crescono quando il testo va a capo.
 - I popup dell’editor e del Vault usano uno sfondo attenuato senza sfocatura. I campi di commenti e pulsanti di testo lasciano la digitazione al browser.

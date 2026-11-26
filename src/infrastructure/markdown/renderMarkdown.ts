@@ -1,3 +1,4 @@
+import { externalLinkTitle, externalLinkTitleSuffix } from "../../domain/externalLinks";
 import { splitTextComments } from "../../domain/textComments";
 import { fencedPayload } from "../../domain/codeBlock";
 import { calloutTag, quoteBlockGlyph, quoteKind } from "./quoteBlocks";
@@ -95,7 +96,7 @@ parser.use({
     },
   },
 });
-export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexData, options?: { omitMedia?: boolean; interactiveCode?: boolean }): string {
+export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexData, options?: { omitMedia?: boolean; interactiveCode?: boolean; externalLinkAppearance?: boolean }): string {
   source = maskInternalNoteMarkers(withoutFrontmatter(splitTextComments(source).body));
   const tables = source.includes("<!-- nebula-table:") ? markdownTables(source) : [];
   const tokens = parser.lexer(knowledge ? renderWikilinks(source, knowledge) : source);
@@ -115,7 +116,7 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
   const rendered = parser.parser(tokens);
   const safe = DOMPurify.sanitize(rendered, {
     FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form", "svg", "math", ...(options?.omitMedia ? ["img", "video", "audio", "source"] : [])],
-    FORBID_ATTR: ["style", "srcdoc", "srcset", "contenteditable", "data-task-index", "data-text-comment", "data-text-comment-focus"],
+    FORBID_ATTR: ["style", "srcdoc", "srcset", "contenteditable", "data-task-index", "data-text-comment", "data-text-comment-focus", "data-nebula-link-appearance"],
     ADD_ATTR: ["data-nebula-target", "data-nebula-image", "data-nebula-task", "data-nebula-table", "data-nebula-code", "referrerpolicy"],
   });
   const container = document.createElement("div"); container.innerHTML = safe;
@@ -157,6 +158,12 @@ export function renderMarkdownSafe(source: string, knowledge?: KnowledgeIndexDat
   }
   for (const a of container.querySelectorAll<HTMLAnchorElement>("a[href]")) {
     if (/^https?:|^mailto:/i.test(a.getAttribute("href") ?? "")) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
+    if (!/^https?:/i.test(a.getAttribute("href") ?? "") || !a.hasAttribute("title")) continue;
+    const { tooltip, appearance } = externalLinkTitle(a.title);
+    if (!appearance) continue;
+    if (tooltip) a.title = tooltip;
+    else a.removeAttribute("title");
+    if (options?.externalLinkAppearance) a.dataset.nebulaLinkAppearance = externalLinkTitleSuffix(appearance);
   }
   for (const quote of container.querySelectorAll("blockquote")) {
     const nested = quote.parentElement?.closest("blockquote");

@@ -8,10 +8,11 @@ type Props = {
   children: ReactNode;
   wide?: boolean;
   anchor?: DOMRect;
+  preferSide?: boolean;
   className?: string;
 };
 
-export function EditorDialog({ title, onClose, children, wide = false, anchor, className = "" }: Props) {
+export function EditorDialog({ title, onClose, children, wide = false, anchor, preferSide = false, className = "" }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const backdrop = useBackdropDismiss(ref, onClose);
   useLayoutEffect(() => {
@@ -22,16 +23,19 @@ export function EditorDialog({ title, onClose, children, wide = false, anchor, c
       if (!anchor) return;
       const { width, height } = dialog.getBoundingClientRect();
       const gap = 8;
-      const side = anchor.right + gap + width <= window.innerWidth - gap;
-      const preferredX = side ? anchor.right + gap : anchor.left;
-      const preferredY = side ? anchor.top : anchor.bottom + gap;
+      const fitsRight = anchor.right + gap + width <= window.innerWidth - gap;
+      const fitsLeft = preferSide && anchor.left - gap - width >= gap;
+      const preferredX = fitsRight ? anchor.right + gap : fitsLeft ? anchor.left - width - gap : anchor.left;
+      const preferredY = fitsRight || fitsLeft ? anchor.top : anchor.bottom + gap;
       dialog.style.left = `${Math.max(gap, Math.min(preferredX, window.innerWidth - width - gap))}px`;
       dialog.style.top = `${Math.max(gap, Math.min(preferredY, window.innerHeight - height - gap))}px`;
     };
     place();
+    const sizeObserver = anchor && typeof ResizeObserver !== "undefined" ? new ResizeObserver(place) : undefined;
+    sizeObserver?.observe(dialog);
     if (anchor) window.addEventListener("resize", place);
-    return () => { window.removeEventListener("resize", place); dialog.close(); };
-  }, [anchor]);
+    return () => { sizeObserver?.disconnect(); window.removeEventListener("resize", place); dialog.close(); };
+  }, [anchor, preferSide]);
   return <dialog ref={ref} className={`editor-dialog ${wide ? "is-wide" : ""} ${anchor ? "is-anchored" : ""} ${className}`} aria-label={title}
     onCancel={event => { event.preventDefault(); onClose(); }} {...backdrop}>
     <div className="editor-dialog-inner"><header><h2>{title}</h2><button type="button" aria-label="Chiudi" title="Chiudi (Esc)" onClick={onClose}><X size={19} /></button></header>{children}</div>

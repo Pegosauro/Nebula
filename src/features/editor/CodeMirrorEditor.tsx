@@ -1,3 +1,4 @@
+import { editorExternalLink, externalLinkAt, type ExternalLinkMenu } from "./externalLinkEditing";
 import { insideCodeBlock } from "./liveCodeBlocks";
 import { frontmatterRange } from "../../domain/noteProperties";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
@@ -28,6 +29,7 @@ interface Props {
   onChange: (value: string, removedImages?: readonly string[]) => void; onSave: () => void; onOpenLink: (target: string) => void;
   suggestions: KnowledgeSuggestion[]; apiRef: RefObject<EditorApi | null>;
   onUiChange: (state: EditorUiState) => void; onPanel: (panel: EditorPanel) => void;
+  onExternalLink?: (target: ExternalLinkMenu) => void;
   onTextButton?: (target: TextButtonMenu) => void;
   onComments?: () => void;
   onTable?: (table: MarkdownTable) => void;
@@ -41,7 +43,7 @@ export default function CodeMirrorEditor(props: Props) {
   const accessConfig = useRef(new Compartment());
   const sourceExtensions = () => [lineNumbers(), syntaxHighlighting(defaultHighlightStyle, { fallback: true }), bracketMatching()];
   const accessExtensions = (readOnly = false) => [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly), EditorView.contentAttributes.of({ "aria-readonly": String(readOnly) })];
-  const live = useMemo(() => createLiveMarkdown(props.path, table => { if (!current.current.readOnly) current.current.onTable?.(table); }, target => current.current.onOpenLink(target), target => current.current.onTextButton?.(target)), [props.path]);
+  const live = useMemo(() => createLiveMarkdown(props.path, table => { if (!current.current.readOnly) current.current.onTable?.(table); }, target => current.current.onOpenLink(target), target => current.current.onTextButton?.(target), target => current.current.onExternalLink?.(target)), [props.path]);
   const syncing = useRef(false);
   const lastValue = useRef(props.value);
   const configuredMode = useRef(props.source), configuredReadOnly = useRef(!!props.readOnly);
@@ -105,6 +107,9 @@ export default function CodeMirrorEditor(props: Props) {
       const link = parseWikilinks(documentText(editor.state.doc)).find(item => pos >= item.start && pos <= item.end);
       if (link) { current.current.onOpenLink(link.target); return true; }
       for (let node = syntaxTree(editor.state).resolveInner(pos, 1); node; node = node.parent!) {
+        const external = editorExternalLink(editor.state, node);
+        if (external) return openDestination(editor, external.draft.address);
+        if (node.name === "URL" && ["Link", "Autolink"].includes(node.parent?.name ?? "")) continue;
         const url = ["Link", "Autolink"].includes(node.name) ? node.getChild("URL") : node.name === "URL" ? node : null;
         if (url) return openDestination(editor, renderedLinkHref(editor.state.sliceDoc(url.from, url.to)));
       }
@@ -143,6 +148,18 @@ export default function CodeMirrorEditor(props: Props) {
       placeholder("Inizia a scrivere… Usa / per inserire un elemento"),
       keymap.of([
         { key: "Mod-Enter", run: editor => openAt(editor, editor.state.selection.main.head) },
+        { key: "Shift-F10", run: editor => {
+          if (editor.state.readOnly || current.current.source || !current.current.onExternalLink) return false;
+          const { head } = editor.state.selection.main;
+          for (let node = syntaxTree(editor.state).resolveInner(head, -1); node; node = node.parent!) {
+            const link = editorExternalLink(editor.state, node);
+            const coords = link && editor.coordsAtPos(head);
+            if (!link || !coords) continue;
+            current.current.onExternalLink({ link, anchor: new DOMRect(coords.left, coords.top, coords.right - coords.left, coords.bottom - coords.top) });
+            return true;
+          }
+          return false;
+        } },
         { key: "Mod-s", run: () => { current.current.onSave(); return true; } },
         { key: "Mod-b", run: format("bold") }, { key: "Mod-i", run: format("italic") }, { key: "Mod-u", run: format("underline") }, { key: "Mod-Shift-x", run: format("strike") },
         { key: "Mod-Shift-h", run: format("highlight") }, { key: "Mod-Shift-c", run: format("inlineCode") },
@@ -153,6 +170,16 @@ export default function CodeMirrorEditor(props: Props) {
         indentWithTab, ...defaultKeymap, ...historyKeymap,
       ]),
       EditorView.domEventHandlers({
+        contextmenu(event, view) {
+          if (view.state.readOnly || current.current.source || !current.current.onExternalLink) return false;
+          const element = linkElement(event.target);
+          if (!element?.dataset.externalLinkFrom) return false;
+          const link = externalLinkAt(view.state, Number(element.dataset.externalLinkFrom));
+          if (!link) return false;
+          event.preventDefault();
+          current.current.onExternalLink({ link, anchor: element.getBoundingClientRect() });
+          return true;
+        },
         pointerdown(event) {
           pressedLink = undefined;
           if (event.button !== 0 || event.altKey || event.shiftKey || current.current.source) return false;

@@ -1,3 +1,5 @@
+import { externalLinkReplacement, type ExternalLinkMenu } from "./externalLinkEditing";
+import type { ExternalLinkDraft } from "../../domain/externalLinks";
 import { configureTextButton } from "./textButtonEditing";
 import type { TextButtonBlock, TextButtonConfig } from "../../domain/textButtons";
 import { editTextComment } from "./textCommentState";
@@ -11,7 +13,7 @@ import { convertQuotedBlock, quoteBlockAt, wrapQuotedLines } from "./quoteBlockE
 import { formatEdit } from "./markdownFormatting";
 import { findHighlights } from "../../domain/markdownHighlight";
 
-export type EditorPanel = "insert" | "link" | "image" | "table" | "help" | "search" | "textButton";
+export type EditorPanel = "insert" | "link" | "image" | "table" | "help" | "search" | "textButton" | "externalLink";
 export interface EditorUiState { from: number; to: number; line: number; column: number; selected: string; canUndo: boolean; canRedo: boolean; active: string[]; x: number; y: number }
 export interface EditorApi {
   format(action: FormatAction, toggle?: boolean): void;
@@ -22,6 +24,7 @@ export interface EditorApi {
   undo(): void;
   redo(): void;
   focus(): void;
+  configureExternalLink(link: ExternalLinkMenu["link"], draft: ExternalLinkDraft): boolean;
   configureTextButton(config: TextButtonConfig | null, block?: TextButtonBlock): boolean;
   editComment(id: string | undefined, text: string | null, selection?: { from: number; to: number; text: string }): boolean;
   getSelection(): { from: number; to: number; text: string };
@@ -94,6 +97,12 @@ export function createEditorApi(view: EditorView): EditorApi {
       if (focus) view.focus();
     },
     undo: () => { if (view.state.readOnly) return; undo(view); view.focus(); }, redo: () => { if (view.state.readOnly) return; redo(view); view.focus(); }, focus: () => view.focus(),
+    configureExternalLink: (link, draft) => {
+      const insert = externalLinkReplacement(view.state, link, draft);
+      if (!insert) return false;
+      view.dispatch({ changes: { from: link.from, to: link.to, insert }, annotations: isolateHistory.of("full"), userEvent: "input" });
+      return true;
+    },
     configureTextButton: (config, block) => configureTextButton(view, config, block),
     editComment: (id, text, selection) => editTextComment(view, id, text, selection),
     getSelection: () => { const { from, to } = view.state.selection.main; return { from, to, text: view.state.sliceDoc(from, to) }; },
