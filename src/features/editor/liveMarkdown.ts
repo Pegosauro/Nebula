@@ -402,7 +402,7 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     const ranges = analysis.tables.map(({ table, raw }) =>
       Decoration.replace({ block: true, widget: new TableWidget(table, raw, onTable, sourcePath, onOpenLink, state.readOnly) }).range(table.from, table.to));
     for (const button of analysis.textButtons) {
-      ranges.push(Decoration.replace({ block: true, widget: new TextButtonWidget(button.raw, button.config.label, state.readOnly, onTextButton) }).range(button.from, button.to));
+      ranges.push(Decoration.replace({ block: true, widget: new TextButtonWidget(button.raw, button.config, state.readOnly, onTextButton) }).range(button.from, button.to));
     }
     for (const marker of analysis.markers) ranges.push(Decoration.replace({ block: true }).range(marker.from, marker.to));
     if (analysis.metadata) ranges.push(Decoration.replace({ block: true }).range(0, analysis.metadata.end));

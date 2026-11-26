@@ -1,10 +1,40 @@
 import { markdownLanguage } from "@codemirror/lang-markdown";
 import { maskFrontmatter } from "./noteProperties";
 
+export const textButtonIcons = {
+  testo: "Testo",
+  calendario: "Calendario",
+  orologio: "Orologio",
+  checklist: "Checklist",
+  elenco: "Elenco",
+  nota: "Nota",
+  modello: "Modello",
+  verbale: "Verbale",
+  matita: "Matita",
+  completato: "Completato",
+  avviso: "Avviso",
+  informazioni: "Informazioni",
+  commento: "Commento",
+  collegamento: "Collegamento",
+  allegato: "Allegato",
+  tabella: "Tabella",
+  codice: "Codice",
+  misure: "Misure",
+  calcolo: "Calcolo",
+  importante: "Importante",
+} as const;
+
+export type TextButtonIcon = keyof typeof textButtonIcons;
+
+function isTextButtonIcon(value: unknown): value is TextButtonIcon {
+  return typeof value === "string" && Object.hasOwn(textButtonIcons, value);
+}
+
 export interface TextButtonConfig {
   label: string;
   position: "before" | "after";
   text: string;
+  icon?: TextButtonIcon;
 }
 
 export interface TextButtonBlock {
@@ -20,14 +50,15 @@ export const textButtonLimits = { label: 80, text: 16000 };
 
 export function validTextButton(value: unknown): value is TextButtonConfig {
   if (typeof value !== "object" || value === null) return false;
-  const { label, position, text } = value as Partial<TextButtonConfig>;
+  const { label, position, text, icon } = value as Partial<TextButtonConfig>;
   return typeof label === "string" && !!label.trim() && label.length <= textButtonLimits.label && !/[\r\n]/u.test(label)
     && (position === "before" || position === "after")
-    && typeof text === "string" && !!text.trim() && text.length <= textButtonLimits.text;
+    && typeof text === "string" && !!text.trim() && text.length <= textButtonLimits.text
+    && (icon === undefined || isTextButtonIcon(icon));
 }
 
 export function serializeTextButton(config: TextButtonConfig): string {
-  const payload = JSON.stringify({ label: config.label.trim(), position: config.position, text: config.text });
+  const payload = JSON.stringify({ label: config.label.trim(), position: config.position, text: config.text, icon: config.icon });
   return prefix + encodeURIComponent(payload).replaceAll("-", "%2D") + suffix;
 }
 
@@ -45,6 +76,8 @@ export function parseTextButtons(source: string): TextButtonBlock[] {
           && raw.startsWith(prefix) && raw.endsWith(suffix) && !/[\r\n]/u.test(raw)) {
           try {
             const config: unknown = JSON.parse(decodeURIComponent(raw.slice(prefix.length, -suffix.length)));
+            // Notes can outlive their icon set. An unknown icon keeps the original appearance.
+            if (config && typeof config === "object" && "icon" in config && !isTextButtonIcon(config.icon)) delete config.icon;
             if (validTextButton(config)) blocks.push({ raw, config, from: node.from, to: node.to });
           } catch { /* Invalid metadata remains an ordinary Markdown comment. */ }
         }

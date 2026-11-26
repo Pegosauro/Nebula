@@ -137,6 +137,81 @@ test("configures the button from the context menu and preserves text selection",
 });
 
 
+test("previews an icon from the collapsed picker and saves it in the note", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const template = "Confermare le misure di rilievo.";
+  const { form } = await createButton(page, template);
+  await form.getByRole("button", { name: "Inserisci pulsante" }).click();
+
+  const button = page.getByRole("button", { name: buttonName, exact: true });
+  const glyph = button.locator(".text-button-icon");
+  const defaultMask = await glyph.evaluate(el => getComputedStyle(el).maskImage);
+  await button.click({ button: "right" });
+  const dialog = page.getByRole("dialog", { name: "Configura pulsante" });
+  const toggle = dialog.locator(".text-button-icon-toggle");
+  const reveal = dialog.locator(".text-button-icon-reveal");
+  const picker = dialog.getByRole("group", { name: "Scegli un’icona" });
+  await expect(toggle).toHaveText("Originale");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(reveal).toHaveCSS("height", "0px");
+  await expect(picker).toHaveCount(0);
+
+  await toggle.click();
+  await expect(picker.getByRole("button")).toHaveCount(20);
+  await expect(reveal).toHaveCSS("transition-duration", "0.22s, 0.17s");
+  const calendar = picker.getByRole("button", { name: "Calendario", exact: true });
+  const calendarMask = await calendar.locator(".text-button-icon").evaluate(el => getComputedStyle(el).maskImage);
+  expect(calendarMask).not.toBe(defaultMask);
+  expect(calendarMask).not.toBe("none");
+  await calendar.click();
+  await expect(toggle).toHaveText("Calendario");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(reveal).toHaveCSS("height", "0px");
+  await expect(glyph).toHaveCSS("mask-image", calendarMask);
+
+  const field = dialog.getByRole("textbox", { name: "Testo da inserire" });
+  await dragTextOutside(page, dialog, field);
+  const selected = await field.evaluate((element: HTMLTextAreaElement) => element.value.slice(element.selectionStart, element.selectionEnd));
+  await page.keyboard.press("Control+c");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(selected);
+  const bounds = (await dialog.boundingBox())!;
+  await page.mouse.click(bounds.x + bounds.width + 4, bounds.y + 10);
+  await expect(dialog).toBeHidden();
+  await expect(glyph).toHaveCSS("mask-image", defaultMask);
+
+  await button.press("Shift+F10");
+  await toggle.press("Enter");
+  await expect(picker).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(dialog).toBeVisible();
+  await toggle.click();
+  await calendar.click();
+  await dialog.getByRole("button", { name: "Salva", exact: true }).click();
+  await expect(glyph).toHaveCSS("mask-image", calendarMask);
+  await page.getByRole("textbox", { name: "Testo della nota" }).press("Control+s");
+  await expect.poll(() => page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const vault = await root.getDirectoryHandle("Nebula-text-button-test");
+    const file = await (await vault.getFileHandle("Controlli.md")).getFile();
+    return file.text().catch(error => {
+      if (error instanceof DOMException && error.name === "NotReadableError") return "";
+      throw error;
+    });
+  })).toContain("%22icon%22%3A%22calendario%22");
+
+  await page.getByRole("button", { name: "Chiudi Controlli", exact: true }).click();
+  await openNote(page);
+  await expect(glyph).toHaveCSS("mask-image", calendarMask);
+  await button.click({ button: "right" });
+  await expect(toggle).toHaveText("Calendario");
+  await expect(picker).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Ripristina icona originale" }).click();
+  await expect(glyph).toHaveCSS("mask-image", defaultMask);
+  await dialog.getByRole("button", { name: "Annulla", exact: true }).click();
+  await expect(glyph).toHaveCSS("mask-image", calendarMask);
+});
+
 test.describe("touch", () => {
   test.use({ hasTouch: true });
 

@@ -3,11 +3,11 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
 import { frontmatterRange } from "../../domain/noteProperties";
-import { serializeTextButton, validTextButton, type TextButtonBlock, type TextButtonConfig } from "../../domain/textButtons";
+import { serializeTextButton, validTextButton, type TextButtonBlock, type TextButtonConfig, type TextButtonIcon } from "../../domain/textButtons";
 import { documentText } from "./markdownAnalysis";
 import { resolveNoteDates } from "./noteDates";
 
-export type TextButtonMenu = { block: TextButtonBlock; anchor: DOMRect };
+export type TextButtonMenu = { block: TextButtonBlock; anchor: DOMRect; previewIcon: (icon?: TextButtonIcon) => void };
 const flashDuration = 420;
 const textButtonFlash = StateEffect.define<{ from: number; to: number } | null>();
 const flashLine = Decoration.line({ class: "text-button-inserted" });

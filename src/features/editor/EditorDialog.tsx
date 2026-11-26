@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 type Props = {
   title: string;
   onClose: () => void;
+  onEscape?: () => void;
   children: ReactNode;
   wide?: boolean;
   anchor?: DOMRect;
@@ -12,7 +13,7 @@ type Props = {
   className?: string;
 };
 
-export function EditorDialog({ title, onClose, children, wide = false, anchor, preferSide = false, className = "" }: Props) {
+export function EditorDialog({ title, onClose, onEscape = onClose, children, wide = false, anchor, preferSide = false, className = "" }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const backdrop = useBackdropDismiss(ref, onClose);
   useLayoutEffect(() => {
@@ -37,7 +38,7 @@ export function EditorDialog({ title, onClose, children, wide = false, anchor, p
     return () => { sizeObserver?.disconnect(); window.removeEventListener("resize", place); dialog.close(); };
   }, [anchor, preferSide]);
   return <dialog ref={ref} className={`editor-dialog ${wide ? "is-wide" : ""} ${anchor ? "is-anchored" : ""} ${className}`} aria-label={title}
-    onCancel={event => { event.preventDefault(); onClose(); }} {...backdrop}>
+    onCancel={event => { event.preventDefault(); onEscape(); }} {...backdrop}>
     <div className="editor-dialog-inner"><header><h2>{title}</h2><button type="button" aria-label="Chiudi" title="Chiudi (Esc)" onClick={onClose}><X size={19} /></button></header>{children}</div>
   </dialog>;
 }

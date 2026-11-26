@@ -10,6 +10,8 @@ PWA locale per note Markdown, collegamenti e configuratori tecnici. Versione **0
 
 Il Vault diretto richiede un browser compatibile. La disposizione per schermi piccoli non sostituisce il supporto alle API del filesystem.
 
+Per cambiare l’icona di un **Pulsante di testo**, apri la configurazione con il tasto destro e clicca sull’icona attuale. La scelta si vede subito in anteprima e viene salvata nella nota con **Salva**. **Originale** ripristina l’icona predefinita.
+
 I link HTTP e HTTPS su una riga a sé appaiono come schede. In **Scrivi**, usa il tasto destro o **⋯** per cambiare testo, indirizzo, icona e colore. Nel corpo di una frase il link resta sottolineato e il tasto destro permette di modificare testo e indirizzo. Le schede restano normali collegamenti Markdown e salvano l’aspetto nel titolo del link.
 
 Nel **PDF** della nota, i titoli H2 iniziano una nuova pagina, salvo se aprono il documento o seguono un H1 con al massimo righe vuote tra i due. Il **Separatore** manda il contenuto successivo a pagina nuova. La linea del separatore è visibile solo nella nota.

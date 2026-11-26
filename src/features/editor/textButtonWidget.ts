@@ -1,10 +1,11 @@
 import { EditorView, WidgetType } from "@codemirror/view";
-import type { TextButtonBlock } from "../../domain/textButtons";
+import type { TextButtonBlock, TextButtonConfig } from "../../domain/textButtons";
+import { textButtonIconMask } from "./textButtonIconMask";
 import { analyzeMarkdown } from "./markdownAnalysis";
 import { runTextButton, type TextButtonMenu } from "./textButtonEditing";
 
 export class TextButtonWidget extends WidgetType {
-  constructor(readonly raw: string, readonly label: string, readonly readOnly: boolean, readonly openMenu: (target: TextButtonMenu) => void) { super(); }
+  constructor(readonly raw: string, readonly config: TextButtonConfig, readonly readOnly: boolean, readonly openMenu: (target: TextButtonMenu) => void) { super(); }
 
   eq(other: TextButtonWidget) { return this.raw === other.raw && this.readOnly === other.readOnly; }
 
@@ -19,7 +20,8 @@ export class TextButtonWidget extends WidgetType {
     const icon = document.createElement("span");
     icon.className = "text-button-icon";
     icon.setAttribute("aria-hidden", "true");
-    button.append(icon, document.createTextNode(this.label));
+    icon.style.maskImage = textButtonIconMask(this.config.icon) ?? "";
+    button.append(icon, document.createTextNode(this.config.label));
 
     const locate = (): TextButtonBlock | undefined => {
       if (!button.isConnected || view.state.readOnly) return;
@@ -28,7 +30,11 @@ export class TextButtonWidget extends WidgetType {
     };
     const configure = () => {
       const block = locate();
-      if (block) this.openMenu({ block, anchor: button.getBoundingClientRect() });
+      if (block) this.openMenu({
+        block,
+        anchor: button.getBoundingClientRect(),
+        previewIcon: selected => { if (button.isConnected) icon.style.maskImage = textButtonIconMask(selected) ?? ""; },
+      });
     };
     let timer: ReturnType<typeof setTimeout> | undefined;
     let start: { x: number; y: number } | undefined;
