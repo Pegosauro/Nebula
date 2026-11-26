@@ -52,7 +52,7 @@ test("opens note details from the editor toolbar and while reading", async ({ pa
   await expect(context).toBeVisible();
 });
 
-test("starts PDF pages at H2 headings and after separators while keeping H1 and H2 together", async ({ page }) => {
+test("starts PDF pages at H2 headings and after hidden separators while keeping H1 and H2 together", async ({ page }) => {
   await page.getByRole("button", { name: "Nuova nota", exact: true }).click();
   const create = page.getByRole("dialog", { name: "Nuova nota" });
   await create.getByLabel("Nome della nota").fill("Impaginazione della nota");
@@ -86,7 +86,9 @@ test("starts PDF pages at H2 headings and after separators while keeping H1 and 
     await expect(pdf.getByRole("heading", { name: title, exact: true })).toHaveCSS("break-before", "page");
   }
   await expect(pdf.getByText("Dopo il separatore", { exact: true })).toHaveCSS("break-before", "page");
-  await expect(pdf.getByRole("separator")).toHaveCount(5);
+  const separators = pdf.locator(".pdf-content hr");
+  await expect(separators).toHaveCount(5);
+  for (const separator of await separators.all()) await expect(separator).toHaveCSS("display", "none");
 });
 
 test("captures from different areas into one real sheet, starting blank every time", async ({ page }) => {
