@@ -2,6 +2,8 @@
 
 ## In sviluppo
 
+- I popup dell’editor e del Vault usano uno sfondo attenuato senza sfocatura. I campi di commenti e pulsanti di testo lasciano la digitazione al browser.
+- Il fumetto dei commenti si apre accanto al testo annotato quando c’è spazio e privilegia la posizione sotto al testo sugli schermi stretti.
 - Nuovo comando «Pulsante di testo» per inserire Markdown riutilizzabile prima o dopo il pulsante, con data e ora opzionali calcolate al clic. Il tasto destro apre la configurazione. Il comando è disponibile anche nel menu «Elenchi, citazioni e avvisi», accanto a «Checklist».
 - La selezione del testo resta disponibile quando il puntatore viene rilasciato fuori dalla finestra. Correzione applicata ai dialog dell’editor, ai commenti e alle anteprime di note, immagini e regole.
 - Commenti alle note Markdown: seleziona un passaggio e scegli «Aggiungi commento». La sottolineatura puntinata apre un fumetto al passaggio del mouse o con un tap.

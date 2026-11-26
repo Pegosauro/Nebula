@@ -1,11 +1,49 @@
 import { usePopupSelection } from "../../components/ui/popupDismissal";
 import { MessageSquare, Pencil } from "lucide-react";
-import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { TextComment } from "../../domain/textComments";
 
 const selector = "[data-text-comment]";
-type Anchor = { element: HTMLElement; rect: DOMRect; id: string; pinned: boolean; touch: boolean };
+const inset = 12;
+const gap = 8;
+const maxWidth = 320;
+const minSideWidth = 180;
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
+
+function balloonPlacement(rect: DOMRect, editor: DOMRect, viewportWidth: number, viewportHeight: number) {
+  const rightBound = Math.min(editor.right, viewportWidth - inset);
+  const leftBound = Math.max(editor.left, inset);
+  const right = rightBound - rect.right - gap;
+  const left = rect.left - leftBound - gap;
+  const aboveRoom = rect.top - inset - gap;
+  const belowRoom = viewportHeight - inset - rect.bottom - gap;
+  const center = (rect.left + rect.right) / 2;
+
+  if (Math.max(right, left) >= minSideWidth) {
+    const toRight = right >= left;
+    const width = Math.min(maxWidth, toRight ? right : left);
+    return {
+      side: toRight ? "right" : "left", width,
+      left: toRight ? rect.right + gap : rect.left - gap - width,
+      top: rect.top,
+      tailX: undefined,
+      maxHeight: Math.min(240, viewportHeight - 2 * inset),
+    } as const;
+  }
+
+  const above = belowRoom < 108 && aboveRoom > belowRoom;
+  const width = Math.min(maxWidth, viewportWidth - 2 * inset);
+  const x = clamp(center - width / 2, inset, viewportWidth - width - inset);
+  return {
+    side: above ? "above" : "below", width, left: x,
+    top: above ? rect.top - gap : rect.bottom + gap,
+    tailX: clamp(center - x, 16, width - 16),
+    maxHeight: Math.max(48, Math.min(240, above ? aboveRoom : belowRoom)),
+  } as const;
+}
+
+type Anchor = { element: HTMLElement; rect: DOMRect; id: string; pinned: boolean; touch: boolean; placement: ReturnType<typeof balloonPlacement> };
 
 export function TextCommentBalloon({ root, comments, onEdit }: {
   root: RefObject<HTMLElement | null>;
@@ -20,6 +58,15 @@ export function TextCommentBalloon({ root, comments, onEdit }: {
   const keepOpen = useRef(() => {});
   const leave = useRef(() => {});
   const id = useId();
+  useLayoutEffect(() => {
+    const popup = card.current;
+    if (!anchor || !popup || (anchor.placement.side !== "right" && anchor.placement.side !== "left")) return;
+    const height = popup.offsetHeight;
+    const lineY = (anchor.rect.top + anchor.rect.bottom) / 2;
+    const top = clamp(lineY - Math.min(22, height / 2), inset, window.innerHeight - height - inset);
+    popup.style.top = `${top}px`;
+    popup.style.setProperty("--comment-tail-y", `${clamp(lineY - top, 12, height - 12)}px`);
+  }, [anchor]);
 
   useEffect(() => {
     const host = root.current;
@@ -52,7 +99,8 @@ export function TextCommentBalloon({ root, comments, onEdit }: {
       if (!element.isConnected || !comments.some(comment => comment.id === element.dataset.textComment)) return;
       const rect = [...element.getClientRects()].find(box => x !== undefined && y !== undefined && x >= box.left && x <= box.right && y >= box.top && y <= box.bottom)
         ?? element.getBoundingClientRect();
-      const next = { element, id: element.dataset.textComment!, rect, pinned, touch };
+      const placement = balloonPlacement(rect, host!.getBoundingClientRect(), window.innerWidth, window.innerHeight);
+      const next = { element, id: element.dataset.textComment!, rect, pinned, touch, placement };
       active.current = next;
       element.setAttribute("aria-describedby", id);
       setAnchor(next);
@@ -130,17 +178,12 @@ export function TextCommentBalloon({ root, comments, onEdit }: {
 
   const comment = anchor && comments.find(item => item.id === anchor.id);
   if (!comment || !anchor) return null;
-  const { rect } = anchor;
-  const width = Math.min(320, window.innerWidth - 24);
-  const center = (rect.left + rect.right) / 2;
-  const left = Math.max(12, Math.min(center - width / 2, window.innerWidth - width - 12));
-  const above = rect.top > 160 && (rect.top > window.innerHeight / 2 || rect.top > 230);
-  const room = above ? rect.top : window.innerHeight - rect.bottom;
+  const { side, width, left, top, tailX, maxHeight } = anchor.placement;
   return createPortal(
-    <div ref={card} className={`text-comment-balloon ${above ? "is-above" : "is-below"}`} style={{
-      width, left, top: above ? rect.top - 8 : rect.bottom + 8, "--comment-tail-x": `${Math.max(16, Math.min(width - 16, center - left))}px`,
+    <div ref={card} className={`text-comment-balloon is-${side}`} style={{
+      width, left, top, "--comment-tail-x": tailX === undefined ? undefined : `${tailX}px`,
     } as React.CSSProperties} onPointerEnter={() => keepOpen.current()} onPointerLeave={() => leave.current()}>
-      <div className="text-comment-balloon-content" style={{ maxHeight: Math.max(48, Math.min(240, room - 20)) }}>
+      <div className="text-comment-balloon-content" style={{ maxHeight }}>
         <header><MessageSquare size={16} aria-hidden="true" /><strong>Commento</strong>
           {onEdit && <button type="button" aria-label="Modifica commento" title="Modifica commento" onClick={() => { dismiss.current(); onEdit(comment.id); }}><Pencil size={15} /></button>}
         </header>

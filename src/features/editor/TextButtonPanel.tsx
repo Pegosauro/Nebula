@@ -17,10 +17,23 @@ export function TextButtonPanel({ existing, onSave, onClose }: {
   onSave: (config: TextButtonConfig | null) => boolean;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState<TextButtonConfig>(existing?.block.config ?? { label: "", position: "after", text: "" });
+  const initial = existing?.block.config;
+  const [position, setPosition] = useState<TextButtonConfig["position"]>(initial?.position ?? "after");
+  const [canSave, setCanSave] = useState(validTextButton(initial));
   const [format, setFormat] = useState<keyof typeof noteDateFormats>("date");
   const [error, setError] = useState("");
+  const name = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
+
+  function readDraft(): TextButtonConfig {
+    return { label: name.current?.value ?? "", position, text: textarea.current?.value ?? "" };
+  }
+
+  function checkDraft() {
+    const valid = validTextButton(readDraft());
+    if (valid !== canSave) setCanSave(valid);
+    if (error) setError("");
+  }
 
   function save(value: TextButtonConfig | null) {
     if (onSave(value)) onClose();
@@ -32,33 +45,30 @@ export function TextButtonPanel({ existing, onSave, onClose }: {
     if (!element) return;
     const { selectionStart: start, selectionEnd: end } = element;
     const { token } = noteDateFormats[format];
-    if (draft.text.length - (end - start) + token.length > textButtonLimits.text) return;
-    setDraft({ ...draft, text: draft.text.slice(0, start) + token + draft.text.slice(end) });
-    requestAnimationFrame(() => {
-      element.focus();
-      element.setSelectionRange(start + token.length, start + token.length);
-    });
+    if (element.value.length - (end - start) + token.length > textButtonLimits.text) return;
+    element.focus({ preventScroll: true });
+    element.setRangeText(token, start, end, "end");
+    checkDraft();
   }
 
   return <EditorDialog title={existing ? "Configura pulsante" : "Pulsante di testo"} anchor={existing?.anchor}
     onClose={onClose} className="text-button-dialog">
-    <form onSubmit={event => { event.preventDefault(); if (validTextButton(draft)) save(draft); }}>
+    <form onSubmit={event => { event.preventDefault(); const value = readDraft(); if (validTextButton(value)) save(value); }}>
       <div className="text-button-fields">
         <label className="editor-field">Nome
-          <input autoFocus value={draft.label} maxLength={textButtonLimits.label} required onChange={event => setDraft({ ...draft, label: event.target.value })} />
+          <input ref={name} autoFocus defaultValue={initial?.label ?? ""} maxLength={textButtonLimits.label} required onChange={checkDraft} />
         </label>
         <div className="editor-field">
           <span>Posizione del testo</span>
           <div className="editor-panel-tabs" role="group" aria-label="Posizione del testo">
-            {(["before", "after"] as const).map(position => <button type="button" key={position}
-              aria-pressed={draft.position === position} onClick={() => setDraft({ ...draft, position })}>
-              {position === "before" ? "Prima" : "Dopo"}
+            {(["before", "after"] as const).map(option => <button type="button" key={option}
+              aria-pressed={position === option} onClick={() => setPosition(option)}>
+              {option === "before" ? "Prima" : "Dopo"}
             </button>)}
           </div>
         </div>
         <label className="editor-field">Testo da inserire
-          <textarea ref={textarea} rows={4} value={draft.text} maxLength={textButtonLimits.text} required
-            onChange={event => setDraft({ ...draft, text: event.target.value })} />
+          <textarea ref={textarea} rows={4} defaultValue={initial?.text ?? ""} maxLength={textButtonLimits.text} required onChange={checkDraft} />
         </label>
         <div className="text-button-date">
           <button type="button" className="button button-secondary" onClick={insertDate}><CalendarDays size={15} />Inserisci data attuale</button>
@@ -70,7 +80,7 @@ export function TextButtonPanel({ existing, onSave, onClose }: {
       </div>
       <footer>
         {existing && <button type="button" className="button button-secondary" aria-label="Rimuovi pulsante" title="Rimuovi pulsante" onClick={() => save(null)}><Trash2 size={16} /></button>}
-        <button type="submit" className="button button-primary" disabled={!validTextButton(draft)}>{existing ? "Salva" : "Inserisci pulsante"}</button>
+        <button type="submit" className="button button-primary" disabled={!canSave}>{existing ? "Salva" : "Inserisci pulsante"}</button>
       </footer>
     </form>
   </EditorDialog>;
