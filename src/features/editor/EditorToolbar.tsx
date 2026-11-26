@@ -18,7 +18,7 @@ const formats: Array<{ action: FormatAction; label: string; icon: typeof Bold; s
 ];
 const headings = [1, 2, 3, 4] as const;
 const blockTools = [
-  ["bullet", List], ["ordered", ListOrdered], ["task", ListTodo],
+  ["bullet", List], ["ordered", ListOrdered], ["task", ListTodo], ["text-button", null],
   ["quote", Quote], ["tip", Lightbulb], ["warning", TriangleAlert], ["code", Code2],
 ] as const;
 const blocks = blockTools.map(([id, Icon]) => ({ command: insertCommands.find(command => command.id === id)!, Icon }));
@@ -62,7 +62,8 @@ export function EditorToolbar({ api, state, onPanel, onCommand, focus, onFocus, 
     {!floating && <div className="editor-tools-group">
       <ToolbarMenu label="Elenchi, citazioni e avvisi" icon={<List size={19} aria-hidden="true" />}
         items={blocks.map(({ command, Icon }) => ({
-          id: command.id, label: command.label, icon: <Icon size={18} aria-hidden="true" />, run: () => onCommand(command),
+          id: command.id, label: command.label, run: () => onCommand(command),
+          icon: Icon ? <Icon size={18} aria-hidden="true" /> : <span className="text-button-icon" aria-hidden="true" />,
         }))} />
     </div>}
     <button type="button" title="Collegamento (Ctrl/⌘ K)" aria-label="Inserisci collegamento" onClick={() => onPanel("link")}><Link2 size={17} /></button>
