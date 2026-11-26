@@ -23,5 +23,6 @@ export const insertCommands: InsertCommand[] = [
   { id: "note", label: "Riquadro informativo", group: "Blocchi", keywords: "callout nota", text: "> [!NOTE]\n> Informazione utile", syntax: "> [!NOTE]\n> Informazione utile" },
   { id: "tip", label: "Suggerimento", group: "Blocchi", keywords: "callout tip consiglio", format: "tip", syntax: "> [!TIP]\n> Un suggerimento" },
   { id: "warning", label: "Avviso", group: "Blocchi", keywords: "callout warning attenzione", format: "warning", syntax: "> [!WARNING]\n> Avviso" },
+  { id: "text-button", label: "Pulsante di testo", group: "Blocchi", keywords: "template testo standard data attuale prima dopo", panel: "textButton", syntax: "Inserisce testo Markdown prima o dopo il pulsante" },
   { id: "divider", label: "Separatore", group: "Blocchi", keywords: "linea orizzontale", text: "---", syntax: "---" },
 ];

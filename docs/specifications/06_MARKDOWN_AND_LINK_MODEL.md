@@ -128,3 +128,10 @@ Preferire esecuzione in Web Worker per Vault grandi.
 I commenti si salvano nello stesso file della nota, in un blocco HTML finale `nebula-text-comments:v1`. Il payload contiene un ID, il commento e il testo selezionato, con la posizione e il contesto a sinistra e a destra. L’editor tiene il blocco separato dal contenuto modificabile e dall’anteprima.
 
 Le modifiche in Nebula aggiornano la posizione tramite le transazioni di CodeMirror, incluso Annulla/Ripristina. Alla riapertura, la citazione e il contesto consentono di ritrovare il passaggio. Se il testo è stato eliminato o il contesto è ambiguo, il commento resta nell’elenco della nota, da cui può essere ricollegato a una nuova selezione.
+
+
+## Pulsanti di testo
+
+In modalità Scrivi, **Inserisci → Pulsante di testo** crea un blocco configurabile. Il tasto destro, Maiusc+F10 e la pressione prolungata aprono la configurazione. Il blocco si salva nella nota come commento Markdown autonomo `nebula-text-button:v1` e resta invisibile nei normali lettori Markdown.
+
+Ogni attivazione inserisce una copia modificabile del testo prima o dopo il blocco. `{{data}}`, `{{data_ora}}`, `{{data_estesa}}` e `{{ora}}` si risolvono all’ora locale del dispositivo nel momento del clic. Annulla rimuove l’intero inserimento.

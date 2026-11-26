@@ -20,6 +20,7 @@ import { insertCommands } from "./insertCommands";
 import { documentText } from "./markdownAnalysis";
 import { joinTextComments, splitTextComments } from "../../domain/textComments";
 import { setTextComments, textCommentHistory, textComments } from "./textCommentState";
+import { textButtonMotion, type TextButtonMenu } from "./textButtonEditing";
 import { removedImage } from "./editorImageEditing";
 
 interface Props {
@@ -27,6 +28,7 @@ interface Props {
   onChange: (value: string, removedImages?: readonly string[]) => void; onSave: () => void; onOpenLink: (target: string) => void;
   suggestions: KnowledgeSuggestion[]; apiRef: RefObject<EditorApi | null>;
   onUiChange: (state: EditorUiState) => void; onPanel: (panel: EditorPanel) => void;
+  onTextButton?: (target: TextButtonMenu) => void;
   onComments?: () => void;
   onTable?: (table: MarkdownTable) => void;
   onImages: (files: File[]) => void;
@@ -39,7 +41,7 @@ export default function CodeMirrorEditor(props: Props) {
   const accessConfig = useRef(new Compartment());
   const sourceExtensions = () => [lineNumbers(), syntaxHighlighting(defaultHighlightStyle, { fallback: true }), bracketMatching()];
   const accessExtensions = (readOnly = false) => [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly), EditorView.contentAttributes.of({ "aria-readonly": String(readOnly) })];
-  const live = useMemo(() => createLiveMarkdown(props.path, table => { if (!current.current.readOnly) current.current.onTable?.(table); }, target => current.current.onOpenLink(target)), [props.path]);
+  const live = useMemo(() => createLiveMarkdown(props.path, table => { if (!current.current.readOnly) current.current.onTable?.(table); }, target => current.current.onOpenLink(target), target => current.current.onTextButton?.(target)), [props.path]);
   const syncing = useRef(false);
   const lastValue = useRef(props.value);
   const configuredMode = useRef(props.source), configuredReadOnly = useRef(!!props.readOnly);
@@ -134,7 +136,7 @@ export default function CodeMirrorEditor(props: Props) {
         return protectedChange ? { changes, userEvent: "input" } : transaction;
       }),
       EditorState.transactionFilter.of(transaction => transaction.startState.readOnly && transaction.docChanged && !syncing.current ? [] : transaction),
-      highlightSpecialChars(), history(), textComments, textCommentHistory, drawSelection(), dropCursor(), EditorState.allowMultipleSelections.of(true), indentOnInput(),
+      highlightSpecialChars(), history(), textButtonMotion, textComments, textCommentHistory, drawSelection(), dropCursor(), EditorState.allowMultipleSelections.of(true), indentOnInput(),
       markdown({ base: markdownLanguage }),
       autocompletion({ override: [complete], activateOnTyping: true }), EditorState.tabSize.of(2), EditorView.lineWrapping,
       EditorView.contentAttributes.of({ "aria-label": "Testo della nota", "aria-multiline": "true", role: "textbox", spellcheck: "true" }),

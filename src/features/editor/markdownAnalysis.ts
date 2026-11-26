@@ -1,6 +1,7 @@
 import type { ChangeSet, Text } from "@codemirror/state";
 import { frontmatterRange, type Frontmatter } from "../../domain/noteProperties";
 import { internalNoteMarkerRanges } from "../../infrastructure/markdown/internalNoteMarkers";
+import { parseTextButtons, type TextButtonBlock } from "../../domain/textButtons";
 import { markdownTables, type MarkdownTable } from "./markdownTools";
 
 interface TableBlock { table: MarkdownTable; raw: string }
@@ -8,6 +9,7 @@ export interface MarkdownAnalysis {
   source: string;
   metadata?: Frontmatter;
   tables: TableBlock[];
+  textButtons: TextButtonBlock[];
   markers: Array<{ from: number; to: number }>;
 }
 const textCache = new WeakMap<Text, string>();
@@ -58,6 +60,7 @@ export function analyzeMarkdown(doc: Text, previous?: MarkdownAnalysis, changes?
         raw: block.raw,
         table: { ...block.table, from: changes.mapPos(block.table.from, 1), to: changes.mapPos(block.table.to, -1) },
       }),
+      textButtons: previous.textButtons.map(button => ({ ...button, from: changes.mapPos(button.from, 1), to: changes.mapPos(button.to, -1) })),
       markers: previous.markers.map(marker => ({ from: changes.mapPos(marker.from, 1), to: changes.mapPos(marker.to, -1) })),
     };
   } else {
@@ -65,6 +68,7 @@ export function analyzeMarkdown(doc: Text, previous?: MarkdownAnalysis, changes?
       source, metadata: frontmatterRange(source),
       tables: markdownTables(source).map(table => ({ table, raw: source.slice(table.from, table.to) })),
       markers: internalNoteMarkerRanges(source),
+      textButtons: parseTextButtons(source),
     };
   }
   analysisCache.set(doc, result);

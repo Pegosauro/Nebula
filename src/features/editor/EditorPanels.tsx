@@ -21,7 +21,7 @@ export function InsertPanel({ help, onCommand, onClose }: { help?: boolean; onCo
     {help && <p className="editor-panel-hint">Scrivi è anche l’anteprima: i simboli compaiono solo sull’elemento vicino al cursore e restano nascosti quando selezioni testo. Sorgente mostra tutto il Markdown. In Scrivi apri un collegamento con un clic; Alt+clic ti permette di modificarlo. Puoi usare anche Ctrl/⌘ Invio. Aspetto della pagina regola testo e larghezza anche in lettura. Usa / a inizio riga per inserire; Ctrl/⌘ Z annulla. Trascina o incolla immagini per salvarle nel Vault.</p>}
     <div className="insert-command-list">{items.map((command, index) => <button type="button" key={command.id} ref={el => { buttons.current[index] = el; }} className={selected === index ? "is-highlighted" : ""} onClick={() => onCommand(command)}>
       <span><strong>{command.label}</strong><small>{command.group}{command.shortcut ? ` · ${command.shortcut}` : ""}</small></span>
-      {help ? <code>{command.syntax}</code> : <Plus size={15} />}
+      {help ? <code>{command.syntax}</code> : command.id === "text-button" ? <span className="text-button-icon" aria-hidden="true" /> : <Plus size={15} />}
     </button>)}{!items.length && <p className="editor-panel-hint">Nessun risultato. Prova “lista”, “titolo” o “link”.</p>}</div>
     <footer><span>{help ? "Seleziona una funzione per usarla nella nota." : "↑ ↓ per scegliere · Invio per inserire · Esc per chiudere"}</span></footer>
   </EditorDialog>;

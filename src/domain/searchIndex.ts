@@ -1,3 +1,4 @@
+import { withoutTextButtons } from "./textButtons";
 import { splitTextComments } from "./textComments";
 import { withoutFrontmatter } from "./noteProperties";
 import { basename, dirname, withoutMarkdownExtension } from "./path";
@@ -109,7 +110,7 @@ function fuzzySubsequenceScore(value: string, query: string): number {
 export function buildSearchDocument(source: KnowledgeSourceDocument, parsed?: ParsedKnowledgeDocument): SearchDocument {
   const base = noteBasename(source.path);
   const aliases = parsed?.aliases ?? parseFrontmatterAliases(source.content);
-  const { body } = splitTextComments(source.content);
+  const body = withoutTextButtons(splitTextComments(source.content).body);
   const tags = extractTags(body);
   const title = extractTitle(body, base);
   return {
