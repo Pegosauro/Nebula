@@ -544,7 +544,7 @@ export class InlineTable {
     input.setAttribute("aria-label", `${this.active.row === 0 ? "Intestazione" : `Riga ${this.active.row + 1 - this.firstVisibleRow}`} colonna ${this.active.column + 1}`);
     input.value = replacement ?? original.replace(/<br\s*\/?\s*>/gi, "\n"); input.style.textAlign = cell.style.textAlign || this.table.align[this.active.column] || "left";
     this.editing = { input, originalRows: this.table.rows.map(row => [...row]), cell: { ...this.active }, firstChange: true }; cell.replaceChildren(input);
-    const size = () => { input.style.height = "auto"; input.style.height = `${Math.max(40, input.scrollHeight)}px`; this.options.measure(); };
+    const size = () => { input.style.height = "auto"; input.style.height = `${input.scrollHeight}px`; this.options.measure(); };
     const update = () => { if (!this.editing) return; const { row: r, column: c } = this.editing.cell, span = cellSpan(this.layout, r, c); this.write({ ...this.table, rows: this.table.rows.map((row, y) => row.map((value, x) => y === r && x === c ? input.value : y >= span.row && y < span.row + span.rows && x >= span.column && x < span.column + span.columns ? "" : value)) }, false); size(); };
     input.addEventListener("input", update); input.addEventListener("blur", () => this.finishEdit());
     input.addEventListener("paste", e => { const text = e.clipboardData?.getData("text/plain") ?? ""; if (!text.includes("\t")) return; e.preventDefault(); this.paste(text); });

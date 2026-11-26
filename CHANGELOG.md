@@ -2,6 +2,7 @@
 
 ## In sviluppo
 
+- Le tabelle delle note seguono la dimensione del testo della pagina e usano righe più compatte in scrittura e lettura. Le celle crescono quando il testo va a capo.
 - I popup dell’editor e del Vault usano uno sfondo attenuato senza sfocatura. I campi di commenti e pulsanti di testo lasciano la digitazione al browser.
 - Il fumetto dei commenti si apre accanto al testo annotato quando c’è spazio e privilegia la posizione sotto al testo sugli schermi stretti.
 - Nuovo comando «Pulsante di testo» per inserire Markdown riutilizzabile prima o dopo il pulsante, con data e ora opzionali calcolate al clic. Il tasto destro apre la configurazione. Il comando è disponibile anche nel menu «Elenchi, citazioni e avvisi», accanto a «Checklist».
