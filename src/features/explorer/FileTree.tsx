@@ -98,16 +98,16 @@ function TreeNode({ entry, depth, expanded, openedByClick, toggle, menuPath, set
             if (event.touches.length === 1) drag.start(entry, displayName, event.currentTarget, event.nativeEvent);
           }}
           onClick={() => {
-            if (openingNote) {
-              if (!isExpanded) toggle(entry.path);
-              openEntry(openingNote);
-            } else if (isDirectory) {
-              selectEntry(entry);
-              toggle(entry.path);
-            } else openEntry(entry);
+            if (!isDirectory) {
+              openEntry(entry);
+              return;
+            }
+            toggle(entry.path);
+            if (openingNote && !isExpanded) openEntry(openingNote);
+            else selectEntry(entry);
           }}
           aria-expanded={isDirectory ? isExpanded : undefined}
-          aria-description={openingNote ? `Apre ${withoutMarkdownExtension(openingNote.name)}` : undefined}
+          aria-description={openingNote && !isExpanded ? `Apre ${withoutMarkdownExtension(openingNote.name)}` : undefined}
         >
           <span className="tree-chevron" aria-hidden="true">
             {isDirectory && !openingNote && <ChevronRight size={14} />}

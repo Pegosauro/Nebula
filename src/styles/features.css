@@ -728,10 +728,15 @@
 .tree-folder-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
 .tree-opening-note {
   display: grid;
+  visibility: hidden;
   place-items: center;
   width: 20px;
   height: 20px;
   border-radius: 5px;
   background: var(--accent-soft);
   color: var(--accent-hover);
+}
+
+@media (hover: hover) {
+  .tree-row:hover .tree-opening-note { visibility: visible; }
 }

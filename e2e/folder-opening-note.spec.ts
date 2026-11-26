@@ -11,7 +11,7 @@ async function hideExplorerOverlay(page: Page) {
   if (await overlay.isVisible()) await overlay.click();
 }
 
-test("opens the selected child from the folder while the arrow only toggles the tree", async ({ page }) => {
+test("toggles linked folders by name and shows the link icon only on hover", async ({ page }) => {
   await page.addInitScript(() => {
     window.showDirectoryPicker = async () => {
       const root = await navigator.storage.getDirectory();
@@ -44,9 +44,23 @@ test("opens the selected child from the folder while the arrow only toggles the 
 
   await page.getByRole("button", { name: "Chiudi Riepilogo montaggio", exact: true }).click();
   await showExplorer(page);
-  await explorer.getByRole("button", { name: "Comprimi Montaggio pergola", exact: true }).click();
+  const badge = folder.locator(".tree-opening-note");
+  await expect(badge).toHaveCount(1);
+  await page.mouse.move(0, 0);
+  await expect(badge).toBeHidden();
+  await folder.hover();
+  await expect(badge).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(badge).toBeHidden();
+
+  await folder.click();
   await expect(first).toBeHidden();
   await expect(tab).toHaveCount(0);
+  await explorer.getByRole("button", { name: "Espandi Montaggio pergola", exact: true }).click();
+  await expect(first).toBeVisible();
+  await expect(tab).toHaveCount(0);
+  await explorer.getByRole("button", { name: "Comprimi Montaggio pergola", exact: true }).click();
+  await expect(first).toBeHidden();
 
   await folder.click();
   await hideExplorerOverlay(page);
@@ -54,7 +68,9 @@ test("opens the selected child from the folder while the arrow only toggles the 
   await showExplorer(page);
   await expect(first).toBeVisible();
   await folder.click();
-  await expect(first).toBeVisible();
+  await expect(first).toBeHidden();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await explorer.getByRole("button", { name: "Espandi Montaggio pergola", exact: true }).click();
   await second.click();
   await hideExplorerOverlay(page);
   if (!(await properties.isVisible())) await page.getByRole("button", { name: "Proprietà", exact: true }).click();
@@ -69,6 +85,9 @@ test("opens the selected child from the folder while the arrow only toggles the 
     return JSON.parse(await (await (await folder.getFileHandle(".nebula-opening-note.json")).getFile()).text());
   });
   expect(metadata).toEqual({ version: 1, note: "Checklist sopralluogo.md" });
+  await showExplorer(page);
+  await folder.click();
+  await expect(folder).toHaveAttribute("aria-expanded", "false");
   await page.reload();
   await expect(page.getByRole("heading", { name: "Inizio", exact: true })).toBeVisible();
   await showExplorer(page);
