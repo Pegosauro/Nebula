@@ -35,6 +35,8 @@ import { TextCommentBalloon } from "./TextCommentBalloon";
 import { TextCommentDialog } from "./TextCommentDialog";
 import { TextButtonPanel } from "./TextButtonPanel";
 import type { TextButtonMenu } from "./textButtonEditing";
+import { ExternalLinkPanel } from "./ExternalLinkPanel";
+import type { ExternalLinkMenu } from "./externalLinkEditing";
 import { NoteTitle } from "./NoteTitle";
 
 const MarkdownPreview = lazy(() => import("./MarkdownPreview"));
@@ -95,6 +97,7 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
     if (!locked) requestAnimationFrame(() => api.current?.focus());
   };
   const detailsOpen = contextOpen && !focus;
+  const [externalLinkMenu, setExternalLinkMenu] = useState<ExternalLinkMenu>();
   const [textButtonMenu, setTextButtonMenu] = useState<TextButtonMenu>();
   const [editingTable, setEditingTable] = useState<MarkdownTable>();
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -107,7 +110,7 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
     if (busy) return;
     const next = !locked;
     rememberEditor(path, { locked: next }, epoch.current);
-    setPanel(null); setSearch(false); setCommentDialog(undefined); setLocked(next);
+    setPanel(null); setExternalLinkMenu(undefined); setSearch(false); setCommentDialog(undefined); setLocked(next);
   };
   const setMode = (next: EditorMode) => { if (locked) return; rememberEditor(path, { mode: next }, epoch.current); setModeState(next); };
   useEffect(() => {
@@ -146,7 +149,7 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
     if (next === "textButton") setTextButtonMenu(undefined);
     setPanel(next);
   };
-  const closePanel = () => { setPanel(null); setTextButtonMenu(undefined); requestAnimationFrame(() => api.current?.focus()); };
+  const closePanel = () => { setPanel(null); setExternalLinkMenu(undefined); setTextButtonMenu(undefined); requestAnimationFrame(() => api.current?.focus()); };
   const onCommand = (command: InsertCommand) => {
     if (locked) return;
     if (command.panel) { openPanel(command.panel); return; }
@@ -224,6 +227,8 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
       <Suspense fallback={<div className="editor-loading"><LoaderCircle className="spin" size={20} /><span>Preparazione documento…</span></div>}>
       <div className="editor-write-surface" hidden={locked}><CodeMirrorEditor path={path} showMarkdownAtCursor={showMarkdownAtCursor} value={session.content} source={mode === "source"} visible={!locked} readOnly={locked || !!session.operationLocked} appearanceKey={`${fontSize}:${pageWidth}:${fullWidth}`} apiRef={api} onChange={change} suggestions={suggestions} onSave={() => void useDocumentStore.getState().save(path)} onOpenLink={target => useKnowledgeNavigationStore.getState().activate(path, target)} onUiChange={setUi} onPanel={openPanel} onImages={files => void insertImages(files)} onTable={openTable} onTextButton={target => {
         if (!locked && !session.operationLocked && session.status !== "conflict") { setTextButtonMenu(target); setPanel("textButton"); }
+      }} onExternalLink={target => {
+        if (!locked && !session.operationLocked && session.status !== "conflict") { setExternalLinkMenu(target); setPanel("externalLink"); }
       }} onComments={() => openComments("new")} /></div>
       {locked && <MarkdownPreview content={session.content} sourcePath={path} comments={comments} readOnly onTaskToggle={session.operationLocked || session.status === "conflict" ? undefined : toggleTask} />}
     </Suspense></div>
@@ -243,6 +248,8 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
         closeComments();
       }} />}
     <footer className={`editor-statusbar is-${session.status}`}><span role="status">{session.status === "saved" ? <Check size={14} /> : session.status === "saving" ? <LoaderCircle size={14} className="spin" /> : <span className="dirty-dot" />}{statusCopy(session.status)}</span><span>{counts.words} parole · {counts.characters} caratteri</span>{comments.length > 0 && <button type="button" className="text-comment-list-trigger" title="Commenti della nota" onClick={() => openComments("list")}><MessageSquare size={14} aria-hidden="true" />{comments.length} {comments.length === 1 ? "commento" : "commenti"}</button>}{locked ? <span><LockKeyhole size={13} />Testo bloccato · Attività selezionabili</span> : <span>Riga {ui?.line ?? 1}, col {ui?.column ?? 1}</span>}</footer>
+    {panel === "externalLink" && externalLinkMenu && <ExternalLinkPanel target={externalLinkMenu} onClose={closePanel} onSave={draft =>
+      !locked && !session.operationLocked && session.status !== "conflict" && !!api.current?.configureExternalLink(externalLinkMenu.link, draft)} />}
     {panel === "textButton" && <TextButtonPanel existing={textButtonMenu} onClose={closePanel} onSave={config =>
       !locked && !session.operationLocked && session.status !== "conflict" && !!api.current?.configureTextButton(config, textButtonMenu?.block)} />}
     {(panel === "insert" || panel === "help") && <InsertPanel help={panel === "help"} onCommand={onCommand} onClose={closePanel} />}

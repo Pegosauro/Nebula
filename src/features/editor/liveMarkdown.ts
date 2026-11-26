@@ -1,3 +1,5 @@
+import { ExternalLinkWidget } from "./externalLinkCard";
+import { editorExternalLink, type ExternalLinkMenu } from "./externalLinkEditing";
 import { TextButtonWidget } from "./textButtonWidget";
 import type { TextButtonMenu } from "./textButtonEditing";
 import { isInlineTextBlock, underlineSpans } from "./underlineMarkup";
@@ -206,7 +208,11 @@ function decorateQuoteBlock(
   }
 }
 
-function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis): DecorationSet {
+function liveLinkAttributes(href: string) {
+  return { "data-live-href": href, title: "Clic per aprire · Alt+clic per modificare" };
+}
+
+function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis, onExternalLink: (target: ExternalLinkMenu) => void): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   const metadataEnd = analysis.metadata?.end ?? 0;
   const markers = analysis.markers;
@@ -283,17 +289,25 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
         }
       }
       if (name === "QuoteMark" && quoteMarks.has(node.from)) return;
+      const external = editorExternalLink(view.state, node.node);
+      if (external?.standalone && !(cursorLine && selection.head > external.from && selection.head < external.to && active(external.from, external.to))) {
+        decorations.push(Decoration.replace({ widget: new ExternalLinkWidget(external, view.state.readOnly ? undefined : onExternalLink), nebulaLinkLabel: external.labelRange }).range(node.from, node.to));
+        return false;
+      }
+      const linkAttribute = external
+        ? { "data-live-href": external.draft.address, "data-external-link-from": String(external.from) }
+        : null;
       if (name === "Autolink" || (name === "URL" && !["Link", "Image"].includes(parent?.name ?? ""))) {
         const url = name === "Autolink" ? node.node.getChild("URL") : node.node;
         if (url) {
-          addMark(node.from, node.to, "live-link", { "data-live-href": renderedLinkHref(view.state.sliceDoc(url.from, url.to)), title: "Clic per aprire · Alt+clic per modificare" });
+          addMark(node.from, node.to, "live-link", linkAttribute ?? liveLinkAttributes(renderedLinkHref(view.state.sliceDoc(url.from, url.to))));
           if (name === "Autolink" && !active(node.from, node.to)) { hide(node.from, url.from, node); hide(url.to, node.to, node); }
         }
         return false;
       }
       if (name === "Link" && node.node.getChild("URL")) {
         const url = node.node.getChild("URL")!;
-        addMark(node.from, node.to, "live-link", { "data-live-href": view.state.sliceDoc(url.from, url.to), title: "Clic per aprire · Alt+clic per modificare" });
+        addMark(node.from, node.to, "live-link", linkAttribute ?? liveLinkAttributes(view.state.sliceDoc(url.from, url.to)));
         if (!active(node.from, node.to)) {
           const marks = node.node.getChildren("LinkMark");
           if (marks.length >= 2) { hide(marks[0]!.from, marks[0]!.to, node); hide(marks[1]!.from, node.to, node); }
@@ -382,7 +396,7 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
   }
   return Decoration.set(decorations, true);
 }
-export function createLiveMarkdown(sourcePath: string, onTable: (table: MarkdownTable) => void = () => {}, onOpenLink: (target: string) => void = () => {}, onTextButton: (target: TextButtonMenu) => void = () => {}) {
+export function createLiveMarkdown(sourcePath: string, onTable: (table: MarkdownTable) => void = () => {}, onOpenLink: (target: string) => void = () => {}, onTextButton: (target: TextButtonMenu) => void = () => {}, onExternalLink: (target: ExternalLinkMenu) => void = () => {}) {
   // Block replacements must be provided directly by state, before viewport measurement.
   const tables = (state: EditorState, analysis: MarkdownAnalysis) => {
     const ranges = analysis.tables.map(({ table, raw }) =>
@@ -437,20 +451,34 @@ export function createLiveMarkdown(sourcePath: string, onTable: (table: Markdown
     const changes = Array.from(boundaries, from => ({ from, insert: "\n" }));
     return [transaction, { changes, sequential: true }];
   });
+  const hiddenSyntax = (decorations: DecorationSet) => {
+    const ranges: Range<Decoration>[] = [];
+    for (const cursor = decorations.iter(); cursor.value; cursor.next()) {
+      const { nebulaSyntax, nebulaLinkLabel } = cursor.value.spec;
+      if (nebulaSyntax === true) ranges.push(cursor.value.range(cursor.from, cursor.to));
+      if (!nebulaLinkLabel) continue;
+      // The widget replaces the whole link visually. Edits beside it still
+      // operate on its label and preserve its hidden Markdown destination.
+      const mask = Decoration.replace({ nebulaOwner: { from: cursor.from, to: cursor.to } });
+      if (cursor.from < nebulaLinkLabel.from) ranges.push(mask.range(cursor.from, nebulaLinkLabel.from));
+      if (nebulaLinkLabel.to < cursor.to) ranges.push(mask.range(nebulaLinkLabel.to, cursor.to));
+    }
+    return Decoration.set(ranges, true);
+  };
   const inline = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
     syntax: DecorationSet;
     constructor(view: EditorView) {
-      this.decorations = build(view, sourcePath, view.state.field(tableField).analysis);
-      this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
+      this.decorations = build(view, sourcePath, view.state.field(tableField).analysis, onExternalLink);
+      this.syntax = hiddenSyntax(this.decorations);
     }
     update(update: ViewUpdate) {
       const headingMenuChanged = update.startState.field(headingLevelMenu, false) !== update.state.field(headingLevelMenu, false);
       const quoteMenuChanged = update.startState.field(quoteBlockMenu) !== update.state.field(quoteBlockMenu);
       const codeLayoutChanged = update.startState.field(formulaLayouts) !== update.state.field(formulaLayouts) || update.startState.field(compactCodeBlocks) !== update.state.field(compactCodeBlocks);
       if (codeLayoutChanged || headingMenuChanged || quoteMenuChanged || update.docChanged || update.selectionSet || update.focusChanged || update.viewportChanged || update.startState.field(highlightPalette, false) !== update.state.field(highlightPalette, false) || update.startState.facet(revealMarkdownAtCursor) !== update.state.facet(revealMarkdownAtCursor) || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
-        this.decorations = build(update.view, sourcePath, update.state.field(tableField).analysis);
-        this.syntax = this.decorations.update({ filter: (_from, _to, value) => value.spec.nebulaSyntax === true });
+        this.decorations = build(update.view, sourcePath, update.state.field(tableField).analysis, onExternalLink);
+        this.syntax = hiddenSyntax(this.decorations);
       }
     }
   }, { decorations: value => value.decorations, provide: plugin => EditorView.atomicRanges.of(view => view.plugin(plugin)?.syntax ?? Decoration.none) });

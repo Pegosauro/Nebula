@@ -1,3 +1,4 @@
+import { decorateExternalLinkCards } from "./externalLinkCard";
 import { splitTextComments, type TextComment } from "../../domain/textComments";
 import { decorateRenderedComments } from "./renderedTextComments";
 import { attachCodePreview } from "./codeBlockControls";
@@ -25,7 +26,7 @@ export default function MarkdownPreview({ content, sourcePath, onChange, onTable
   const body = useMemo(() => splitTextComments(content).body, [content]);
   const preview = useMemo(() => {
     const knowledge = navigationKnowledge();
-    const rendered = renderMarkdownSafe(body, knowledge, { interactiveCode: true });
+    const rendered = renderMarkdownSafe(body, knowledge, { interactiveCode: true, externalLinkAppearance: true });
     return comments?.length ? decorateRenderedComments(rendered, body, comments, quote => renderMarkdownSafe(quote, knowledge, { omitMedia: true })) : rendered;
   }, [body, comments, revision, vaultRevision]);
   const html = useMemo(() => ({ __html: preview }), [preview]);
@@ -39,6 +40,8 @@ export default function MarkdownPreview({ content, sourcePath, onChange, onTable
   }, [sourcePath]);
   useLayoutEffect(() => {
     const element = host.current; if (!element) return;
+    const contentRoot = element.firstElementChild;
+    if (contentRoot instanceof HTMLElement) decorateExternalLinkCards(contentRoot);
     if (readOnly) {
       element.querySelectorAll<HTMLInputElement>("input,textarea,select,button").forEach(control => {
         if (!codeControls.current.has(control)) control.disabled = true;
