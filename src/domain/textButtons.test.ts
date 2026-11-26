@@ -17,3 +17,10 @@ test("leaves fenced examples, quoted markers and malformed payloads inert", () =
   const examples = ["---", "marker: |", "  " + marker, "---", "", fenced, "", "> " + marker, "", "<!-- nebula-text-button:v1 %ZZ -->"];
   expect(parseTextButtons(examples.join("\n"))).toEqual([]);
 });
+
+test("saves a selected icon and falls back to the original for an unknown icon", () => {
+  const decorated: TextButtonConfig = { ...config, icon: "verbale" };
+  const marker = serializeTextButton(decorated);
+  expect(parseTextButtons(marker)[0]?.config).toEqual(decorated);
+  expect(parseTextButtons(marker.replace("verbale", "inattesa"))[0]?.config).toEqual(config);
+});
