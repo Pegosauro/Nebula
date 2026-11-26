@@ -223,7 +223,7 @@
   box-shadow: var(--shadow-float);
   overflow: hidden;
 }
-.vault-dialog::backdrop { background: var(--scrim); backdrop-filter: blur(2px); }
+.vault-dialog::backdrop { background: var(--scrim); }
 .vault-dialog form { display: flex; flex-direction: column; max-height: min(680px, calc(100dvh - 32px)); }
 .vault-dialog-header { min-height: 66px; padding: 12px 12px 12px 16px; display: grid; grid-template-columns: 34px minmax(0, 1fr) 34px; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
 .vault-dialog-header > div { min-width: 0; }

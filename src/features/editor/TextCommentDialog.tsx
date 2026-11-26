@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { maxCommentLength, type TextComment } from "../../domain/textComments";
 import { EditorDialog } from "./EditorDialog";
 
@@ -14,13 +14,15 @@ export function TextCommentDialog({ comments, initial, selection, editable, onSa
   onClose: () => void;
 }) {
   const [mode, setMode] = useState(initial);
-  const [text, setText] = useState(typeof initial === "object" ? initial.text : "");
+  const field = useRef<HTMLTextAreaElement>(null);
+  const [hasText, setHasText] = useState(typeof initial === "object" && !!initial.text.trim());
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const existing = typeof mode === "object" ? mode : undefined;
   const newComment = mode === "new";
 
   function save(value: string | null, anchor?: Selection) {
+    if (!editable || value !== null && !value.trim()) return;
     if (onSave(existing?.id, value, anchor)) onClose();
     else setError("Seleziona un passaggio di testo libero da altri commenti e riprova.");
   }
@@ -34,13 +36,14 @@ export function TextCommentDialog({ comments, initial, selection, editable, onSa
         <div className="text-comment-actions">
           {comment.from !== null && onJump && <button type="button" className="button button-secondary" onClick={() => onJump(comment)}>Vai al testo</button>}
           {editable && <button type="button" className="button button-secondary" onClick={() => {
-            setMode(comment); setText(comment.text);
+            setMode(comment); setHasText(!!comment.text.trim());
           }}>Modifica</button>}
         </div>
       </li>)}
-    </ul> : <form onSubmit={event => { event.preventDefault(); save(text, newComment ? selection : undefined); }}>
+    </ul> : <form onSubmit={event => { event.preventDefault(); save(field.current?.value ?? "", newComment ? selection : undefined); }}>
       <blockquote className="text-comment-quote">{existing?.quote ?? selection?.text}</blockquote>
-      <label className="editor-field">Commento<textarea autoFocus rows={4} value={text} maxLength={maxCommentLength} onChange={event => { setText(event.target.value); setError(""); }} /></label>
+      <label className="editor-field">Commento<textarea ref={field} autoFocus rows={4} defaultValue={existing?.text ?? ""} maxLength={maxCommentLength}
+        onChange={event => { const filled = !!event.target.value.trim(); if (filled !== hasText) setHasText(filled); if (error) setError(""); }} /></label>
       {error && <p className="editor-panel-error" role="alert">{error}</p>}
       {existing?.from === null && <p className="editor-panel-hint">{selection ? "Puoi ricollegare il commento al testo selezionato." : "Seleziona il nuovo passaggio nella nota, poi riapri questo commento per ricollegarlo."}</p>}
       {confirmDelete ? <footer>
@@ -49,8 +52,8 @@ export function TextCommentDialog({ comments, initial, selection, editable, onSa
         <button type="button" className="button button-primary" onClick={() => save(null)}>Elimina</button>
       </footer> : <footer>
         {existing && <button type="button" className="button button-secondary" onClick={() => setConfirmDelete(true)}>Elimina</button>}
-        {existing?.from === null && selection && <button type="button" className="button button-secondary" disabled={!editable || !text.trim()} onClick={() => save(text, selection)}>Ricollega alla selezione</button>}
-        <button type="submit" className="button button-primary" disabled={!editable || !text.trim()}>{newComment ? "Aggiungi" : "Salva"}</button>
+        {existing?.from === null && selection && <button type="button" className="button button-secondary" disabled={!editable || !hasText} onClick={() => save(field.current?.value ?? "", selection)}>Ricollega alla selezione</button>}
+        <button type="submit" className="button button-primary" disabled={!editable || !hasText}>{newComment ? "Aggiungi" : "Salva"}</button>
       </footer>}
     </form>}
   </EditorDialog>;

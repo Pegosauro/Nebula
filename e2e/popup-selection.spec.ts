@@ -70,6 +70,46 @@ test.describe("editor popups", () => {
     if (await scrim.isVisible()) await scrim.click();
   });
 
+  test("places the comment beside its anchor and falls back below on narrow space", async ({ page }) => {
+    const { width } = page.viewportSize()!;
+    if (width < 900) await page.setViewportSize({ width: 1280, height: 850 });
+    const mark = page.locator(".cm-content [data-text-comment]");
+    const balloon = page.locator(".text-comment-balloon");
+    await mark.hover();
+    await expect(balloon).toHaveClass(/is-right/);
+    await balloon.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
+    let anchor = (await mark.boundingBox())!;
+    let popup = (await balloon.boundingBox())!;
+    expect(popup.x).toBeGreaterThanOrEqual(anchor.x + anchor.width);
+    expect(popup.y).toBeLessThan(anchor.y + anchor.height);
+    expect(popup.y + popup.height).toBeGreaterThan(anchor.y);
+
+    await page.keyboard.press("Escape");
+    const alignment = await page.addStyleTag({ content: ".cm-line:has([data-text-comment]) { text-align: right; }" });
+    await mark.hover();
+    await expect(balloon).toHaveClass(/is-left/);
+    await balloon.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
+    anchor = (await mark.boundingBox())!;
+    popup = (await balloon.boundingBox())!;
+    expect(popup.x + popup.width).toBeLessThanOrEqual(anchor.x);
+    await page.keyboard.press("Escape");
+    await alignment.evaluate(element => element.remove());
+
+    const details = page.getByRole("button", { name: "Dettagli", exact: true });
+    if (await details.getAttribute("aria-expanded") === "true") await details.click();
+    await expect(page.getByRole("complementary", { name: "Pannello contestuale" })).toBeHidden();
+    await page.setViewportSize({ width: 360, height: 780 });
+    const scrim = page.getByRole("button", { name: "Chiudi pannello sinistro", exact: true });
+    if (await scrim.isVisible()) await scrim.click();
+    await page.addStyleTag({ content: ".cm-line:has([data-text-comment]) { text-align: center; }" });
+    await mark.hover();
+    await expect(balloon).toHaveClass(/is-below/);
+    await balloon.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
+    anchor = (await mark.boundingBox())!;
+    popup = (await balloon.boundingBox())!;
+    expect(popup.y).toBeGreaterThanOrEqual(anchor.y + anchor.height);
+  });
+
   test("preserves selection in the comment balloon and edit dialog", async ({ page }) => {
     await page.locator(".cm-content [data-text-comment]").hover();
     const balloon = page.locator(".text-comment-balloon");
