@@ -57,7 +57,16 @@ test.beforeEach(async ({ page }) => {
 
 test("inserts editable Markdown and resolves the date on every click", async ({ page }) => {
   await page.clock.setFixedTime(new Date(2026, 10, 26, 14, 25));
-  const { form, field } = await createButton(page, "### Controllo del ");
+  await page.getByRole("button", { name: "Elenchi, citazioni e avvisi" }).click();
+  const menu = page.getByRole("menu", { name: "Elenchi, citazioni e avvisi" });
+  const action = menu.getByRole("menuitem", { name: "Pulsante di testo" });
+  await expect(action.locator(".text-button-icon")).toBeVisible();
+  await action.click();
+  await expect(menu).toBeHidden();
+  const form = page.getByRole("dialog", { name: "Pulsante di testo" });
+  await form.getByRole("textbox", { name: "Nome" }).fill(buttonName);
+  const field = form.getByRole("textbox", { name: "Testo da inserire" });
+  await field.fill("### Controllo del ");
   await field.press("End");
   await form.getByRole("button", { name: "Inserisci data attuale" }).click();
   await expect(field).toHaveValue("### Controllo del {{data}}");

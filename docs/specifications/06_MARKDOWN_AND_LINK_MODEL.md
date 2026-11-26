@@ -132,6 +132,6 @@ Le modifiche in Nebula aggiornano la posizione tramite le transazioni di CodeMir
 
 ## Pulsanti di testo
 
-In modalità Scrivi, **Inserisci → Pulsante di testo** crea un blocco configurabile. Il tasto destro, Maiusc+F10 e la pressione prolungata aprono la configurazione. Il blocco si salva nella nota come commento Markdown autonomo `nebula-text-button:v1` e resta invisibile nei normali lettori Markdown.
+In modalità Scrivi, **Elenchi, citazioni e avvisi → Pulsante di testo** e **Inserisci → Pulsante di testo** aprono la creazione di un blocco configurabile. Il tasto destro, Maiusc+F10 e la pressione prolungata aprono la configurazione. Il blocco si salva nella nota come commento Markdown autonomo `nebula-text-button:v1` e resta invisibile nei normali lettori Markdown.
 
 Ogni attivazione inserisce una copia modificabile del testo prima o dopo il blocco. `{{data}}`, `{{data_ora}}`, `{{data_estesa}}` e `{{ora}}` si risolvono all’ora locale del dispositivo nel momento del clic. Annulla rimuove l’intero inserimento.
