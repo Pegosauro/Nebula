@@ -10,6 +10,8 @@ PWA locale per note Markdown, collegamenti e configuratori tecnici. Versione **0
 
 Il Vault diretto richiede un browser compatibile. La disposizione per schermi piccoli non sostituisce il supporto alle API del filesystem.
 
+Nel **PDF** della nota, i titoli H2 iniziano una nuova pagina, salvo se aprono il documento o seguono un H1 con al massimo righe vuote tra i due. Il **Separatore** manda il contenuto successivo a pagina nuova.
+
 ## Configuratore 0.26.0 e Vault di prova
 
 - **Apri Vault di prova**, in benvenuto e Impostazioni, crea file di esempio nell’archivio locale del browser (OPFS), separato dalle cartelle personali. La riapertura conserva i file già presenti. La copia [ZIP](public/samples/Nebula-Vault-Test.zip) si può estrarre e aprire come normale cartella desktop.
