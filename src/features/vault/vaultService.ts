@@ -164,6 +164,11 @@ export class VaultService {
     return this.adapter.scan(this.requireHandle(), onProgress);
   }
 
+  setFolderOpeningNote(path: string, enabled: boolean) {
+    const handle = this.requireHandle();
+    return this.write(handle, () => this.adapter.setFolderOpeningNote(handle, path, enabled));
+  }
+
   async createConfigurator(name: string, content: string): Promise<{ path: string; snapshot: VaultSnapshot }> {
     const handle = this.requireHandle();
     const path = await this.write(handle, () => this.adapter.createConfigurator(handle, name, content));

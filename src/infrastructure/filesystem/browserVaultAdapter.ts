@@ -42,6 +42,10 @@ export class BrowserVaultAdapter {
     return scanDirectoryHandle(handle, { onProgress });
   }
 
+  setFolderOpeningNote(handle: FileSystemDirectoryHandle, path: string, enabled: boolean): Promise<string | undefined> {
+    return this.operations.setFolderOpeningNote(handle, path, enabled);
+  }
+
   createConfigurator(handle: FileSystemDirectoryHandle, name: string, content: string): Promise<string> {
     return this.operations.createConfigurator(handle, name, content);
   }

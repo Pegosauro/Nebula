@@ -9,6 +9,7 @@ export interface VaultEntry {
   size?: number;
   modifiedAt?: number;
   children?: VaultEntry[];
+  openingNoteName?: string;
 }
 
 export interface VaultStats {
@@ -59,4 +60,9 @@ export function findVaultEntry(entries: VaultEntry[], path: string): VaultEntry 
     }
   }
   return undefined;
+}
+
+export function folderOpeningNote(folder: VaultEntry | undefined): VaultEntry | undefined {
+  if (!folder?.openingNoteName) return;
+  return folder.children?.find(entry => entry.name === folder.openingNoteName && entry.type === "file" && entry.extension === ".md");
 }

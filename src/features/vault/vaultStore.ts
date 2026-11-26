@@ -2,6 +2,7 @@ import { flushTaskSession, reloadTaskSession, updateLinkedTaskPaths } from "../t
 import { useConfiguratorStore } from "../configurator/configuratorStore";
 import { useTreeStore } from "../trees/treeStore";
 import { create } from "zustand";
+import { dirname, isPathInside } from "../../domain/path";
 import { findVaultEntry, type RecentVault, type VaultEntry, type VaultScanProgress, type VaultSnapshot } from "../../domain/vault";
 import { readableFileSystemError } from "../../infrastructure/filesystem/filesystemErrors";
 import { useDocumentStore } from "../editor/documentStore";
@@ -56,6 +57,7 @@ interface VaultState {
   renameEntry: (entry: VaultEntry, name: string) => Promise<string>;
   moveEntry: (entry: VaultEntry, targetDirectoryPath: string) => Promise<string>;
   deleteEntry: (entry: VaultEntry) => Promise<void>;
+  setFolderOpeningNote: (path: string, enabled: boolean) => Promise<void>;
   clearError: () => void;
 }
 
@@ -442,6 +444,23 @@ export const useVaultStore = create<VaultState>((set, get) => {
       } catch (error) {
         failMutation(error);
       }
+    },
+    setFolderOpeningNote: async (path, enabled) => {
+      const vaultId = get().activeVaultId;
+      if (!vaultId || get().backupBusy || get().status !== "ready") throw new Error("Il Vault non è disponibile per la modifica.");
+      const parent = dirname(path);
+      const openingNoteName = await service.setFolderOpeningNote(path, enabled);
+      set(state => {
+        if (!state.snapshot || state.activeVaultId !== vaultId) return state;
+        const update = (entries: VaultEntry[]): VaultEntry[] => entries.map(entry => {
+          if (entry.path === parent && entry.children?.some(child => child.path === path)) {
+            return { ...entry, openingNoteName };
+          }
+          if (entry.children && isPathInside(parent, entry.path)) return { ...entry, children: update(entry.children) };
+          return entry;
+        });
+        return { snapshot: { ...state.snapshot, root: update(state.snapshot.root) } };
+      });
     },
     clearError: () => set({ error: undefined }),
   };

@@ -200,7 +200,7 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
         <EditorAppearance />
         <button className="button button-secondary" type="button" aria-label="Crea task collegata" title="Crea task collegata" onClick={createLinkedTask}><ListTodo size={17} /></button>
         <button className="button button-secondary editor-pdf" type="button" disabled={exportingPdf} aria-label="Esporta pagina in PDF" title="Esporta la pagina in PDF tramite la stampa del dispositivo" onClick={()=>void exportPdf()}>{exportingPdf ? <LoaderCircle size={17} className="spin"/> : <Download size={17}/>}<span>PDF</span></button>
-        <button className="button button-secondary editor-properties-toggle" type="button" aria-expanded={propertiesVisible} aria-controls="note-properties" onClick={() => toggleProperties()}><SlidersHorizontal size={17} /><span>Proprietà</span></button>
+        <button className="button button-secondary editor-properties-toggle" type="button" aria-label="Proprietà" aria-expanded={propertiesVisible} aria-controls="note-properties" onClick={() => toggleProperties()}><SlidersHorizontal size={17} /><span>Proprietà</span></button>
         <button className="button button-secondary editor-template" type="button" disabled={busy} aria-label="Salva come modello" title="Salva questa nota come modello personale" onClick={() => setSavingTemplate(true)}><Files size={17} /><span>Modello</span></button>
         <button className={`button button-secondary editor-lock ${locked ? "is-active" : ""}`} type="button" disabled={busy} aria-pressed={locked} aria-label={locked ? "Sblocca pagina" : "Blocca pagina"} title={locked ? "Sblocca per modificare" : "Blocca in sola lettura"} onClick={toggleLock}>{locked ? <LockKeyhole size={17} /> : <LockKeyholeOpen size={17} />}<span>{locked ? "Sola lettura" : "Blocca"}</span></button>
         {locked && <button className="button button-secondary" type="button" aria-label={focus ? "Esci da Concentrazione" : "Concentrazione"} onClick={() => setFocus(value => !value)}>{focus ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>}
@@ -208,7 +208,7 @@ function DocumentEditor({ path, title, newlyCreated, tabId }: { path: string; ti
         <button className="button button-secondary editor-save" type="button" disabled={locked || session.status === "saving" || session.status === "saved" || session.status === "conflict"} onClick={() => void useDocumentStore.getState().save(path)} aria-label="Salva nota" title="Salva (Ctrl/⌘ S)">{session.status === "saving" ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />}</button>
       </div>
     </header>
-    {propertiesVisible && <NotePropertiesPanel content={session.content} readOnly={locked || !!session.operationLocked} onChange={change} onHide={() => toggleProperties(false)} />}
+    {propertiesVisible && <NotePropertiesPanel path={path} content={session.content} readOnly={locked || !!session.operationLocked} onChange={change} onHide={() => toggleProperties(false)} />}
     {path === QUICK_NOTES_PATH && <QuickNoteOrganizer content={session.content} disabled={!!session.operationLocked || session.status === "conflict"} onCompleted={setNotice} />}
     {!locked && <EditorToolbar api={api.current} state={ui} onPanel={openPanel} onCommand={onCommand} focus={focus} onFocus={() => setFocus(value => !value)} details={detailsButton} />}
     {!locked && search && <EditorSearch content={body.replace(/\r\n?/g, "\n")} api={api.current} onClose={() => { setSearch(false); api.current?.focus(); }} />}
