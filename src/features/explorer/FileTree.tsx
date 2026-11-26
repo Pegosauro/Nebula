@@ -7,6 +7,7 @@ import {
   FileText,
   GitBranch,
   ListTree,
+  Link2,
   Folder,
   FolderOpen,
   FolderInput,
@@ -17,7 +18,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import type { VaultEntry } from "../../domain/vault";
+import { folderOpeningNote, type VaultEntry } from "../../domain/vault";
 import { dirname, isPathInside, withoutMarkdownExtension } from "../../domain/path";
 import { useWorkspaceStore } from "../workspace/workspaceStore";
 
@@ -69,6 +70,7 @@ function TreeNode({ entry, depth, expanded, openedByClick, toggle, menuPath, set
   const openEntry = useWorkspaceStore((state) => state.openEntry);
   const selectEntry = useWorkspaceStore((state) => state.selectEntry);
   const isDirectory = entry.type === "directory";
+  const openingNote = folderOpeningNote(entry);
   const children = isDirectory && entry.children ? visibleEntries(entry.children) : undefined;
   const childCount = children?.length ?? 0;
   const isExpanded = isDirectory && expanded.has(entry.path);
@@ -81,6 +83,11 @@ function TreeNode({ entry, depth, expanded, openedByClick, toggle, menuPath, set
     <li className="tree-node">
       <div className={`tree-row${isSelected ? " is-selected" : ""}${isSource ? " is-drag-source" : ""}${destination ? destination.allowed ? " is-drop-target" : " is-drop-blocked" : ""}${drag.landed === entry.path ? " is-drop-landed" : ""}`}
         data-tree-destination={isDirectory ? entry.path : undefined} style={{ "--tree-depth": depth } as React.CSSProperties}>
+        {openingNote && <button className="tree-chevron tree-folder-toggle" type="button"
+          aria-label={`${isExpanded ? "Comprimi" : "Espandi"} ${displayName}`} aria-expanded={isExpanded}
+          onClick={() => { selectEntry(entry); toggle(entry.path); }}>
+          <ChevronRight size={14} aria-hidden="true" />
+        </button>}
         <button
           type="button"
           className="tree-row-main"
@@ -91,19 +98,24 @@ function TreeNode({ entry, depth, expanded, openedByClick, toggle, menuPath, set
             if (event.touches.length === 1) drag.start(entry, displayName, event.currentTarget, event.nativeEvent);
           }}
           onClick={() => {
-            if (isDirectory) {
+            if (openingNote) {
+              if (!isExpanded) toggle(entry.path);
+              openEntry(openingNote);
+            } else if (isDirectory) {
               selectEntry(entry);
               toggle(entry.path);
             } else openEntry(entry);
           }}
           aria-expanded={isDirectory ? isExpanded : undefined}
+          aria-description={openingNote ? `Apre ${withoutMarkdownExtension(openingNote.name)}` : undefined}
         >
           <span className="tree-chevron" aria-hidden="true">
-            {isDirectory && <ChevronRight size={14} />}
+            {isDirectory && !openingNote && <ChevronRight size={14} />}
           </span>
           <span className="tree-icon" aria-hidden="true"><EntryIcon entry={entry} expanded={isExpanded} /></span>
           <span className="tree-name">{displayName}</span>
-          {childCount > 0 && <span className="tree-count">{childCount}</span>}
+          {openingNote ? <span className="tree-opening-note" title={`Nota di apertura: ${withoutMarkdownExtension(openingNote.name)}`} aria-hidden="true"><Link2 size={14} /></span>
+            : childCount > 0 && <span className="tree-count">{childCount}</span>}
         </button>
         <button
           type="button"

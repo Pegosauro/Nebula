@@ -1,3 +1,4 @@
+import { folderOpeningNoteFile, readOpeningNoteName } from "./folderOpeningNote";
 import { extensionOf, joinVaultPath } from "../../domain/path";
 import {
   DEFAULT_IGNORED_DIRECTORIES,
@@ -31,25 +32,32 @@ export async function scanDirectoryHandle(
   const stats = createStats();
   let processed = 0;
 
-  const scanLevel = async (directory: FileSystemDirectoryHandle, parentPath: string): Promise<VaultEntry[]> => {
+  const scanLevel = async (directory: FileSystemDirectoryHandle, parentPath: string): Promise<{ entries: VaultEntry[]; openingNoteName?: string }> => {
     const entries: VaultEntry[] = [];
+    let openingNoteName: string | undefined;
 
     for await (const [name, childHandle] of directory.entries()) {
       if (childHandle.kind === "directory" && ignoredDirectories.has(name)) continue;
 
+      if (childHandle.kind === "file" && name === folderOpeningNoteFile) {
+        if (parentPath) openingNoteName = await readOpeningNoteName(childHandle).catch(() => undefined);
+        continue;
+      }
       const path = joinVaultPath(parentPath, name);
       processed += 1;
       options.onProgress?.({ phase: "scan", current: processed, path });
 
       if (childHandle.kind === "directory") {
         stats.directories += 1;
+        const { entries: children, openingNoteName } = await scanLevel(childHandle, path);
         entries.push({
           id: path,
           name,
           path,
           type: "directory",
           extension: "",
-          children: await scanLevel(childHandle, path),
+          children,
+          ...(openingNoteName && { openingNoteName }),
         });
       } else {
         const file = await childHandle.getFile();
@@ -73,12 +81,12 @@ export async function scanDirectoryHandle(
       }
     }
 
-    return entries.sort(compareEntries);
+    return { entries: entries.sort(compareEntries), openingNoteName };
   };
 
   return {
     name: handle.name,
-    root: await scanLevel(handle, ""),
+    root: (await scanLevel(handle, "")).entries,
     stats,
     scannedAt: Date.now(),
   };

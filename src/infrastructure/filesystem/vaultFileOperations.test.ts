@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { VaultEntry } from "../../domain/vault";
+import { findVaultEntry, folderOpeningNote, type VaultEntry } from "../../domain/vault";
+import { folderOpeningNoteFile } from "./folderOpeningNote";
+import { scanDirectoryHandle } from "./scanDirectory";
 import { VaultCollisionError, VaultFileOperations } from "./vaultFileOperations";
 
 class MemoryFile {
@@ -68,6 +70,56 @@ async function fileText(directory: MemoryDirectory, name: string): Promise<strin
 }
 
 describe("VaultFileOperations", () => {
+  it("keeps one opening note per folder and follows its rename and the folder path", async () => {
+    const root = new MemoryDirectory("Vault");
+    const handle = root as unknown as FileSystemDirectoryHandle;
+    const operations = new VaultFileOperations();
+    await operations.createFolder(handle, "", "Progetti");
+    await operations.createFolder(handle, "", "Archivio");
+    await operations.createNote(handle, "Progetti", "Riepilogo");
+    await operations.createNote(handle, "Progetti", "Indice");
+    const opening = async (folder: string) => {
+      const { root } = await scanDirectoryHandle(handle);
+      expect(findVaultEntry(root, `${folder}/${folderOpeningNoteFile}`)).toBeUndefined();
+      return folderOpeningNote(findVaultEntry(root, folder))?.path;
+    };
+
+    await operations.setFolderOpeningNote(handle, "Progetti/Riepilogo.md", true);
+    expect(await opening("Progetti")).toBe("Progetti/Riepilogo.md");
+    await operations.setFolderOpeningNote(handle, "Progetti/Indice.md", true);
+    await operations.setFolderOpeningNote(handle, "Progetti/Riepilogo.md", false);
+    expect(await opening("Progetti")).toBe("Progetti/Indice.md");
+
+    await operations.rename(handle, entry("Progetti/Indice.md", "file", ".md"), "Guida");
+    expect(await opening("Progetti")).toBe("Progetti/Guida.md");
+    await operations.move(handle, entry("Progetti", "directory"), "Archivio");
+    expect(await opening("Archivio/Progetti")).toBe("Archivio/Progetti/Guida.md");
+
+    await operations.move(handle, entry("Archivio/Progetti/Guida.md", "file", ".md"), "Archivio");
+    expect(await opening("Archivio/Progetti")).toBeUndefined();
+    expect(await opening("Archivio")).toBeUndefined();
+    await operations.setFolderOpeningNote(handle, "Archivio/Guida.md", true);
+    await operations.delete(handle, entry("Archivio/Guida.md", "file", ".md"));
+    await operations.createNote(handle, "Archivio", "Guida");
+    expect(await opening("Archivio")).toBeUndefined();
+  });
+
+  it("retains the original note when updating its opening-note marker fails during rename", async () => {
+    const root = new MemoryDirectory("Vault");
+    const handle = root as unknown as FileSystemDirectoryHandle;
+    const operations = new VaultFileOperations();
+    await operations.createFolder(handle, "", "Progetti");
+    await operations.createNote(handle, "Progetti", "Originale");
+    const folder = root.children.get("Progetti") as MemoryDirectory;
+    const content = JSON.stringify({ version: 1, note: "Originale.md" });
+    folder.children.set(folderOpeningNoteFile, new MemoryFile(folderOpeningNoteFile, content, true));
+
+    await expect(operations.rename(handle, entry("Progetti/Originale.md", "file", ".md"), "Rinominata")).rejects.toThrow("Scrittura fallita");
+    expect(folder.children.has("Originale.md")).toBe(true);
+    expect(folder.children.has("Rinominata.md")).toBe(false);
+    expect(await fileText(folder, folderOpeningNoteFile)).toBe(content);
+  });
+
   it("duplicates all Markdown in the same folder and chooses free names without changing the source", async () => {
     const root = new MemoryDirectory("Vault"), operations = new VaultFileOperations();
     const handle = root as unknown as FileSystemDirectoryHandle;

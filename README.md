@@ -10,6 +10,8 @@ PWA locale per note Markdown, collegamenti e configuratori tecnici. Versione **0
 
 Il Vault diretto richiede un browser compatibile. La disposizione per schermi piccoli non sostituisce il supporto alle API del filesystem.
 
+Nelle **Proprietà** di una nota dentro una cartella, **Apri questa nota dalla cartella padre** la imposta come nota di apertura. Il nome della cartella apre la nota e la freccia espande o comprime l’elenco. Ogni cartella conserva una sola associazione nel file locale `.nebula-opening-note.json`.
+
 Per cambiare l’icona di un **Pulsante di testo**, apri la configurazione con il tasto destro e clicca sull’icona attuale. La scelta si vede subito in anteprima e viene salvata nella nota con **Salva**. **Originale** ripristina l’icona predefinita.
 
 I link HTTP e HTTPS su una riga a sé appaiono come schede. In **Scrivi**, usa il tasto destro o **⋯** per cambiare testo, indirizzo, icona e colore. Nel corpo di una frase il link resta sottolineato e il tasto destro permette di modificare testo e indirizzo. Le schede restano normali collegamenti Markdown e salvano l’aspetto nel titolo del link.

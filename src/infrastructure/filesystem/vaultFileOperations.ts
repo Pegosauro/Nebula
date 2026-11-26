@@ -8,6 +8,7 @@ import {
   normalizeRelativePath,
   validateVaultEntryName,
 } from "../../domain/path";
+import { findOpeningNoteFile, folderOpeningNoteFile, readOpeningNoteName, writeOpeningNoteName } from "./folderOpeningNote";
 import type { VaultEntry } from "../../domain/vault";
 
 export class VaultCollisionError extends Error {
@@ -127,7 +128,37 @@ async function copyDirectory(
   }
 }
 
+async function updateOpeningNoteAfterMutation(folder: FileSystemDirectoryHandle, sourceName: string, nextName?: string) {
+  if (extensionOf(sourceName) !== ".md") return;
+  const marker = await findOpeningNoteFile(folder).catch(error => {
+    if (error instanceof DOMException && error.name === "TypeMismatchError") return undefined;
+    throw error;
+  });
+  if (!marker || await readOpeningNoteName(marker) !== sourceName) return;
+  if (nextName) await writeOpeningNoteName(folder, nextName, marker);
+  else await folder.removeEntry(folderOpeningNoteFile);
+  return () => writeOpeningNoteName(folder, sourceName, nextName ? marker : undefined);
+}
+
 export class VaultFileOperations {
+  async setFolderOpeningNote(root: FileSystemDirectoryHandle, path: string, enabled: boolean): Promise<string | undefined> {
+    const parentPath = dirname(path);
+    const name = basename(path);
+    if (!parentPath || extensionOf(name) !== ".md" || validateVaultEntryName(name) !== name) throw new Error("Scegli una nota direttamente contenuta in una cartella del Vault.");
+    const parent = await resolveDirectory(root, parentPath);
+    const marker = await findOpeningNoteFile(parent);
+    const current = marker && await readOpeningNoteName(marker);
+    if (marker && !current) throw new Error("Le impostazioni della nota di apertura della cartella non sono leggibili.");
+    if (!enabled) {
+      if (current !== name) return current;
+      await parent.removeEntry(folderOpeningNoteFile);
+      return;
+    }
+    await parent.getFileHandle(name);
+    if (current !== name) await writeOpeningNoteName(parent, name, marker);
+    return name;
+  }
+
   async readText(root: FileSystemDirectoryHandle, path: string): Promise<TextFileSnapshot> {
     const normalized = normalizeRelativePath(path);
     assertMarkdownPath(normalized);
@@ -287,12 +318,14 @@ export class VaultFileOperations {
     if (!source || source.kind !== entry.type) throw new VaultEntryNotFoundError(sourcePath);
     if (await findNameCollision(targetParent, targetName)) throw new VaultCollisionError(targetPath);
 
+    let restoreOpeningNote: (() => Promise<void>) | undefined;
     try {
       if (source.kind === "directory") {
         const destination = await targetParent.getDirectoryHandle(targetName, { create: true });
         await copyDirectory(source, destination);
       } else {
         await copyFile(source, targetParent, targetName);
+        restoreOpeningNote = await updateOpeningNoteAfterMutation(sourceParent, sourceName, sourceParentPath === targetParentPath ? targetName : undefined);
       }
     } catch (error) {
       await targetParent.removeEntry(targetName, { recursive: true }).catch(() => undefined);
@@ -302,6 +335,7 @@ export class VaultFileOperations {
     try {
       await sourceParent.removeEntry(sourceName, { recursive: source.kind === "directory" });
     } catch {
+      await restoreOpeningNote?.().catch(() => undefined);
       throw new Error("La copia è riuscita, ma l'originale non è stato rimosso. Entrambe le versioni sono state mantenute.");
     }
     return targetPath;
@@ -313,6 +347,11 @@ export class VaultFileOperations {
     const name = basename(entry.path);
     const existing = await findChild(parent, name);
     if (!existing || existing.kind !== entry.type) throw new VaultEntryNotFoundError(entry.path);
-    await parent.removeEntry(name, { recursive: existing.kind === "directory" });
+    const restoreOpeningNote = existing.kind === "file" ? await updateOpeningNoteAfterMutation(parent, name) : undefined;
+    try { await parent.removeEntry(name, { recursive: existing.kind === "directory" }); }
+    catch (error) {
+      await restoreOpeningNote?.().catch(() => undefined);
+      throw error;
+    }
   }
 }
