@@ -12,6 +12,11 @@ export const pdfStyles = `
 body { margin: 0; color: #20242c; background: white; font: 11pt/1.55 system-ui, sans-serif; overflow-wrap: anywhere; }
 h1,h2,h3,h4,h5,h6 { line-height: 1.25; break-after: avoid; margin: 1em 0 .5em; }
 @media print {
+  @supports (box-decoration-break: clone) {
+    /* Keep the bottom inset in the document instead of the browser's URL margin. */
+    @page { margin-bottom: 0; }
+    .pdf-content { padding-bottom: 18mm; box-decoration-break: clone; }
+  }
   hr { display: none; }
   /* Require preceding content and use one break for consecutive separators. */
   .pdf-content > :not(hr) ~ h2,

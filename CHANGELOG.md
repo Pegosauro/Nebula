@@ -2,6 +2,7 @@
 
 ## In sviluppo
 
+- La stampa PDF omette l’indirizzo automatico in fondo alle pagine nei browser Chromium aggiornati.
 - Nella stampa PDF i separatori diventano salti pagina invisibili.
 - I link a siti esterni su una riga a sé diventano schede con icona e colore personalizzabili. Il tasto destro apre la modifica anche per i link inseriti nel testo.
 
