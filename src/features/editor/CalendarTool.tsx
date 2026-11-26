@@ -2,11 +2,7 @@ import { AlignLeft, CalendarClock, Clock } from "lucide-react";
 import type { EditorApi } from "./editorCommands";
 import { ToolbarMenu } from "./ToolbarMenu";
 
-const monthName = new Intl.DateTimeFormat("it-IT", { month: "long" });
-const pad = (value: number) => String(value).padStart(2, "0");
-const year = (date: Date) => String(date.getFullYear()).padStart(4, "0");
-const numericDate = (date: Date) => `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${year(date)}`;
-const localTime = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+import { noteDateFormats, numericDate } from "./noteDates";
 
 function CalendarIcon({ size = 19 }: { size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"
@@ -18,19 +14,19 @@ function CalendarIcon({ size = 19 }: { size?: number }) {
 }
 
 const formats = [
-  { id: "date", Icon: CalendarIcon, format: numericDate },
-  { id: "date-time", Icon: CalendarClock, format: (date: Date) => `${numericDate(date)} ${localTime(date)}` },
-  { id: "long-date", Icon: AlignLeft, format: (date: Date) => `${pad(date.getDate())} ${monthName.format(date)} ${year(date)}` },
-  { id: "time", Icon: Clock, format: localTime },
-];
+  { id: "date", Icon: CalendarIcon },
+  { id: "date-time", Icon: CalendarClock },
+  { id: "long-date", Icon: AlignLeft },
+  { id: "time", Icon: Clock },
+] as const;
 
 export function CalendarTool({ api }: { api: EditorApi | null }) {
   return <ToolbarMenu label="Formati di data e ora" icon={<CalendarIcon />}
     primary={{ label: "Inserisci data (GG/MM/AAAA)", run: () => api?.insert(numericDate(new Date())) }}
     items={() => {
       const now = new Date();
-      return formats.map(({ id, Icon, format }) => {
-        const value = format(now);
+      return formats.map(({ id, Icon }) => {
+        const value = noteDateFormats[id].format(now);
         return { id, label: value, icon: <Icon size={18} aria-hidden="true" />, run: () => api?.insert(value) };
       });
     }} />;

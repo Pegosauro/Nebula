@@ -910,3 +910,64 @@
   from { opacity: 0; translate: 0 var(--comment-travel); scale: .98; }
   to { opacity: 1; translate: 0 0; scale: 1; }
 }
+
+.text-button-icon {
+  display: inline-block;
+  flex: none;
+  width: 17px;
+  height: 17px;
+  background: currentColor;
+  mask: url("../features/editor/text-button.svg") center / contain no-repeat;
+}
+.note-text-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 43%, var(--border));
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font: 600 .875rem/1.35 system-ui, sans-serif;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.note-text-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 23%, var(--bg-panel));
+  border-color: var(--accent);
+}
+.note-text-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.note-text-button:disabled { cursor: default; opacity: .55; }
+.editor-dialog.text-button-dialog { width: min(388px, calc(100vw - 16px)); }
+.text-button-dialog.is-anchored { inset: auto; margin: 0; }
+.text-button-dialog.is-anchored::backdrop { background: transparent; backdrop-filter: none; }
+.text-button-dialog form { display: flex; flex-direction: column; min-height: 0; }
+.text-button-fields { padding-block: 4px 12px; overflow: auto; }
+.text-button-dialog .editor-panel-tabs { margin: 0; padding: 0; }
+.text-button-dialog .editor-panel-tabs button { flex: 1; }
+.text-button-date { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 20px; }
+.text-button-date :is(button, select) { min-height: 33px; font-size: 12px; }
+.text-button-date select {
+  max-width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-app);
+  color: var(--text-primary);
+}
+.text-button-dialog footer button:first-child:not(:only-child) { margin-inline-end: auto; }
+@media (pointer: coarse) {
+  .note-text-button { min-height: 44px; -webkit-touch-callout: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cm-line.text-button-inserted { animation: text-button-insert 400ms ease-out both; }
+}
+@keyframes text-button-insert {
+  from { opacity: .62; background-color: var(--accent-soft); }
+  to { opacity: 1; background-color: transparent; }
+}

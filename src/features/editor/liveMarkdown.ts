@@ -1,3 +1,5 @@
+import { TextButtonWidget } from "./textButtonWidget";
+import type { TextButtonMenu } from "./textButtonEditing";
 import { isInlineTextBlock, underlineSpans } from "./underlineMarkup";
 import { compactCodeBlocks, decorateCodeBlock, expandCodeBeforeDeleting, formulaLayouts } from "./liveCodeBlocks";
 import { deleteAroundHiddenSyntax } from "./hiddenSyntaxEditing";
@@ -380,11 +382,14 @@ function build(view: EditorView, sourcePath: string, analysis: MarkdownAnalysis)
   }
   return Decoration.set(decorations, true);
 }
-export function createLiveMarkdown(sourcePath: string, onTable: (table: MarkdownTable) => void = () => {}, onOpenLink: (target: string) => void = () => {}) {
+export function createLiveMarkdown(sourcePath: string, onTable: (table: MarkdownTable) => void = () => {}, onOpenLink: (target: string) => void = () => {}, onTextButton: (target: TextButtonMenu) => void = () => {}) {
   // Block replacements must be provided directly by state, before viewport measurement.
   const tables = (state: EditorState, analysis: MarkdownAnalysis) => {
     const ranges = analysis.tables.map(({ table, raw }) =>
       Decoration.replace({ block: true, widget: new TableWidget(table, raw, onTable, sourcePath, onOpenLink, state.readOnly) }).range(table.from, table.to));
+    for (const button of analysis.textButtons) {
+      ranges.push(Decoration.replace({ block: true, widget: new TextButtonWidget(button.raw, button.config.label, state.readOnly, onTextButton) }).range(button.from, button.to));
+    }
     for (const marker of analysis.markers) ranges.push(Decoration.replace({ block: true }).range(marker.from, marker.to));
     if (analysis.metadata) ranges.push(Decoration.replace({ block: true }).range(0, analysis.metadata.end));
     return Decoration.set(ranges, true);

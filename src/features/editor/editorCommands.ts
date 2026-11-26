@@ -1,3 +1,5 @@
+import { configureTextButton } from "./textButtonEditing";
+import type { TextButtonBlock, TextButtonConfig } from "../../domain/textButtons";
 import { editTextComment } from "./textCommentState";
 import { hasUnderline } from "./underlineMarkup";
 import { syntaxTree } from "@codemirror/language";
@@ -9,7 +11,7 @@ import { convertQuotedBlock, quoteBlockAt, wrapQuotedLines } from "./quoteBlockE
 import { formatEdit } from "./markdownFormatting";
 import { findHighlights } from "../../domain/markdownHighlight";
 
-export type EditorPanel = "insert" | "link" | "image" | "table" | "help" | "search";
+export type EditorPanel = "insert" | "link" | "image" | "table" | "help" | "search" | "textButton";
 export interface EditorUiState { from: number; to: number; line: number; column: number; selected: string; canUndo: boolean; canRedo: boolean; active: string[]; x: number; y: number }
 export interface EditorApi {
   format(action: FormatAction, toggle?: boolean): void;
@@ -20,6 +22,7 @@ export interface EditorApi {
   undo(): void;
   redo(): void;
   focus(): void;
+  configureTextButton(config: TextButtonConfig | null, block?: TextButtonBlock): boolean;
   editComment(id: string | undefined, text: string | null, selection?: { from: number; to: number; text: string }): boolean;
   getSelection(): { from: number; to: number; text: string };
 }
@@ -91,6 +94,7 @@ export function createEditorApi(view: EditorView): EditorApi {
       if (focus) view.focus();
     },
     undo: () => { if (view.state.readOnly) return; undo(view); view.focus(); }, redo: () => { if (view.state.readOnly) return; redo(view); view.focus(); }, focus: () => view.focus(),
+    configureTextButton: (config, block) => configureTextButton(view, config, block),
     editComment: (id, text, selection) => editTextComment(view, id, text, selection),
     getSelection: () => { const { from, to } = view.state.selection.main; return { from, to, text: view.state.sliceDoc(from, to) }; },
   };
